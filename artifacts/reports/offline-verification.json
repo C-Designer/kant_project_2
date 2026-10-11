@@ -1,0 +1,56 @@
+{
+  "executed_at": "2026-10-11T06:05:41.636680+00:00",
+  "paid_api_calls": 0,
+  "production_training_executed": false,
+  "fixture_training_executed": true,
+  "checks": [
+    {
+      "command": "uv run ruff check backend tests scripts",
+      "exit_code": 0,
+      "seconds": 0.054,
+      "output": "All checks passed!"
+    },
+    {
+      "command": "uv run pytest -q",
+      "exit_code": 0,
+      "seconds": 4.887,
+      "output": "........................................................                 [100%]\n56 passed in 3.45s"
+    },
+    {
+      "command": "npm --prefix frontend run typecheck",
+      "exit_code": 0,
+      "seconds": 0.901,
+      "output": "> lovecode-web@0.1.0 typecheck\n> tsc --noEmit"
+    },
+    {
+      "command": "uv run python -m lovecode.dataset validate",
+      "exit_code": 0,
+      "seconds": 0.17,
+      "output": "{\n  \"rows\": 600,\n  \"splits\": {\n    \"train\": 360,\n    \"test\": 120,\n    \"validation\": 120\n  },\n  \"labeled\": 0,\n  \"approved\": 0,\n  \"cross_split_people\": 0,\n  \"human_review\": \"incomplete\"\n}"
+    },
+    {
+      "command": "uv run python -m lovecode.annotate --dry-run",
+      "exit_code": 0,
+      "seconds": 0.25,
+      "output": "{\"would_call\": 1, \"paid_calls\": 0, \"provider\": \"openai\", \"human_review\": \"incomplete\"}"
+    },
+    {
+      "command": "uv run python -m lovecode.train --allow-ai-drafts --dry-run",
+      "exit_code": 0,
+      "seconds": 0.158,
+      "output": "{\n  \"ready\": false,\n  \"eligible_rows\": 0,\n  \"ineligible_rows\": 600,\n  \"classes_per_split\": {\n    \"train\": 0,\n    \"validation\": 0,\n    \"test\": 0\n  },\n  \"training_executed\": false,\n  \"human_review\": \"incomplete\"\n}"
+    },
+    {
+      "command": "uv run python -m lovecode.experiment --dry-run",
+      "exit_code": 0,
+      "seconds": 0.234,
+      "output": "{\"synthetic\": true, \"couple_id\": \"C0001\", \"model_artifact_ready\": false, \"api_enabled\": false, \"configured\": false, \"paid_calls\": 0}"
+    },
+    {
+      "command": "uv run python -m lovecode.pipeline --dry-run",
+      "exit_code": 0,
+      "seconds": 0.234,
+      "output": "{\"dataset\": {\"rows\": 600, \"splits\": {\"train\": 360, \"test\": 120, \"validation\": 120}, \"labeled\": 0, \"approved\": 0, \"cross_split_people\": 0, \"human_review\": \"incomplete\"}, \"paid_calls\": 0, \"max_requested_calls\": 2, \"stages\": [\"label pending rows\", \"train two candidates if coverage ready\", \"explain one synthetic pair\"], \"human_review\": \"incomplete\"}"
+    }
+  ]
+}

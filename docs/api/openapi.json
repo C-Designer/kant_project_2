@@ -1,0 +1,540 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "러브코드 로컬 MVP",
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/taxonomy": {
+      "get": {
+        "summary": "Taxonomy",
+        "operationId": "taxonomy_api_v1_taxonomy_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analyses": {
+      "post": {
+        "summary": "Analyse",
+        "operationId": "analyse_api_v1_analyses_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo-analysis": {
+      "post": {
+        "summary": "Demo",
+        "operationId": "demo_api_v1_demo_analysis_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Strict"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/results": {
+      "get": {
+        "summary": "Get",
+        "operationId": "get_api_v1_results_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Save",
+        "operationId": "save_api_v1_results_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/results/{result_id}": {
+      "delete": {
+        "summary": "Remove",
+        "operationId": "remove_api_v1_results__result_id__delete",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisInput": {
+        "properties": {
+          "external_processing_consent": {
+            "type": "boolean",
+            "title": "External Processing Consent",
+            "default": false
+          },
+          "person_a": {
+            "$ref": "#/components/schemas/Person"
+          },
+          "person_b": {
+            "$ref": "#/components/schemas/Person"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "person_a",
+          "person_b"
+        ],
+        "title": "AnalysisInput"
+      },
+      "AnalysisResponse": {
+        "properties": {
+          "analysis_id": {
+            "type": "string",
+            "title": "Analysis Id"
+          },
+          "result": {
+            "$ref": "#/components/schemas/PublicResult"
+          },
+          "save_ticket": {
+            "type": "string",
+            "title": "Save Ticket"
+          },
+          "save_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Save Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "analysis_id",
+          "result",
+          "save_ticket",
+          "save_expires_at"
+        ],
+        "title": "AnalysisResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Person": {
+        "properties": {
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female",
+              "unspecified"
+            ],
+            "title": "Gender"
+          },
+          "birth_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Birth Date"
+          },
+          "birth_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Time"
+          },
+          "mbti": {
+            "type": "string",
+            "title": "Mbti"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "gender",
+          "birth_date",
+          "birth_time",
+          "mbti"
+        ],
+        "title": "Person"
+      },
+      "PublicResult": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "type_id": {
+            "type": "string",
+            "title": "Type Id"
+          },
+          "taxonomy_version": {
+            "type": "string",
+            "const": "love-code-v1",
+            "title": "Taxonomy Version",
+            "default": "love-code-v1"
+          },
+          "axes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Axes"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Summary"
+          },
+          "strengths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Strengths"
+          },
+          "adjustments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Adjustments"
+          },
+          "conversation_tip": {
+            "type": "string",
+            "maxLength": 180,
+            "minLength": 1,
+            "title": "Conversation Tip"
+          },
+          "limitations": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "missing_hour_a",
+                "missing_hour_b",
+                "boundary_time_unknown_a",
+                "boundary_time_unknown_b"
+              ]
+            },
+            "type": "array",
+            "title": "Limitations",
+            "default": []
+          },
+          "disclaimer_version": {
+            "type": "string",
+            "const": "entertainment-v1",
+            "title": "Disclaimer Version",
+            "default": "entertainment-v1"
+          },
+          "evidence_status": {
+            "type": "string",
+            "enum": [
+              "fixture",
+              "ai_draft_unreviewed"
+            ],
+            "title": "Evidence Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type_id",
+          "axes",
+          "summary",
+          "strengths",
+          "adjustments",
+          "conversation_tip",
+          "evidence_status"
+        ],
+        "title": "PublicResult"
+      },
+      "SaveInput": {
+        "properties": {
+          "save_ticket": {
+            "type": "string",
+            "maxLength": 32768,
+            "title": "Save Ticket"
+          },
+          "read_token": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "title": "Read Token"
+          },
+          "delete_token": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "title": "Delete Token"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "save_ticket",
+          "read_token",
+          "delete_token"
+        ],
+        "title": "SaveInput"
+      },
+      "SavedResponse": {
+        "properties": {
+          "result_id": {
+            "type": "string",
+            "title": "Result Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "result_id",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "SavedResponse"
+      },
+      "SharedResponse": {
+        "properties": {
+          "result_id": {
+            "type": "string",
+            "title": "Result Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "result": {
+            "$ref": "#/components/schemas/PublicResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "result_id",
+          "created_at",
+          "expires_at",
+          "result"
+        ],
+        "title": "SharedResponse"
+      },
+      "Strict": {
+        "properties": {},
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Strict"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

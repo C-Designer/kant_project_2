@@ -1,0 +1,6 @@
+{
+  "couples.csv": true,
+  "synthetic_people.json": true,
+  "synthetic_pairs.json": true,
+  "dataset_manifest.json": true
+}

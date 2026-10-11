@@ -1,0 +1,183 @@
+"""Reproducible synthetic inputs; never manufacture model labels or human approvals."""
+
+import argparse
+import csv
+import hashlib
+import json
+import random
+from collections import Counter
+from datetime import date, timedelta
+from pathlib import Path
+
+from .calendar import VERSION, input_text
+from .contracts import TAXONOMY, Person
+
+HEADERS = ["couple_id", "group_id", "input_text", "label", "label_reason", "review_status", "split"]
+SEED = 20261011
+
+
+def write_csv(path, rows):
+    tmp = path.with_suffix(".tmp")
+    with tmp.open("w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=HEADERS)
+        w.writeheader()
+        w.writerows(rows)
+    tmp.replace(path)
+
+
+def generate(dest):
+    dest = Path(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    if (dest / "couples.csv").exists():
+        raise ValueError("기존 CSV 보호: 새 출력 디렉터리를 지정하세요.")
+    rng = random.Random(SEED)
+    mbtis = [a + b + c + d for a in "EI" for b in "SN" for c in "TF" for d in "JP"]
+    people = []
+    pairs = []
+    rows = []
+    # Disjoint pairs are connected components of size two; no reused identity.
+    ids = list(range(600))
+    rng.shuffle(ids)
+    splits = {
+        i: ("train" if rank < 360 else "validation" if rank < 480 else "test")
+        for rank, i in enumerate(ids)
+    }
+    for i in range(600):
+        ps = []
+        pids = []
+        for j in range(2):
+            d = date(1960, 1, 1) + timedelta(days=rng.randrange(16437))
+            p = Person(
+                gender=rng.choice(["male", "female", "unspecified"]),
+                birth_date=d,
+                birth_time=None
+                if rng.random() < 0.22
+                else f"{rng.randrange(24):02}:{rng.randrange(60):02}",
+                mbti=rng.choice(mbtis),
+            )
+            pid = f"P{2 * i + j + 1:04}"
+            pids.append(pid)
+            ps.append(p)
+            people.append(
+                {"person_id": pid, **p.model_dump(mode="json"), "source": "synthetic", "seed": SEED}
+            )
+        cid = f"C{i + 1:04}"
+        gid = f"G{i + 1:04}"
+        pairs.append(
+            {"couple_id": cid, "group_id": gid, "person_a_id": pids[0], "person_b_id": pids[1]}
+        )
+        rows.append(dict(zip(HEADERS, [cid, gid, input_text(*ps), "", "", "pending", splits[i]])))
+    write_csv(dest / "couples.csv", rows)
+    for name, values in [("synthetic_people", people), ("synthetic_pairs", pairs)]:
+        (dest / f"{name}.json").write_text(json.dumps(values, ensure_ascii=False, indent=2) + "\n")
+    manifest = {
+        "dataset_version": "synthetic-v1",
+        "source": "synthetic",
+        "seed": SEED,
+        "count": 600,
+        "calendar_version": VERSION,
+        "calendar_validation": "experimental_not_full_range",
+        "label_status": "not_called",
+        "human_review": "incomplete",
+        "taxonomy_version": "love-code-v1",
+        "splits": dict(Counter(r["split"] for r in rows)),
+        "input_sha256": hashlib.sha256("".join(r["input_text"] for r in rows).encode()).hexdigest(),
+    }
+    (dest / "dataset_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+    )
+    (dest / "annotation_records.jsonl").touch()
+    return validate(dest)
+
+
+def validate(dest):
+    dest = Path(dest)
+    with (dest / "couples.csv").open(encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames != HEADERS:
+            raise ValueError("CSV 컬럼 불일치")
+        rows = list(reader)
+    if len(rows) != 600 or len({r["couple_id"] for r in rows}) != 600:
+        raise ValueError("600개 고유 커플 필요")
+    if Counter(r["split"] for r in rows) != Counter(train=360, validation=120, test=120):
+        raise ValueError("분할 불일치")
+    pairs = json.loads((dest / "synthetic_pairs.json").read_text())
+    people = json.loads((dest / "synthetic_people.json").read_text())
+    manifest = json.loads((dest / "dataset_manifest.json").read_text())
+    if manifest["source"] != "synthetic" or any(p["source"] != "synthetic" for p in people):
+        raise ValueError("가상 데이터만 허용")
+    pairmap = {p["couple_id"]: p for p in pairs}
+    personmap = {p["person_id"]: p for p in people}
+    seen = {}
+    groups = {}
+    labels = {t["label"] for t in TAXONOMY.values()}
+    approvals = {}
+    for line in (dest / "annotation_records.jsonl").read_text().splitlines():
+        rec = json.loads(line)
+        if (
+            rec.get("source") == "human"
+            and rec.get("reviewer")
+            and rec.get("reviewed_at")
+            and rec.get("status") == "approved"
+        ):
+            approvals[rec["couple_id"]] = rec
+    for r in rows:
+        pair = pairmap[r["couple_id"]]
+        if r["group_id"] != pair["group_id"]:
+            raise ValueError("그룹 불일치")
+        for pid in [pair["person_a_id"], pair["person_b_id"]]:
+            if pid in seen and seen[pid] != r["split"]:
+                raise ValueError("인물 분할 누수")
+            if pid in groups and groups[pid] != r["group_id"]:
+                raise ValueError("연결 인물 그룹 불일치")
+            if pid not in personmap:
+                raise ValueError("인물 누락")
+            seen[pid] = r["split"]
+            groups[pid] = r["group_id"]
+        if (
+            not r["input_text"]
+            or len(r["input_text"]) > 12000
+            or any(label in r["input_text"] for label in labels)
+        ):
+            raise ValueError("입력/라벨 유출 오류")
+        if r["label"] and r["label"] not in labels:
+            raise ValueError("알 수 없는 라벨")
+        if r["review_status"] not in ("pending", "approved", "needs_revision"):
+            raise ValueError("검수 상태 오류")
+        if r["review_status"] == "approved" and (
+            not r["label_reason"] or approvals.get(r["couple_id"], {}).get("label") != r["label"]
+        ):
+            raise ValueError("사람 검수 증거 없음")
+        if any(v.startswith(("=", "+", "-", "@", "\t", "\r")) for v in r.values()):
+            raise ValueError("CSV 수식 접두 문자")
+    if (
+        hashlib.sha256("".join(r["input_text"] for r in rows).encode()).hexdigest()
+        != manifest["input_sha256"]
+    ):
+        raise ValueError("원본 입력 digest 불일치")
+    return {
+        "rows": len(rows),
+        "splits": dict(Counter(r["split"] for r in rows)),
+        "labeled": sum(bool(r["label"]) for r in rows),
+        "approved": sum(r["review_status"] == "approved" for r in rows),
+        "cross_split_people": 0,
+        "human_review": "incomplete",
+    }
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("command", choices=["generate", "validate"])
+    p.add_argument("--dir", default="data/synthetic-v1")
+    a = p.parse_args()
+    print(
+        json.dumps(
+            generate(a.dir) if a.command == "generate" else validate(a.dir),
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()

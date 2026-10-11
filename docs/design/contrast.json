@@ -1,0 +1,56 @@
+[
+  {
+    "pair": "ink/paper",
+    "ratio": 13.42,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "pair": "muted/paper",
+    "ratio": 5.18,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "pair": "ink/accent",
+    "ratio": 11.69,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "pair": "paper/ink",
+    "ratio": 13.42,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "pair": "border/surface",
+    "ratio": 4.07,
+    "minimum": 3,
+    "pass": true
+  },
+  {
+    "pair": "focus/paper",
+    "ratio": 5.21,
+    "minimum": 3,
+    "pass": true
+  },
+  {
+    "pair": "error/paper",
+    "ratio": 6.18,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "pair": "success/paper",
+    "ratio": 6.9,
+    "minimum": 4.5,
+    "pass": true
+  },
+  {
+    "pair": "warning/paper",
+    "ratio": 6.41,
+    "minimum": 4.5,
+    "pass": true
+  }
+]

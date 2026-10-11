@@ -1,0 +1,17 @@
+{
+  "dataset_version": "synthetic-v1",
+  "source": "synthetic",
+  "seed": 20261011,
+  "count": 600,
+  "calendar_version": "fixed-kst-term-minus1h-day00-v1/lunar-python1.4.8",
+  "calendar_validation": "experimental_not_full_range",
+  "label_status": "not_called",
+  "human_review": "incomplete",
+  "taxonomy_version": "love-code-v1",
+  "splits": {
+    "train": 360,
+    "test": 120,
+    "validation": 120
+  },
+  "input_sha256": "e24191f0fc4dbaeeaa2a744ccaecdbb07bf9fd0f6be721a6fdc9e19588224af4"
+}
