@@ -103,3 +103,7 @@
 - production build/TypeScript 통과. backend 16개 조합과 frontend ID/axes 매핑 전수 일치 확인.
 - Codex 내장 브라우저의 390px 예시 결과에서 T14 → 든든한 우리 그림·이름 확인, 클릭으로 /types/t14 새 탭과 제목 확인, 원래 탭의 결과 유지 확인. 관측된 콘솔 오류 없음. 증거: artifacts/qa/result-type-mobile.png.
 - 실제 OpenAI 호출은 수행하지 않았다. 공유 결과 화면은 공용 컴포넌트 연결을 코드로 확인했으며 이번 변경에서 새 공유 저장은 실행하지 않았다.
+
+## 2026-10-11 관계 도감 v0.4
+
+전체 표면의 색·타이포·이미지/카피 통일, 3단계 입력과 확인, 입력 상태 보존, 홈 예시 바로보기를 적용했다. 실제 브라우저에서 320/390/768/1280px의 해당 화면과 모의 API 분석/공유를 검증했다. Next build/TypeScript와 pytest 56개 통과. 구체 여정·삭제 정리 방식·미검증 범위는 [ATLAS_REVIEW.md](../artifacts/qa/ATLAS_REVIEW.md)에 기록했다.

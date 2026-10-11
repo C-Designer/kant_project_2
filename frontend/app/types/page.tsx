@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function TypesPage() {
   return <main id="main" className="matrix-main">
-    <header className="matrix-heading"><p className="eyebrow">THE RELATIONSHIP COLLECTION</p><h1>16가지, <span>우리 사이.</span></h1><p>어떤 사이가 궁금한가요?<br className="mobile-break"/> 그림을 눌러 자세히 알아보세요.</p></header>
+    <header className="matrix-heading"><p className="eyebrow">두 사람을 위한 관계 도감</p><h1>우리 둘을 닮은 <span>한 장.</span></h1><p>어떤 사이가 궁금한가요?<br className="mobile-break"/> 그림을 눌러 자세히 알아보세요.</p></header>
     <div className="relationship-matrix" aria-label="16가지 관계유형">{types.map(type=><Link className="matrix-tile" href={`/types/${type.slug}`} key={type.id} aria-label={`${type.name} — ${type.labels.join(', ')} 알아보기`}>
       <div className="matrix-image"><TypeIllustration type={type}/><span className="matrix-arrow" aria-hidden="true">↗</span></div>
       <h2>{type.name}</h2>
