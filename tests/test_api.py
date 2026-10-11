@@ -1,11 +1,10 @@
 import secrets
-import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
 from lovecode.db import audit, results
-from lovecode.security import digest
+from lovecode.security import digest, verify
 from sqlalchemy import func, select, update
 
 
@@ -152,7 +151,9 @@ def test_ticket_tampering_invalid_keys_expiry(client, monkeypatch):
         client.post("/api/v1/results", json={**b, "delete_token": b["read_token"]}).status_code
         == 422
     )
-    monkeypatch.setattr("lovecode.security.time.time", lambda: time_real + 601)
+    # Use this ticket's boundary, not module import time (which depends on suite speed).
+    expires_at = verify(b["save_ticket"])["expires_at"]
+    monkeypatch.setattr("lovecode.security.time.time", lambda: expires_at)
     assert client.post("/api/v1/results", json=b).status_code == 410
     assert client.get("/api/v1/results").status_code == 404
     assert (
@@ -161,9 +162,6 @@ def test_ticket_tampering_invalid_keys_expiry(client, monkeypatch):
         ).status_code
         == 204
     )
-
-
-time_real = time.time()
 
 
 def test_rate_limit(client):

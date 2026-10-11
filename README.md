@@ -4,7 +4,7 @@
 
 ## 실행
 
-설치된 Python 3.12/uv, Node/npm, Docker가 필요합니다. 프로젝트 루트에서:
+설치된 Python 3.12/uv, Node 22.18 이상/npm, Docker가 필요합니다. 프로젝트 루트에서:
 
 ```sh
 uv sync --frozen
@@ -31,7 +31,19 @@ npm --prefix frontend run start
 
 개발 중에는 `npm --prefix frontend run dev`를 사용합니다. 기존 start 프로세스와 같은 포트를 동시에 쓰지 마세요. DB volume은 재시작 시 보존되며 자동 백업·외부 배포를 설정하지 않았습니다. 로컬 시연 전용 구성입니다.
 
+## 코드 읽기
+
+팀원용 [코드 구조와 읽는 순서](docs/CODE_GUIDE.md)를 참고하세요.
+
 ## 검증
+
+전체 오프라인 검증 루프(유료 API 호출·모델 다운로드 없음):
+
+```sh
+uv run python scripts/verify.py
+```
+
+화면 코드 정렬은 `npm --prefix frontend run format`, 변경분 검사는 `npm --prefix frontend run format:check`로 실행합니다.
 
 ```sh
 uv run pytest -q

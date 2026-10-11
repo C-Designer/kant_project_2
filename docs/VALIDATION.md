@@ -107,3 +107,7 @@
 ## 2026-10-11 관계 도감 v0.4
 
 전체 표면의 색·타이포·이미지/카피 통일, 3단계 입력과 확인, 입력 상태 보존, 홈 예시 바로보기를 적용했다. 실제 브라우저에서 320/390/768/1280px의 해당 화면과 모의 API 분석/공유를 검증했다. Next build/TypeScript와 pytest 56개 통과. 구체 여정·삭제 정리 방식·미검증 범위는 [ATLAS_REVIEW.md](../artifacts/qa/ATLAS_REVIEW.md)에 기록했다.
+
+## 2026-10-11 코드 구조 정리
+
+미사용 컴포넌트·스타일·직접 의존성을 제거하고, 입력 필드/확인/공유 기능과 API/관계 표현 함수를 분리했다. JSON 키 순서에 따른 축 이름 오표시 위험을 수정했다. 팀 읽기 안내는 [CODE_GUIDE.md](CODE_GUIDE.md), 브라우저 회귀·한계는 [REFACTOR_REVIEW.md](../artifacts/qa/REFACTOR_REVIEW.md), 자동 검증 결과는 `artifacts/reports/offline-verification.json`에 있다.

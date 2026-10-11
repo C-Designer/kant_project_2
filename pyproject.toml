@@ -10,17 +10,15 @@ dependencies = [
   "sqlalchemy>=2.0,<3",
   "psycopg[binary]>=3.2,<4",
   "httpx>=0.28,<1",
+  "python-dotenv>=1,<2",
   "lunar-python>=1.4,<2",
-  "korean-lunar-calendar>=0.3,<1",
   "scikit-learn>=1.6,<2",
   "sentence-transformers>=3,<6",
-  "langchain-core>=0.3,<2",
   "joblib>=1.4,<2",
-  "pyyaml>=6,<7",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8,<10", "pytest-asyncio>=0.25,<2", "ruff>=0.11,<1"]
+dev = ["pytest>=8,<10", "pytest-asyncio>=0.25,<2", "ruff>=0.11,<1", "korean-lunar-calendar>=0.3,<1"]
 
 [build-system]
 requires = ["hatchling"]
