@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import random
 
-from .constants import ELEMENT_KO, ELEMENT_PLAIN, STEM_ELEMENT, STEM_KO, BRANCH_KO
+from .constants import BRANCH_KO, ELEMENT_KO, ELEMENT_PLAIN, STEM_ELEMENT, STEM_KO
 
 GENDER_KO = {"M": "남", "F": "여"}
 
@@ -192,11 +192,11 @@ def make_label_view(pair_id: str, A: dict, B: dict, F: dict) -> str:
         "[관계 목록]" if rel_lines else "[관계 목록] 없음",
         *rel_lines,
         "[종합 지표]",
-        f"  B→A 필요한 기운 공급 {F['supply_b_to_a']['level']}({F['supply_b_to_a']['share']}), "
-        f"A→B {F['supply_a_to_b']['level']}({F['supply_a_to_b']['share']})",
-        f"  오행 분포 유사도 {F['element_similarity']}, 온도 정반대 {'예' if F['opposite_climate'] else '아니오'}, "
-        f"합친 온도 {F['combined_climate']}({F['combined_temp']:+g}), 같은 계절 {'예' if F['same_season'] else '아니오'}",
-        f"  A가 본 B 일간 {F['a_sees_b']}{'(배우자성)' if F['spouse_a']['is_spouse_star'] else ''}, "
-        f"B가 본 A 일간 {F['b_sees_a']}{'(배우자성)' if F['spouse_b']['is_spouse_star'] else ''}",
+        (f"  B→A 필요한 기운 공급 {F['supply_b_to_a']['level']}({F['supply_b_to_a']['share']}), "
+        f"A→B {F['supply_a_to_b']['level']}({F['supply_a_to_b']['share']})"),
+        (f"  오행 분포 유사도 {F['element_similarity']}, 온도 정반대 {'예' if F['opposite_climate'] else '아니오'}, "
+        f"합친 온도 {F['combined_climate']}({F['combined_temp']:+g}), 같은 계절 {'예' if F['same_season'] else '아니오'}"),
+        (f"  A가 본 B 일간 {F['a_sees_b']}{'(배우자성)' if F['spouse_a']['is_spouse_star'] else ''}, "
+        f"B가 본 A 일간 {F['b_sees_a']}{'(배우자성)' if F['spouse_b']['is_spouse_star'] else ''}"),
         f"  MBTI 같은 글자 {''.join(m['same']) or '-'}({m['same_count']}개), 다른 글자 {', '.join(m['diff']) or '-'}",
     ])

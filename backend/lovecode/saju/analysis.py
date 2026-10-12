@@ -4,8 +4,17 @@
 """
 from __future__ import annotations
 
-from .constants import (BRANCH_ELEMENT, CHAR_TEMP, ELEMENT_KO, HIDDEN_STEMS, POS_NAMES, SEASON,
-                        SEASON_TEMP, STEM_ELEMENT, STEM_YANG)
+from .constants import (
+    BRANCH_ELEMENT,
+    CHAR_TEMP,
+    ELEMENT_KO,
+    HIDDEN_STEMS,
+    POS_NAMES,
+    SEASON,
+    SEASON_TEMP,
+    STEM_ELEMENT,
+    STEM_YANG,
+)
 from .manse import Saju
 
 # 강약 판단 가중치: 월지(득령) 3, 일지(득지) 2, 나머지 1

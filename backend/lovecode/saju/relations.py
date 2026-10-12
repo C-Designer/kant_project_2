@@ -8,9 +8,21 @@ import math
 from itertools import product
 
 from .analysis import ten_god
-from .constants import (BRANCH_CLASH, BRANCH_ELEMENT, BRANCH_HARM, BRANCH_PUNISH, BRANCH_SIX_COMBINE,
-                        BRANCH_WONJIN, DIRECTION_COMBINE, MAIN_HIDDEN, POS_NAMES, SELF_PUNISH,
-                        STEM_CLASH, STEM_COMBINE, STEM_ELEMENT, TRIPLE_COMBINE, MBTI_AXES)
+from .constants import (
+    BRANCH_CLASH,
+    BRANCH_ELEMENT,
+    BRANCH_HARM,
+    BRANCH_PUNISH,
+    BRANCH_SIX_COMBINE,
+    BRANCH_WONJIN,
+    DIRECTION_COMBINE,
+    MAIN_HIDDEN,
+    POS_NAMES,
+    STEM_CLASH,
+    STEM_COMBINE,
+    STEM_ELEMENT,
+    TRIPLE_COMBINE,
+)
 
 # 위치 중요도 (판단 기준 문서의 우선순위와 같다)
 POS_RANK = {("일", "일"): 3, ("월", "월"): 2, ("일", "월"): 2, ("월", "일"): 2}

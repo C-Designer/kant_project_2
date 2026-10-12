@@ -31,4 +31,4 @@ def build_pair(A: dict, B: dict, seed: int = 0, pair_id: str = "pair") -> dict:
     return {"features": F, "text": text, "template": template, "label_view": make_label_view(pair_id, A, B, F)}
 
 
-__all__ = ["build_person", "build_pair", "calc_saju", "analyze_person", "analyze_pair", "ManseInputError"]
+__all__ = ["ManseInputError", "analyze_pair", "analyze_person", "build_pair", "build_person", "calc_saju"]
