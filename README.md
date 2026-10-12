@@ -33,7 +33,7 @@ npm --prefix frontend run start
 
 ## 코드 읽기
 
-팀원용 [코드 구조와 읽는 순서](docs/CODE_GUIDE.md)를 참고하세요.
+팀원용 [코드 구조와 읽는 순서](docs/CODE_GUIDE.md)를 참고하세요. 브랜치·PR 규칙은 [협업 규칙](CONTRIBUTING.md)을 따릅니다. `main`에는 PR로만 반영됩니다.
 
 ## 검증
 
