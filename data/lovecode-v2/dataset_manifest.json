@@ -6,8 +6,7 @@
   "calendar_version": "lovecode-saju-v1/kst-dst-sect1",
   "calendar_validation": "public_ipchun_4of4_boundary_20of20_random3000_100pct",
   "label_status": {
-    "ai_reviewed": 358,
-    "pending": 242
+    "ai_reviewed": 600
   },
   "label_guideline": {
     "pending": "v1.1",
