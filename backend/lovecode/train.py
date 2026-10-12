@@ -20,6 +20,7 @@ def main():
     p.add_argument("--dir", default="data/synthetic-v1")
     p.add_argument("--allow-ai-drafts", action="store_true")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--skip-test", action="store_true", help="stop after validation selection")
     p.add_argument(
         "--encoder", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     )
@@ -193,7 +194,8 @@ def train(a, *, encoder_factory=None):
         ),
     )
     report["selected"] = winner
-    report["test"] = evaluate(winner, "test")
+    # --skip-test: select on validation now, spend the single test evaluation later.
+    report["test"] = None if getattr(a, "skip_test", False) else evaluate(winner, "test")
     report["label_order"] = sorted(classes)
     output.mkdir(parents=True, exist_ok=True)
     joblib.dump(baseline, output / "tfidf_lr.joblib")
