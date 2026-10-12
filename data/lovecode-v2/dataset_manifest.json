@@ -1,0 +1,25 @@
+{
+  "dataset_version": "lovecode-v2",
+  "source": "synthetic",
+  "seed": 20261012,
+  "count": 600,
+  "calendar_version": "lovecode-saju-v1/kst-dst-sect1",
+  "calendar_validation": "public_ipchun_4of4_boundary_20of20_random3000_100pct",
+  "label_status": {
+    "ai_reviewed": 358,
+    "pending": 242
+  },
+  "label_guideline": {
+    "pending": "v1.1",
+    "ai_reviewed": "v1.2"
+  },
+  "human_review": "incomplete",
+  "taxonomy_version": "love-code-v1",
+  "splits": {
+    "train": 360,
+    "validation": 120,
+    "test": 120
+  },
+  "groups": 3,
+  "input_sha256": "59485821bb47ad29ee50c8dc7fc95458879a0712c49d157bfb8085e18850853a"
+}
