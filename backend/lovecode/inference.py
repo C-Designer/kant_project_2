@@ -16,11 +16,15 @@ class Classifier:
         import joblib
 
         root = Path(directory)
-        self.report = json.loads((root / "report.json").read_text())
+        self.report = json.loads((root / "report.json").read_text(encoding="utf-8"))
         if self.report.get("fixture") and not allow_fixture:
             raise ArtifactError("FIXTURE_MODEL_NOT_ALLOWED")
         selected = self.report["selected"]
-        files = {"tfidf_lr": "tfidf_lr.joblib", "pretrained_encoder_lr": "encoder_lr.joblib"}
+        files = {
+            "tfidf_lr": "tfidf_lr.joblib",
+            "pretrained_encoder_lr": "encoder_lr.joblib",
+            "klue_bert": "klue_bert/model.safetensors",
+        }
         if selected not in files:
             raise ArtifactError("UNKNOWN_CLASSIFIER")
         filename = files[selected]
@@ -28,7 +32,14 @@ class Classifier:
             "artifact_sha256", {}
         ).get(filename):
             raise ArtifactError("MODEL_DIGEST_MISMATCH")
-        self.model = joblib.load(root / filename)
+        if selected == "klue_bert":
+            from .bert import BertModel
+
+            self.model = BertModel(
+                root / "klue_bert", max_length=self.report["bert"]["hyperparameters"]["max_length"]
+            )
+        else:
+            self.model = joblib.load(root / filename)
         if set(self.model.classes_) != {v["label"] for v in TAXONOMY.values()}:
             raise ArtifactError("CLASS_COVERAGE_MISMATCH")
         self.encoder = None

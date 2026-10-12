@@ -1,0 +1,2 @@
+# Dataset CSVs hold newlines inside quoted fields; input_sha256 needs them byte-exact.
+data/**/*.csv -text
