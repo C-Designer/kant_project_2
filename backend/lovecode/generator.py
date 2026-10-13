@@ -90,6 +90,7 @@ def prompt_inputs(text, type_id):
 OLLAMA_NUM_CTX = int(os.environ.get("LC_OLLAMA_NUM_CTX", "4096"))
 # Writing the explanation needs no deep reasoning; low effort keeps latency and cost down.
 OPENAI_REASONING_EFFORT = os.environ.get("LC_REASONING_EFFORT", "low")
+OLLAMA_SEED = 42
 
 
 def _ollama_can_think(base_url, model):
@@ -114,6 +115,7 @@ def make_llm(backend, model, **kwargs):
             model=model,
             base_url=base_url,
             temperature=0.3,
+            seed=OLLAMA_SEED,  # same input -> same answer on every teammate's PC
             num_predict=1200,
             num_ctx=OLLAMA_NUM_CTX,
             keep_alive="10m",
@@ -179,7 +181,12 @@ class LangChainExplainer:
             "model": self.model,
             "prompt_version": PROMPT_VERSION,
             "settings": (
-                {"temperature": 0.3, "num_ctx": OLLAMA_NUM_CTX, "thinking": "off_if_supported"}
+                {
+                    "temperature": 0.3,
+                    "seed": OLLAMA_SEED,
+                    "num_ctx": OLLAMA_NUM_CTX,
+                    "thinking": "off_if_supported",
+                }
                 if self.backend == "ollama"
                 else {"reasoning_effort": OPENAI_REASONING_EFFORT, "temperature": "default"}
             ),
