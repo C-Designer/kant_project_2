@@ -1,6 +1,7 @@
 """lovecode-v2: ported saju text, dataset, classifier candidates, LangChain explainer (offline)."""
 
 import csv
+import json
 import shutil
 from datetime import date
 from types import SimpleNamespace
@@ -158,3 +159,105 @@ def test_openai_explainer_is_gated(monkeypatch):
 def test_explanation_schema_requires_two_items():
     with pytest.raises(ValueError):
         Explanation(**(GOOD | {"strengths": ["하나"]}))
+
+
+def test_ollama_llm_turns_off_thinking_and_caps_context(monkeypatch):
+    from lovecode import generator
+
+    monkeypatch.setattr(generator, "_ollama_can_think", lambda base_url, model: True)
+    llm = generator.make_llm("ollama", "hybrid-model")
+    assert llm.reasoning is False and llm.num_ctx == generator.OLLAMA_NUM_CTX
+    monkeypatch.setattr(generator, "_ollama_can_think", lambda base_url, model: False)
+    assert generator.make_llm("ollama", "plain-model").reasoning is None
+
+
+def test_openai_llm_uses_low_reasoning_effort_without_temperature():
+    from lovecode import generator
+
+    llm = generator.make_llm("openai", "configured-model", api_key="test-only")
+    assert llm.reasoning == {"effort": generator.OPENAI_REASONING_EFFORT}
+    assert llm.temperature is None
+
+
+class FakeChoiceLLM:
+    def __init__(self, type_id):
+        self.type_id = type_id
+
+    def with_structured_output(self, schema, **kwargs):
+        def respond(_):
+            raw = AIMessage(
+                content="",
+                usage_metadata={"input_tokens": 9, "output_tokens": 3, "total_tokens": 12},
+            )
+            parsed = schema(type_id=self.type_id) if self.type_id else None
+            return {
+                "raw": raw,
+                "parsed": parsed,
+                "parsing_error": None if parsed else ValueError("bad"),
+            }
+
+        return RunnableLambda(respond)
+
+
+def test_llm_classifier_returns_one_of_sixteen_and_is_gated(monkeypatch):
+    from lovecode.llm_classifier import LLMClassifier, TypeChoice
+
+    pred, meta = LLMClassifier("ollama", llm=FakeChoiceLLM("T07")).classify("입력")
+    assert pred == "T07" and meta["error"] is None and meta["usage"]["output_tokens"] == 3
+    assert LLMClassifier("ollama", llm=FakeChoiceLLM(None)).classify("입력")[0] is None
+    with pytest.raises(ValueError):
+        TypeChoice(type_id="T17")
+    monkeypatch.setattr(settings(), "model", "configured-model")
+    with pytest.raises(ProviderError, match="API_DISABLED"):
+        LLMClassifier("openai", llm=FakeChoiceLLM("T01")).classify("입력", allow_paid=True)
+
+
+def test_jev_classifier_request_parse_and_retry(monkeypatch):
+    import httpx
+    from lovecode import jev_classifier as jev
+
+    monkeypatch.setenv("LC_JEV_API_KEY", "test-only")
+    monkeypatch.setattr(jev.time, "sleep", lambda s: None)
+    seen = []
+
+    def handle(request):
+        seen.append(json.loads(request.content))
+        if len(seen) == 1:
+            return httpx.Response(429)
+        opt = jev.option("T15")
+        return httpx.Response(
+            200,
+            json={
+                "model": "jev-1.13.0",
+                "answers": {
+                    "relationship_type": {
+                        "type": "choice",
+                        "choice": opt,
+                        "confidence": 0.7,
+                        "probabilities": {opt: 0.7, jev.option("T01"): 0.3},
+                    }
+                },
+                "usage": {"input_tokens": 10, "output_tokens": 0},
+            },
+        )
+
+    clf = jev.JevClassifier("guided", transport=httpx.MockTransport(handle))
+    pred, meta = clf.classify("입력", allow_paid=True)
+    assert pred == "T15" and meta["error"] is None and meta["probabilities"]["T01"] == 0.3
+    body = seen[-1]
+    assert len(seen) == 2 and body["model"] == jev.MODEL
+    criteria = body["questions"]["relationship_type"]["criteria"]
+    assert len(criteria) == 16 and "labeling_rules" in body["state"]
+    assert "labeling_rules" not in jev.request_body("입력", "noguide")["state"]
+    assert jev.JevClassifier().classify("입력")[1]["error"] == "API_DISABLED"
+
+
+def test_compact_text_matches_training_format_and_is_swap_invariant():
+    from lovecode.features import compact_text
+
+    a = person()
+    b = person(gender="female", birth_date=date(1997, 7, 8), birth_time=None, mbti="ENFJ")
+    text_ab, lim_ab = compact_text(a, b)
+    text_ba, _ = compact_text(b, a)
+    assert text_ab == text_ba and lim_ab == ["missing_hour_b"]
+    assert "MBTI비교" in text_ab and text_ab.startswith("A ") and "\n관계 " in text_ab

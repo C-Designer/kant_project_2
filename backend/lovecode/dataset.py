@@ -97,13 +97,21 @@ def validate(dest):
         if reader.fieldnames != HEADERS:
             raise ValueError("CSV 컬럼 불일치")
         rows = list(reader)
-    if len(rows) != 600 or len({r["couple_id"] for r in rows}) != 600:
-        raise ValueError("600개 고유 커플 필요")
-    if Counter(r["split"] for r in rows) != Counter(train=360, validation=120, test=120):
-        raise ValueError("분할 불일치")
     pairs = json.loads((dest / "synthetic_pairs.json").read_text(encoding="utf-8"))
     people = json.loads((dest / "synthetic_people.json").read_text(encoding="utf-8"))
     manifest = json.loads((dest / "dataset_manifest.json").read_text(encoding="utf-8"))
+    # Default is the assignment-scale 600 (360/120/120); a train-size experiment declares its
+    # own counts in the manifest ("train_size_experiment").
+    sizes = (
+        manifest["splits"]
+        if manifest.get("train_size_experiment")
+        else {"train": 360, "validation": 120, "test": 120}
+    )
+    count = sum(sizes.values())
+    if len(rows) != count or len({r["couple_id"] for r in rows}) != count:
+        raise ValueError(f"{count}개 고유 커플 필요")
+    if Counter(r["split"] for r in rows) != Counter(sizes):
+        raise ValueError("분할 불일치")
     if manifest["source"] != "synthetic" or any(p["source"] != "synthetic" for p in people):
         raise ValueError("가상 데이터만 허용")
     pairmap = {p["couple_id"]: p for p in pairs}
@@ -143,7 +151,7 @@ def validate(dest):
         if r["label"] and r["label"] not in labels:
             raise ValueError("알 수 없는 라벨")
         # ai_reviewed: second-pass AI review (lovecode-v2). Never counts as human approval.
-        if r["review_status"] not in ("pending", "ai_reviewed", "approved", "needs_revision"):
+        if r["review_status"] not in ("pending", "ai_reviewed", "rule_labeled", "approved", "needs_revision"):
             raise ValueError("검수 상태 오류")
         if r["review_status"] == "approved" and (
             not r["label_reason"] or approvals.get(r["couple_id"], {}).get("label") != r["label"]

@@ -1,0 +1,22 @@
+{
+  "dataset_version": "lovecode-rule-train4800h",
+  "source": "synthetic",
+  "seed": 20261013,
+  "count": 6240,
+  "splits": {
+    "train": 6000,
+    "validation": 120,
+    "test": 120
+  },
+  "train_size_experiment": true,
+  "calendar_version": "lovecode-saju-v1/kst-dst-sect1",
+  "label_source": "rule_labeler (guideline v1.2 + conventions)",
+  "text_format": "compact-v5",
+  "human_review": "incomplete",
+  "taxonomy_version": "love-code-v1",
+  "shared_eval_blocks": [
+    "validation",
+    "test"
+  ],
+  "input_sha256": "3a16d593c7fd16456f334b8f6ce85bee19abfd9305972bd45d092cd1b65aa52d"
+}

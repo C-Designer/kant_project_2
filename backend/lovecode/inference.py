@@ -24,6 +24,8 @@ class Classifier:
             "tfidf_lr": "tfidf_lr.joblib",
             "pretrained_encoder_lr": "encoder_lr.joblib",
             "klue_bert": "klue_bert/model.safetensors",
+            "klue_bert_axes": "klue_bert_axes/model.safetensors",
+            "tfidf_lr_axes": "tfidf_lr_axes.joblib",
         }
         if selected not in files:
             raise ArtifactError("UNKNOWN_CLASSIFIER")
@@ -32,11 +34,12 @@ class Classifier:
             "artifact_sha256", {}
         ).get(filename):
             raise ArtifactError("MODEL_DIGEST_MISMATCH")
-        if selected == "klue_bert":
+        if selected in ("klue_bert", "klue_bert_axes"):
             from .bert import BertModel
 
+            log = self.report["bert" if selected == "klue_bert" else "bert_axes"]
             self.model = BertModel(
-                root / "klue_bert", max_length=self.report["bert"]["hyperparameters"]["max_length"]
+                root / selected, max_length=log["hyperparameters"]["max_length"]
             )
         else:
             self.model = joblib.load(root / filename)

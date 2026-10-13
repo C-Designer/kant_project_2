@@ -1,0 +1,110 @@
+[
+  {
+    "file": "lovecode-rule2-train360__train__jev__jev-latest__jev-axes-json-v1-dev60.jsonl",
+    "n": 60,
+    "failed": 0,
+    "macro_f1": 0.2830853174603174,
+    "accuracy": 0.31666666666666665,
+    "axis_accuracy": {
+      "케미": 0.8166666666666667,
+      "온도": 0.6833333333333333,
+      "거리": 0.7666666666666667,
+      "갈등": 0.7666666666666667
+    },
+    "latency_median_s": 0.2261289999987639,
+    "input_tokens": 190254,
+    "output_tokens": 7842,
+    "predicted_types": 16,
+    "top3_accuracy": 0.7
+  },
+  {
+    "file": "lovecode-rule2-train360__train__jev__jev-latest__jev-axes-json-v2-dev60.jsonl",
+    "n": 60,
+    "failed": 0,
+    "macro_f1": 0.2905691530691531,
+    "accuracy": 0.31666666666666665,
+    "axis_accuracy": {
+      "케미": 0.7666666666666667,
+      "온도": 0.7666666666666667,
+      "거리": 0.7166666666666667,
+      "갈등": 0.7333333333333333
+    },
+    "latency_median_s": 0.2216776999994181,
+    "input_tokens": 198474,
+    "output_tokens": 7817,
+    "predicted_types": 15,
+    "top3_accuracy": 0.6833333333333333
+  },
+  {
+    "file": "lovecode-rule2-train360__train__jev__jev-latest__jev-guided-v1.jsonl",
+    "n": 60,
+    "failed": 0,
+    "macro_f1": 0.15868055555555555,
+    "accuracy": 0.23333333333333334,
+    "axis_accuracy": {
+      "케미": 0.7666666666666667,
+      "온도": 0.55,
+      "거리": 0.6833333333333333,
+      "갈등": 0.7166666666666667
+    },
+    "latency_median_s": 0.2166818500008958,
+    "input_tokens": 175270,
+    "output_tokens": 19091,
+    "predicted_types": 9,
+    "top3_accuracy": 0.5166666666666667
+  },
+  {
+    "file": "lovecode-rule2-train360__validation__jev__jev-latest__jev-axes-json-v2.jsonl",
+    "n": 120,
+    "failed": 0,
+    "macro_f1": 0.4034074191953847,
+    "accuracy": 0.43333333333333335,
+    "axis_accuracy": {
+      "케미": 0.8083333333333333,
+      "온도": 0.825,
+      "거리": 0.7833333333333333,
+      "갈등": 0.8083333333333333
+    },
+    "latency_median_s": 0.22076989999914076,
+    "input_tokens": 398961,
+    "output_tokens": 15689,
+    "predicted_types": 16,
+    "top3_accuracy": 0.7666666666666667
+  },
+  {
+    "file": "lovecode-rule2-train360__validation__jev__jev-latest__jev-guided-v1.jsonl",
+    "n": 120,
+    "failed": 0,
+    "macro_f1": 0.19884655420433756,
+    "accuracy": 0.26666666666666666,
+    "axis_accuracy": {
+      "케미": 0.775,
+      "온도": 0.6416666666666667,
+      "거리": 0.7,
+      "갈등": 0.7333333333333333
+    },
+    "latency_median_s": 0.22452474999954575,
+    "input_tokens": 350366,
+    "output_tokens": 38114,
+    "predicted_types": 14,
+    "top3_accuracy": 0.5083333333333333
+  },
+  {
+    "file": "lovecode-v3__validation__openai__gpt-6-luna__classify-noguide-v1.jsonl",
+    "n": 120,
+    "failed": 0,
+    "macro_f1": 0.10095452953908837,
+    "accuracy": 0.13333333333333333,
+    "axis_accuracy": {
+      "케미": 0.5166666666666667,
+      "온도": 0.6166666666666667,
+      "거리": 0.625,
+      "갈등": 0.5083333333333333
+    },
+    "latency_median_s": 4.094216999999844,
+    "input_tokens": 153723,
+    "output_tokens": 25789,
+    "predicted_types": 13,
+    "top3_accuracy": null
+  }
+]
