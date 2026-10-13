@@ -1,0 +1,142 @@
+[
+  {
+    "file": "development__ollama__qwen2.5_7b__v2.jsonl",
+    "backend": "ollama",
+    "model": "qwen2.5_7b",
+    "tag": "v2",
+    "n": 15,
+    "violations": 0,
+    "by_check": {
+      "contract_error": 0,
+      "fabricated_relations": 0,
+      "opposite_pole": 0,
+      "assertive": 0,
+      "superiority": 0,
+      "request_or_schema_error": 0
+    },
+    "cost_usd": 0.0,
+    "latency_median_s": 4.990070300002117,
+    "external_transfer": false,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  {
+    "file": "development__ollama__exaone3.5_7.8b__v2.jsonl",
+    "backend": "ollama",
+    "model": "exaone3.5_7.8b",
+    "tag": "v2",
+    "n": 15,
+    "violations": 0,
+    "by_check": {
+      "contract_error": 0,
+      "fabricated_relations": 0,
+      "opposite_pole": 0,
+      "assertive": 0,
+      "superiority": 0,
+      "request_or_schema_error": 0
+    },
+    "cost_usd": 0.0,
+    "latency_median_s": 5.755714700004319,
+    "external_transfer": false,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  {
+    "file": "development__ollama__qwen3_4b-instruct-2507-q4_K_M__v2.jsonl",
+    "backend": "ollama",
+    "model": "qwen3_4b-instruct-2507-q4_K_M",
+    "tag": "v2",
+    "n": 15,
+    "violations": 1,
+    "by_check": {
+      "contract_error": 0,
+      "fabricated_relations": 0,
+      "opposite_pole": 1,
+      "assertive": 0,
+      "superiority": 0,
+      "request_or_schema_error": 0
+    },
+    "cost_usd": 0.0,
+    "latency_median_s": 4.020739699990372,
+    "external_transfer": false,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  {
+    "file": "development__ollama__hf.co_Qwen_Qwen3-8B-GGUF_Q6_K__v2.jsonl",
+    "backend": "ollama",
+    "model": "hf.co_Qwen_Qwen3-8B-GGUF_Q6_K",
+    "tag": "v2",
+    "n": 15,
+    "violations": 2,
+    "by_check": {
+      "contract_error": 0,
+      "fabricated_relations": 0,
+      "opposite_pole": 2,
+      "assertive": 0,
+      "superiority": 0,
+      "request_or_schema_error": 0
+    },
+    "cost_usd": 0.0,
+    "latency_median_s": 8.674764099996537,
+    "external_transfer": false,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  {
+    "file": "development__openai__gpt-6-luna__v2.jsonl",
+    "backend": "openai",
+    "model": "gpt-6-luna",
+    "tag": "v2",
+    "n": 15,
+    "violations": 3,
+    "by_check": {
+      "contract_error": 0,
+      "fabricated_relations": 0,
+      "opposite_pole": 3,
+      "assertive": 0,
+      "superiority": 0,
+      "request_or_schema_error": 0
+    },
+    "cost_usd": null,
+    "latency_median_s": 5.41278169999714,
+    "external_transfer": true,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  {
+    "file": "development__ollama__qwen3_8b__v2.jsonl",
+    "backend": "ollama",
+    "model": "qwen3_8b",
+    "tag": "v2",
+    "n": 15,
+    "violations": 4,
+    "by_check": {
+      "contract_error": 0,
+      "fabricated_relations": 0,
+      "opposite_pole": 4,
+      "assertive": 0,
+      "superiority": 0,
+      "request_or_schema_error": 0
+    },
+    "cost_usd": 0.0,
+    "latency_median_s": 5.052128499999526,
+    "external_transfer": false,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  },
+  {
+    "file": "development__ollama__gemma3_4b__v2.jsonl",
+    "backend": "ollama",
+    "model": "gemma3_4b",
+    "tag": "v2",
+    "n": 15,
+    "violations": 6,
+    "by_check": {
+      "contract_error": 1,
+      "fabricated_relations": 0,
+      "opposite_pole": 3,
+      "assertive": 0,
+      "superiority": 0,
+      "request_or_schema_error": 2
+    },
+    "cost_usd": 0.0,
+    "latency_median_s": 4.668325599996024,
+    "external_transfer": false,
+    "gpu": "NVIDIA GeForce RTX 5060 Laptop GPU, 8151 MiB"
+  }
+]
