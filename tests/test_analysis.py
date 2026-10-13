@@ -113,6 +113,42 @@ def test_no_consent_no_provider_calls(engine, live_config):
     assert calls == []
 
 
+def test_release_classifier_uses_training_text(engine, live_config, monkeypatch):
+    from lovecode.contracts import AnalysisInput
+    from lovecode.features import compact_text
+
+    monkeypatch.setattr(settings(), "classifier_mode", "local")
+    inputs, calls = [], []
+
+    class RecordingClassifier:
+        def __init__(self):
+            self.report = {"dataset": {"text_format": "compact-v5"}}
+
+        def predict(self, text):
+            inputs.append(text)
+            return "T13"
+
+    body = request_body()
+    parsed = AnalysisInput.model_validate(body)
+    expected, missing = compact_text(parsed.person_a, parsed.person_b)
+    service = AnalysisService(mock_provider(calls=calls), RecordingClassifier())
+    with TestClient(create_app(engine, service)) as c:
+        assert c.get("/api/v1/health").json()["analysis_ready"]
+        first = c.post("/api/v1/analyses", json=body)
+        assert first.status_code == 200
+        result = first.json()["result"]
+        assert result["type_id"] == "T13"
+        assert result["axes"] == TAXONOMY["T13"]["axes"]
+        assert result["limitations"] == missing
+        body["person_a"], body["person_b"] = body["person_b"], body["person_a"]
+        second = c.post("/api/v1/analyses", json=body)
+        assert second.status_code == 200
+        assert second.json()["result"]["type_id"] == "T13"
+    assert inputs == [expected, expected]
+    assert len(calls) == 2  # One explanation call each; no cloud classification.
+    assert all("type_id" not in c["text"]["format"]["schema"]["properties"] for c in calls)
+
+
 @pytest.mark.parametrize("status", [401, 429, 500])
 def test_provider_failure_no_save_ticket(engine, live_config, status):
     calls = []

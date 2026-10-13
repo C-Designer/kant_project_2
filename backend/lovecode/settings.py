@@ -1,12 +1,13 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LC_", env_file=".env", extra="ignore")
-    database_url: str
-    signing_key: str
+    database_url: str = ""
+    signing_key: str = ""
     api_enabled: bool = False
     provider: str = "unconfigured"
     api_key: str = ""
@@ -16,7 +17,11 @@ class Settings(BaseSettings):
     models_dir: str = "artifacts/models/comparison-v1"
     allowed_origins: str = "http://127.0.0.1:3100,http://localhost:3100"
     daily_analysis_limit: int = 20
-    share_save_enabled: bool = True
+    analysis_wait_seconds: float = Field(default=30, gt=0, le=45)
+    analysis_capacity: int = Field(default=20, ge=1, le=32)
+    bert_concurrency: int = Field(default=2, ge=1, le=2)
+    explanation_concurrency: int = Field(default=5, ge=1, le=10)
+    share_save_enabled: bool = False
     demo_enabled: bool = True
     rate_limit_enabled: bool = True
 

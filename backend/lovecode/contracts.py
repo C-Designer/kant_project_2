@@ -42,8 +42,8 @@ class Person(Strict):
     @field_validator("birth_date")
     @classmethod
     def valid_date(cls, v):
-        if not date(1900, 1, 1) <= v <= datetime.now(ZoneInfo("Asia/Seoul")).date():
-            raise ValueError("지원 범위 밖 날짜")
+        if not date(1940, 1, 1) <= v <= datetime.now(ZoneInfo("Asia/Seoul")).date():
+            raise ValueError("생년월일은 1940년 1월 1일부터 오늘까지 입력해 주세요.")
         return v
 
     @field_validator("birth_time")
@@ -136,8 +136,8 @@ def demo_result():
 class AnalysisResponse(Strict):
     analysis_id: str
     result: PublicResult
-    save_ticket: str
-    save_expires_at: datetime
+    save_ticket: str | None = None
+    save_expires_at: datetime | None = None
 
 
 class SavedResponse(Strict):

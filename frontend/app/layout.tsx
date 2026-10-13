@@ -24,7 +24,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <nav aria-label="주 메뉴">
             <Link href="/types">16가지 유형</Link>
             <Link href="/test">궁합 알아보기</Link>
-            <Link href="/manage">공유 관리</Link>
           </nav>
         </header>
         {children}
