@@ -43,7 +43,8 @@ npm --prefix frontend run start
 - 두 프로젝트 모두 Hobby, API는 CPU BERT를 포함한 Large Functions 베타를 사용합니다.
 - 공유·삭제와 Neon DB는 사용하지 않습니다. `deploy/vercel/main.py`가 저장 모드를 강제로 끕니다.
 - OpenAI 키는 **API 프로젝트의 서버 환경변수**에만 설정합니다. 프런트엔드에는 넣지 않습니다.
-- 인스턴스당 분석 2건을 동시 실행하고 추가 4건은 최대 30초 대기합니다. 초과·시간 만료 시 429와 `Retry-After: 5`를 반환합니다. 대기는 인스턴스 메모리 안에서만 유지하며, 전역·영속 큐나 엄격한 선착순 보장은 아닙니다.
+- 인스턴스당 최대 20건을 수용합니다(`LC_ANALYSIS_CAPACITY`). BERT는 2건(`LC_BERT_CONCURRENCY`), 해설은 5건(`LC_EXPLANATION_CONCURRENCY`)씩 별도 실행합니다. BERT 슬롯은 해설 대기 전에 반환합니다. 각 단계는 FIFO 대기하며 분석 시작 후 30초를 공통 대기 기한으로 사용합니다(`LC_ANALYSIS_WAIT_SECONDS`). 실행 중 호출을 중단하는 기한은 아니며, 해설 API 타임아웃은 별도 45초입니다. 초과·대기 만료 시 429와 `Retry-After: 5`를 반환합니다. 전역·영속 큐가 아니므로 재시작 시 대기 요청을 복구하지 않습니다.
+- 같은 IP의 분석 5회/10분 제한은 유지합니다. 같은 사무실 NAT에서 20명이 접속하는 경우 이 제한이 먼저 걸릴 수 있습니다. 해설 5건 동시 호출은 OpenAI 계정의 RPM/TPM 한도에 따라 실패할 수 있으며 재시도하지 않습니다. 로컬 20건 성공은 운영 환경의 성능 보장이 아닙니다.
 - `LC_DAILY_ANALYSIS_LIMIT=20`은 인스턴스별 제한입니다. DB를 쓰지 않으므로 재시작·다중 인스턴스를 합친 비용 상한은 아닙니다. Vercel 무료 한도와 OpenAI 사용료는 별개입니다.
 
 GitHub 연결 후 `main`에 PR이 병합되면 두 Vercel 프로젝트가 각각 자동 배포됩니다.

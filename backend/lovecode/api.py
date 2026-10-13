@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from .concurrency import AnalysisBusy
 from .contracts import (
     TAXONOMY,
     AnalysisInput,
@@ -49,9 +50,8 @@ def create_app(engine=None, analysis_service=None):
     engine = (engine or make_engine(settings().database_url)) if storage_enabled else None
     store = Store(engine) if storage_enabled else None
     service = analysis_service or AnalysisService()
-    analysis_slot = threading.BoundedSemaphore(2)
-    # Keep memory-heavy inference bounded while allowing four requests to wait.
-    analysis_admission = threading.BoundedSemaphore(6)
+    # Bound total in-flight work; the service independently limits each expensive stage.
+    analysis_admission = threading.BoundedSemaphore(settings().analysis_capacity)
     budget_lock = threading.Lock()
     budget = {"day": "", "count": 0}
 
@@ -236,9 +236,6 @@ def create_app(engine=None, analysis_service=None):
 
         if not analysis_admission.acquire(blocking=False):
             return busy()
-        if not analysis_slot.acquire(timeout=settings().analysis_wait_seconds):
-            analysis_admission.release()
-            return busy()
         try:
             with budget_lock:
                 day = datetime.now(UTC).date().isoformat()
@@ -251,6 +248,8 @@ def create_app(engine=None, analysis_service=None):
                 budget["count"] += 1
             result, versions = service.analyse(body)
             return analysis_response(result, versions)
+        except AnalysisBusy:
+            return busy()
         except ProviderError:
             return error(
                 "PROVIDER_UNAVAILABLE", 502, "분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요."
@@ -262,7 +261,6 @@ def create_app(engine=None, analysis_service=None):
                 "분석 설정을 확인하고 있어요. 잠시 후 다시 시도해 주세요.",
             )
         finally:
-            analysis_slot.release()
             analysis_admission.release()
 
     @app.post("/api/v1/demo-analysis", response_model=AnalysisResponse, response_model_exclude_none=True)
