@@ -6,8 +6,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LC_", env_file=".env", extra="ignore")
-    database_url: str = ""
-    signing_key: str = ""
     api_enabled: bool = False
     provider: str = "unconfigured"
     api_key: str = ""
@@ -21,7 +19,6 @@ class Settings(BaseSettings):
     analysis_capacity: int = Field(default=20, ge=1, le=32)
     bert_concurrency: int = Field(default=2, ge=1, le=2)
     explanation_concurrency: int = Field(default=5, ge=1, le=10)
-    share_save_enabled: bool = False
     demo_enabled: bool = True
     rate_limit_enabled: bool = True
 

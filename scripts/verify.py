@@ -1,4 +1,4 @@
-"""Offline verification: no OpenAI calls, no model downloads, no production DB truncation."""
+"""Offline verification: no OpenAI calls, no model downloads, no database required."""
 
 import json
 import subprocess

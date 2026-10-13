@@ -1,19 +1,13 @@
-"""Disposable browser rehearsal. Mock network only, isolated test DB, never a deploy entrypoint."""
+"""Disposable browser rehearsal. Mock network only, no database, never a deploy entrypoint."""
 
 import json
 import os
 
 import httpx
 import uvicorn
-from dotenv import dotenv_values
 
 # Override before importing settings/app. Never print credentials.
-values = dotenv_values(".env")
-url = values["LC_TEST_DATABASE_URL"]
-if not url.endswith("/lovecode_test"):
-    raise RuntimeError("Isolated test database required")
 os.environ.update(
-    LC_DATABASE_URL=url,
     LC_API_ENABLED="true",
     LC_REAL_ANALYSIS_ENABLED="true",
     LC_PROVIDER="openai",

@@ -2,7 +2,6 @@
 import os
 from pathlib import Path
 
-os.environ["LC_SHARE_SAVE_ENABLED"] = "false"
 os.environ["LC_MODELS_DIR"] = str(Path(__file__).parent / "model")
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"

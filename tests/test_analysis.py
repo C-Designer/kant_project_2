@@ -1,5 +1,4 @@
 import json
-import secrets
 
 import httpx
 import pytest
@@ -81,39 +80,27 @@ def mock_provider(type_id="T01", calls=None):
 
 
 @pytest.mark.parametrize("type_id", list(TAXONOMY))
-def test_all_types_analysis_share_delete(client, engine, live_config, type_id):
-    # Same real HTTP route and real PostgreSQL store; only OpenAI transport is simulated.
+def test_all_types_analysis(live_config, type_id):
+    # Real HTTP route; only OpenAI transport is simulated.
     service = AnalysisService(provider=mock_provider(type_id))
-    with TestClient(create_app(engine, analysis_service=service)) as c:
+    with TestClient(create_app(analysis_service=service)) as c:
         r = c.post("/api/v1/analyses", json=request_body())
         assert r.status_code == 200, r.text
         result = r.json()["result"]
         assert result["type_id"] == type_id and result["axes"] == TAXONOMY[type_id]["axes"]
         assert result["evidence_status"] == "ai_draft_unreviewed"
-        keys = {"read_token": secrets.token_urlsafe(32), "delete_token": secrets.token_urlsafe(32)}
-        saved = c.post("/api/v1/results", json={"save_ticket": r.json()["save_ticket"], **keys})
-        assert saved.status_code == 201
-        headers = {"Authorization": "Bearer " + keys["read_token"]}
-        assert c.get("/api/v1/results", headers=headers).json()["result"] == result
-        assert (
-            c.delete(
-                "/api/v1/results/" + saved.json()["result_id"],
-                headers={"Authorization": "Bearer " + keys["delete_token"]},
-            ).status_code
-            == 204
-        )
-        assert c.get("/api/v1/results", headers=headers).status_code == 404
+        assert set(r.json()) == {"analysis_id", "result"}
 
 
-def test_no_consent_no_provider_calls(engine, live_config):
+def test_no_consent_no_provider_calls(live_config):
     calls = []
-    with TestClient(create_app(engine, AnalysisService(mock_provider(calls=calls)))) as c:
+    with TestClient(create_app(AnalysisService(mock_provider(calls=calls)))) as c:
         assert c.get("/api/v1/health").json()["analysis_ready"]
         assert c.post("/api/v1/analyses", json=request_body(False)).status_code == 422
     assert calls == []
 
 
-def test_release_classifier_uses_training_text(engine, live_config, monkeypatch):
+def test_release_classifier_uses_training_text(live_config, monkeypatch):
     from lovecode.contracts import AnalysisInput
     from lovecode.features import compact_text
 
@@ -132,7 +119,7 @@ def test_release_classifier_uses_training_text(engine, live_config, monkeypatch)
     parsed = AnalysisInput.model_validate(body)
     expected, missing = compact_text(parsed.person_a, parsed.person_b)
     service = AnalysisService(mock_provider(calls=calls), RecordingClassifier())
-    with TestClient(create_app(engine, service)) as c:
+    with TestClient(create_app(service)) as c:
         assert c.get("/api/v1/health").json()["analysis_ready"]
         first = c.post("/api/v1/analyses", json=body)
         assert first.status_code == 200
@@ -150,7 +137,7 @@ def test_release_classifier_uses_training_text(engine, live_config, monkeypatch)
 
 
 @pytest.mark.parametrize("status", [401, 429, 500])
-def test_provider_failure_no_save_ticket(engine, live_config, status):
+def test_provider_failure_no_save_ticket(live_config, status):
     calls = []
 
     def fail(r):
@@ -158,7 +145,7 @@ def test_provider_failure_no_save_ticket(engine, live_config, status):
         return httpx.Response(status, text="secret details must not leak")
 
     with TestClient(
-        create_app(engine, AnalysisService(OpenAIProvider(httpx.MockTransport(fail))))
+        create_app(AnalysisService(OpenAIProvider(httpx.MockTransport(fail))))
     ) as c:
         r = c.post("/api/v1/analyses", json=request_body())
         assert r.status_code == 502
@@ -166,10 +153,10 @@ def test_provider_failure_no_save_ticket(engine, live_config, status):
         assert len(calls) == 1
 
 
-def test_daily_budget_and_deployment_origin(engine, live_config, monkeypatch):
+def test_daily_budget_and_deployment_origin(live_config, monkeypatch):
     monkeypatch.setattr(settings(), "daily_analysis_limit", 1)
     monkeypatch.setattr(settings(), "allowed_origins", "https://lovecode.example")
-    with TestClient(create_app(engine, AnalysisService(mock_provider()))) as c:
+    with TestClient(create_app(AnalysisService(mock_provider()))) as c:
         assert (
             c.post(
                 "/api/v1/analyses", json=request_body(), headers={"Origin": "https://evil.example"}

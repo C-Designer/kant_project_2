@@ -1,6 +1,6 @@
 # 러브코드 데이터 스키마
 
-> 2026-10-13 팀 테스트 배포 범위 변경: 공유·삭제 UI와 서버 결과 저장은 제외했습니다. Vercel 배포는 `LC_SHARE_SAVE_ENABLED=false`로 DB 없이 입력 → BERT 분류 → OpenAI 해설만 제공합니다. 결과는 현재 브라우저 화면에만 남고 새로고침하면 사라집니다. 아래 PostgreSQL·공유 관련 설명은 선택적으로 남겨 둔 이전 구현의 기록입니다. 현재 실행·배포 방법은 루트 README를 따릅니다.
+> 2026-10-13 정리: 저장·공유·삭제 백엔드, PostgreSQL 및 서명 티켓을 완전히 제거했습니다. 아래의 해당 기능 설명은 과거 설계 이력이며 현재 구현 범위가 아닙니다. 현재 실행과 코드 탐색은 [README](../README.md)와 [CODE_GUIDE](./CODE_GUIDE.md), HTTP 스키마는 [OpenAPI](./api/openapi.json)를 따릅니다.
 
 > **2026-10-11 최신 범위:** 사용자가 배포 사이트의 실제 사용자 요청을 서버 OpenAI 키로 처리하도록 확정했다. 동의한 요청의 파생 사주 정보·MBTI만 전송하며 원문 생년월일시와 성별은 서버에 남긴다. 입력의 DB·로그·학습 저장은 금지한다. 키·모델·두 활성화 플래그가 없으면 비활성이다. 현행 실행 계약은 [API 연결 인계](./API_HANDOFF.md)와 TECH_SPEC §12이며, 이전의 “가상 CLI만/실제 입력 영구 차단” 규칙을 대체한다. AI 초안은 미검수이며 실제 유료 호출·품질 평가는 아직 하지 않았다.
 | 항목 | 값 |
@@ -106,7 +106,7 @@ VersionSet의 모든 필드는 필수 문자열이다: `calendar_version`, `rule
 
 유형 표시용 enum: `chemistry = similar|complementary`, `temperature = passionate|steady`, `distance = together|independent`, `conflict = immediate|pause`. 사전에서만 결정되며 API 호출자가 지정할 수 없다. 하나라도 조합이 다르면 다른 유형이다. 사전 변경 시 새 버전을 발행하고 기존 결과의 의미를 바꾸지 않는다.
 
-## 5. 사용자 결과와 저장 티켓
+## 5. 사용자 결과
 
 ### PublicResult
 
@@ -130,71 +130,15 @@ VersionSet의 모든 필드는 필수 문자열이다: `calendar_version`, `rule
 
 텍스트에는 생년월일·출생시각·성별·개별 MBTI·사주 기둥·이름·연락처를 포함하지 않는다. 생성기가 `axes`, `type_id`, `limitations`, 버전을 변경할 수 없다. 이 필드는 규칙으로만 채운다. HTML·Markdown·URL·외부 삽입 요소는 결과 텍스트로 허용하지 않는다.
 
-### AnalysisResponse / SaveTicket
+### AnalysisResponse
 
-- AnalysisResponse: `analysis_id`, `result: PublicResult`, `save_ticket`(문자열), `save_expires_at`(timestamp).
-- SaveTicket의 서명 대상: `version`, `analysis_id`, `result`, `versions`, `issued_at`, `expires_at`, `audience="save-result"`, `key_id`.
-- 티켓 유효기간은 발급 후 10분. HMAC-SHA256으로 원본 직렬화 바이트를 서명한다. 서버는 수신한 payload 원본 바이트의 서명을 확인한 뒤 JSON을 파싱한다. 재직렬화 결과에 서명을 비교하지 않는다.
-- 티켓은 암호화가 아니다. 따라서 PublicResult 외의 원본·사주·분류 근거·개인정보를 넣지 않는다. 서버가 티켓을 DB에 저장하지 않는다.
+현재 API 응답은 `analysis_id: string`, `result: PublicResult` 두 필드만 포함한다.
+저장 티켓·만료일·읽기키·삭제키는 발급하지 않는다.
 
-### SaveRequest
+## 6. 서버 저장소
 
-| 필드 | 타입 | 규칙 |
-| --- | --- | --- |
-| `save_ticket` | string | 최대 32 KiB, 서명·audience·만료·schema 검증 |
-| `read_token` | string | 클라이언트 CSPRNG 32바이트, base64url 무패딩 43자 |
-| `delete_token` | string | 별도 CSPRNG 32바이트, read_token과 달라야 함 |
-
-키는 저장 요청 시작 전에 생성해 현재 탭의 메모리에 보관한다. 실패 후 재시도에서도 같은 키를 사용한다. 브라우저 영구 저장소·쿠키에는 자동 저장하지 않는다. 이 방식으로 서버는 원문 키를 DB에 보관하거나 재발급할 필요가 없다.
-
-SaveResponse: `result_id`(UUID), `created_at`, `expires_at`. 공유 URL `/r#<read_token>`와 삭제용 정보 `<result_id>.<delete_token>`는 브라우저가 조합한다. 서버가 키를 응답하거나 로그에 남기지 않는다. 사용자에게 복사하는 기능만 제공한다.
-
-조회 응답: `result_id`, `created_at`, `expires_at`, `result: PublicResult`. 내부 VersionSet·삭제키·토큰 해시·분류 입력·근거는 포함하지 않는다.
-
-## 6. 공유 결과 저장소
-
-로컬 DB는 PostgreSQL 17이다. 서버만 접근하며 브라우저의 DB 직접 접근을 허용하지 않는다. 초기 스키마는 backend/lovecode/db.py의 metadata.create_all로 멱등 생성한다. 기존 스키마 업그레이드는 지원하지 않는 initial 버전이다.
-
-### shared_results
-
-| 컬럼 | 논리/SQL 타입 | null·기본값·제약 | 목적 |
-| --- | --- | --- | --- |
-| `id` | UUID | PK, 서버 생성 | 관리 대상 식별 |
-| `analysis_id` | UUID | NOT NULL, UNIQUE | 동일 분석의 중복 저장 방지 |
-| `state` | text enum `active`,`revoked` | NOT NULL, 기본 active | 조회·폐기 제어 |
-| `read_token_hash` | bytea | active에서 필수, UNIQUE, 32바이트 | 읽기 토큰 SHA-256. revoked에서는 null |
-| `delete_token_hash` | bytea | active에서 필수, 32바이트 | 삭제 권한 검증. revoked에서는 null |
-| `result_payload` | jsonb | active에서 필수, revoked에서는 null | 검증된 PublicResult 스냅샷 |
-| `versions` | jsonb | active에서 필수, revoked에서는 null | 내부 재현·모델 버전 |
-| `created_at` | timestamptz | NOT NULL, DB 현재 시각 | 최초 저장 시각 |
-| `expires_at` | timestamptz | NOT NULL, created_at + 7일 | 조회 가능한 상한, 연장 불가 |
-| `ticket_expires_at` | timestamptz | NOT NULL | 삭제 후 티켓 재생 방지 기간 |
-| `revoked_at` | timestamptz | active에서 null, revoked에서 필수 | 접근 차단·payload 삭제 커밋 시각 |
-
-불변식:
-
-1. 생성 시 만료되지 않은 티켓만 수락하며 `ticket_expires_at <= created_at + 10분`이다. 티켓의 분석 ID·결과·버전은 변경할 수 없다.
-2. 정상 조회는 중앙 Repository에서 `state=active AND expires_at > db_now()`를 강제한다. 만료 정리 작업이 늦어져도 조회는 차단한다.
-3. 상태는 active → revoked만 허용한다. 수정·복원·유효기간 연장 API는 없다.
-4. 폐기 트랜잭션에서 payload·versions·두 토큰 해시를 모두 null로 바꾼다. 티켓이 아직 유효하면 분석 ID를 가진 tombstone만 남겨 재저장을 막는다.
-5. `state=revoked AND ticket_expires_at <= db_now()`인 행은 물리 삭제 가능하다. 만료된 active 행도 정리 작업에서 같은 폐기 경로를 거친다.
-6. 삭제·저장 재시도 경쟁은 UNIQUE 분석 ID와 행 잠금으로 직렬화한다. 잠금을 기다린 재시도는 최종 상태를 다시 검사한다.
-7. 인덱스는 PK, UNIQUE analysis_id, UNIQUE read_token_hash, 정리용 `(state, expires_at)` 및 `(state, ticket_expires_at)`만 우선 생성한다.
-8. 원본 요청·성별·생년월일시·MBTI·만세력·input_text·label_reason·전체 티켓·원문 권한키 컬럼을 만들지 않는다.
-
-### audit_events
-
-| 컬럼 | 타입·제약 | 의미 |
-| --- | --- | --- |
-| `event_id` | UUID PK | 감사 이벤트 식별 |
-| `occurred_at` | timestamptz NOT NULL | DB 시각 |
-| `action` | enum `result_saved`,`result_revoked`,`result_expired` | 확정된 상태 변경 |
-| `target_id` | UUID NOT NULL | result_id, FK 없음 |
-| `actor_kind` | enum `save_ticket_holder`,`delete_capability_holder`,`expiry_job` | 권한 종류, 실제 인물 식별 아님 |
-| `request_id` | UUID NOT NULL | 랜덤 상관 ID, 작업은 실행 ID |
-| `policy_version` | literal `retention-v1` | 당시 정책 |
-
-성공한 변경과 같은 DB 트랜잭션에서 insert한다. 실패 진단은 운영 로그로 구분한다. 감사 이벤트는 7일 후 삭제하며 payload·IP·토큰·사용자 입력을 남기지 않는다. target 삭제가 감사 이벤트를 복원할 근거가 되지 않는다. 역할별 append/read/delete 권한은 테크스펙을 따른다.
+현재 구현에는 DB 테이블이나 결과 저장 API가 없다. 입력과 결과는 요청 처리 중 메모리에만 존재한다.
+과거 공유 결과 저장 구현은 Git 이력에서 확인한다.
 
 ## 7. 학습·검수용 CSV — 확정한 7컬럼
 

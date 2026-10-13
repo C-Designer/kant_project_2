@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 STAGE = ROOT / ".runtime/vercel-app"
 API_MODULES = (
-    "__init__", "api", "settings", "contracts", "db", "security", "service",
+    "__init__", "api", "settings", "contracts", "concurrency", "checks", "service",
     "provider", "generator", "inference", "bert", "axes", "calendar", "features",
 )
 
@@ -18,7 +18,9 @@ def stage():
     for name in ("main.py", "pyproject.toml", "vercel.json", "build_model.py"):
         shutil.copy2(ROOT / "deploy/vercel" / name, api / name)
     package = api / "lovecode"
-    package.mkdir(exist_ok=True)
+    if package.exists():
+        shutil.rmtree(package)
+    package.mkdir()
     for name in API_MODULES:
         shutil.copy2(ROOT / "backend/lovecode" / (name + ".py"), package / (name + ".py"))
     shutil.copytree(ROOT / "backend/lovecode/saju", package / "saju", dirs_exist_ok=True,

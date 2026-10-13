@@ -83,7 +83,7 @@ class PublicResult(Strict):
         ]
     ] = []
     disclaimer_version: Literal["entertainment-v1"] = "entertainment-v1"
-    # Always preserved in tickets and shared snapshots; never imply human approval.
+    # Public results must never imply human approval.
     evidence_status: Literal["fixture", "ai_draft_unreviewed"]
 
     @model_validator(mode="after")
@@ -99,18 +99,6 @@ class PublicResult(Strict):
                 t,
             ):
                 raise ValueError("허용되지 않는 결과 텍스트")
-        return self
-
-
-class SaveInput(Strict):
-    save_ticket: str = Field(max_length=32768)
-    read_token: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
-    delete_token: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
-
-    @model_validator(mode="after")
-    def distinct(self):
-        if self.read_token == self.delete_token:
-            raise ValueError("권한 키는 달라야 함")
         return self
 
 
@@ -135,16 +123,4 @@ def demo_result():
 
 class AnalysisResponse(Strict):
     analysis_id: str
-    result: PublicResult
-    save_ticket: str | None = None
-    save_expires_at: datetime | None = None
-
-
-class SavedResponse(Strict):
-    result_id: str
-    created_at: datetime
-    expires_at: datetime
-
-
-class SharedResponse(SavedResponse):
     result: PublicResult

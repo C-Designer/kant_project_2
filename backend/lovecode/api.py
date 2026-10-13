@@ -1,38 +1,25 @@
-import asyncio
-import logging
-import re
 import secrets
 import threading
 import time
 import uuid
 from collections import defaultdict, deque
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 
 from .concurrency import AnalysisBusy
 from .contracts import (
     TAXONOMY,
     AnalysisInput,
     AnalysisResponse,
-    SavedResponse,
-    SaveInput,
-    SharedResponse,
     Strict,
     demo_result,
 )
-from .db import Store, StoreError, make_engine, metadata
 from .provider import ProviderError
-from .security import TicketError, issue, verify
 from .service import AnalysisService
 from .settings import settings
-
-log = logging.getLogger("lovecode")
 
 
 def error(code, status, message="요청을 처리하지 못했어요. 다시 확인해 주세요.", field=None):
@@ -45,47 +32,19 @@ def error(code, status, message="요청을 처리하지 못했어요. 다시 확
     )
 
 
-def create_app(engine=None, analysis_service=None):
-    storage_enabled = settings().share_save_enabled
-    engine = (engine or make_engine(settings().database_url)) if storage_enabled else None
-    store = Store(engine) if storage_enabled else None
+def create_app(analysis_service=None):
     service = analysis_service or AnalysisService()
     # Bound total in-flight work; the service independently limits each expensive stage.
     analysis_admission = threading.BoundedSemaphore(settings().analysis_capacity)
     budget_lock = threading.Lock()
     budget = {"day": "", "count": 0}
 
-    @asynccontextmanager
-    async def lifespan(app):
-        if not storage_enabled:
-            yield
-            return
-        metadata.create_all(engine)
-
-        async def cleanup():
-            while True:
-                try:
-                    await asyncio.to_thread(store.cleanup)
-                except SQLAlchemyError:
-                    log.error("expiry_cleanup_failed")
-                await asyncio.sleep(60)
-
-        worker = asyncio.create_task(cleanup())
-        yield
-        worker.cancel()
-        try:
-            await worker
-        except asyncio.CancelledError:
-            pass
-
     app = FastAPI(
         title="러브코드 로컬 MVP",
         version="0.2.0",
         openapi_url="/api/v1/openapi.json",
         docs_url="/api/docs",
-        lifespan=lifespan,
     )
-    app.state.store = store
     buckets = defaultdict(deque)
     salt = secrets.token_bytes(32)
     salt_time = time.monotonic()
@@ -142,12 +101,7 @@ def create_app(engine=None, analysis_service=None):
                 r.headers["Retry-After"] = str(int(window))
                 return r
             q.append(now)
-        response = await call_next(request)
-        response.headers["Cache-Control"] = "no-store"
-        response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Robots-Tag"] = "noindex, nofollow"
-        return response
+        return await call_next(request)
 
     @app.middleware("http")
     async def response_headers(request, call_next):
@@ -168,36 +122,17 @@ def create_app(engine=None, analysis_service=None):
             ".".join(str(x) for x in loc if x != "body"),
         )
 
-    @app.exception_handler(StoreError)
-    async def store_error(request, exc):
-        return error(exc.code, exc.status)
-
-    @app.exception_handler(SQLAlchemyError)
-    async def storage_error(request, exc):
-        log.error("storage_unavailable")
-        return error(
-            "STORAGE_UNAVAILABLE", 503, "저장소에 연결하지 못했어요. 잠시 후 다시 시도해 주세요."
-        )
-
-    def bearer(request):
-        token = request.headers.get("authorization", "")
-        if not re.fullmatch(r"Bearer [A-Za-z0-9_-]{43}", token):
-            raise StoreError("RESULT_UNAVAILABLE", 404)
-        return token[7:]
-
     @app.get("/api/v1/health")
     def health():
-        if engine is not None:
-            with engine.connect() as c:
-                c.execute(text("SELECT 1"))
+        ready = service.ready()
         return {
             "status": "ok",
-            "analysis_ready": service.ready(),
+            "analysis_ready": ready,
             "demo_ready": settings().demo_enabled,
             "provider": "openai",
             "verification_mode": service.provider.transport is not None,
             "reason": "configured_not_quality_certified"
-            if service.ready()
+            if ready
             else "configuration_required",
         }
 
@@ -205,16 +140,8 @@ def create_app(engine=None, analysis_service=None):
     def taxonomy():
         return TAXONOMY
 
-    def analysis_response(result, versions=None):
-        if not storage_enabled:
-            return {"analysis_id": str(uuid.uuid4()), "result": result.model_dump()}
-        p, ticket = issue(result, versions)
-        return {
-            "analysis_id": p["analysis_id"],
-            "result": p["result"],
-            "save_ticket": ticket,
-            "save_expires_at": datetime.fromtimestamp(p["expires_at"], UTC),
-        }
+    def analysis_response(result):
+        return {"analysis_id": str(uuid.uuid4()), "result": result.model_dump()}
 
     @app.post("/api/v1/analyses", response_model=AnalysisResponse, response_model_exclude_none=True)
     def analyse(body: AnalysisInput):
@@ -246,8 +173,8 @@ def create_app(engine=None, analysis_service=None):
                         "DAILY_LIMIT", 429, "오늘의 분석 한도에 도달했어요. 다음에 다시 찾아주세요."
                     )
                 budget["count"] += 1
-            result, versions = service.analyse(body)
-            return analysis_response(result, versions)
+            result, _ = service.analyse(body)
+            return analysis_response(result)
         except AnalysisBusy:
             return busy()
         except ProviderError:
@@ -268,34 +195,6 @@ def create_app(engine=None, analysis_service=None):
         if not settings().demo_enabled:
             return error("ANALYSIS_UNAVAILABLE", 503)
         return analysis_response(demo_result())
-
-    # Stateless deployments expose no save, share-read, or delete routes.
-    if not storage_enabled:
-        return app
-
-    @app.post("/api/v1/results", response_model=SavedResponse)
-    def save(body: SaveInput, response: Response):
-        if not settings().share_save_enabled:
-            return error("STORAGE_UNAVAILABLE", 503)
-        try:
-            p = verify(body.save_ticket)
-        except TicketError as e:
-            return error(
-                "SAVE_TICKET_EXPIRED" if e.expired else "INVALID_SAVE_TICKET",
-                410 if e.expired else 400,
-            )
-        result, new = store.save(p, body.read_token, body.delete_token)
-        response.status_code = 201 if new else 200
-        return result
-
-    @app.get("/api/v1/results", response_model=SharedResponse)
-    def get(request: Request):
-        return store.get(bearer(request))
-
-    @app.delete("/api/v1/results/{result_id}", status_code=204)
-    def remove(result_id: uuid.UUID, request: Request):
-        store.remove(str(result_id), bearer(request))
-        return Response(status_code=204)
 
     return app
 
