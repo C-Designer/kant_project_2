@@ -26,7 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from lovecode.contracts import AXIS_KEYS, AXIS_LABELS, AXIS_VALUES, TAXONOMY, PublicResult
+from lovecode.checks import ASSERTIVE, RELATIONS, SUPERIOR, opposite_poles, poles
+from lovecode.contracts import TAXONOMY, PublicResult
 from lovecode.features import limitations
 from lovecode.saju import build_pair
 
@@ -37,24 +38,11 @@ SETS = {"development": ("validation", 15), "eval": ("test", 24)}
 # Quotas so both sets include the hard cases named in the plan.
 QUOTA = {"missing_hour": 0.25, "same_day_element": 0.2}
 
-ASSERTIVE = re.compile(r"반드시|무조건|틀림없|절대로?|운명|100\s?%|확실히 .{0,6}(될|할) 것")
-SUPERIOR = re.compile(r"더 (좋은|나은|우월)|우월|열등|나쁜 (유형|쪽|관계)")
-RELATIONS = ["천간합", "천간충", "육합", "반합", "삼합", "방합", "암합", "원진"]
 LEAK = re.compile(r"[EI][SN][TF][JP]|[一-鿿]|https?://|[<>#*]")
 
 
 def type_of(label):
     return next(k for k, v in TAXONOMY.items() if v["label"] == label)
-
-
-def poles(type_id):
-    axes = TAXONOMY[type_id]["axes"]
-    return [lab[val.index(axes[k])] for k, lab, val in zip(AXIS_KEYS, AXIS_LABELS, AXIS_VALUES)]
-
-
-def opposite_poles(type_id):
-    axes = TAXONOMY[type_id]["axes"]
-    return [lab[1 - val.index(axes[k])] for k, lab, val in zip(AXIS_KEYS, AXIS_LABELS, AXIS_VALUES)]
 
 
 def make_sets(_):
@@ -219,16 +207,17 @@ def run(a):
         )
     explainer = LangChainExplainer(a.backend, a.model)
     slug = re.sub(r"[^A-Za-z0-9.-]+", "_", explainer.model or "unset")
-    dest = OUT / f"{a.set}__{a.backend}__{slug}__{a.tag}.jsonl"
+    # --repair scores the service path (draft + one repair) under its own tag.
+    tag = a.tag or ("v2r" if a.repair else "v2")
+    write = explainer.revise if a.repair else explainer.draft
+    dest = OUT / f"{a.set}__{a.backend}__{slug}__{tag}.jsonl"
     if dest.exists():
         raise SystemExit(f"{dest.name} 이미 있음: 새 --tag 지정 (최종 세트는 모델당 한 번)")
     dest.parent.mkdir(parents=True, exist_ok=True)
     env = environment(a.backend, explainer.model)
     with dest.open("w", encoding="utf-8") as f:
         for i, item in enumerate(items, 1):
-            parsed, meta = explainer.draft(
-                item["input_text"], item["type_id"], allow_paid=a.allow_paid
-            )
+            parsed, meta = write(item["input_text"], item["type_id"], allow_paid=a.allow_paid)
             meta["env"] = env
             u = meta["usage"]
             if a.backend == "ollama":
@@ -294,10 +283,13 @@ def ranked(rows):
 
 
 def rank(a):
-    rows = ranked([summarize_file(p) for p in sorted(OUT.glob(f"{a.set}__*.jsonl"))])
+    # One tag per table: v2 = first drafts (team protocol), v2r = with one repair.
+    files = sorted(OUT.glob(f"{a.set}__*__*__{a.tag}.jsonl"))
+    rows = ranked([summarize_file(p) for p in files])
     head = "| 순위 | 모델 | 백엔드 | 위반 (건/전체) | 계약 | 지어낸 관계 | 반대 극 | 단정 | 우열 "
     head += "| 호출·형식 오류 | 비용 USD | 응답 시간 중앙값 | 외부 전송 | GPU |"
-    lines = [f"세트: {a.set} | 순위 기준: 품질(위반 건수) > 비용 > 시간 > 개인정보", "", head]
+    title = f"세트: {a.set} | 태그: {a.tag} | 순위 기준: 품질(위반 건수) > 비용 > 시간 > 개인정보"
+    lines = [title, "", head]
     lines.append("|" + "---|" * 14)
     for i, r in enumerate(rows, 1):
         b = r["by_check"]
@@ -326,8 +318,9 @@ def rank(a):
         ),
     ]
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / f"ranking_{a.set}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    (OUT / f"ranking_{a.set}.json").write_text(
+    name = f"ranking_{a.set}" + ("" if a.tag == "v2" else f"_{a.tag}")
+    (OUT / f"{name}.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (OUT / f"{name}.json").write_text(
         json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print("\n".join(lines))
@@ -341,13 +334,15 @@ def main():
     r.add_argument("--set", choices=list(SETS), required=True)
     r.add_argument("--backend", choices=["ollama", "openai"], required=True)
     r.add_argument("--model")
-    r.add_argument("--tag", default="v2")
+    r.add_argument("--tag", help="기본 v2, --repair면 v2r")
+    r.add_argument("--repair", action="store_true", help="서비스 경로: 위반 시 1번 다시 쓰기")
     r.add_argument("--allow-paid", action="store_true")
     r.add_argument("--price-in", type=float, help="USD per 1M input tokens")
     r.add_argument("--price-out", type=float, help="USD per 1M output tokens")
     r.set_defaults(fn=run)
     k = sub.add_parser("rank")
     k.add_argument("--set", choices=list(SETS), default="eval")
+    k.add_argument("--tag", default="v2", help="v2 = 첫 해설(팀 기준), v2r = 다시 쓰기 포함")
     k.set_defaults(fn=rank)
     a = ap.parse_args()
     a.fn(a)

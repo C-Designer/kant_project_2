@@ -54,3 +54,16 @@ uv run python scripts/compare_generators.py rank
 
 - 최종 세트는 **모델당 한 번만** 돌린다. 프롬프트를 고치고 싶으면 개발 세트에서만 고치고, 고쳤으면 모두 다시 돌린다.
 - 자동 채점은 1차 점검이다. 순위가 붙은 모델끼리는 결과 파일을 직접 읽어 보고, 이상한 점을 PR에 적는다.
+
+## 7. 서비스 경로(다시 쓰기 포함) 측정
+
+서비스(`explain()`)는 첫 해설이 규칙 점검(`backend/lovecode/checks.py`)에 걸리면, 무엇을 고칠지 알려 주고 **한 번만** 다시 쓰게 한다. 위 1~6절의 팀 비교는 첫 해설(`draft()`)만 채점하므로 그대로 유지된다.
+
+다시 쓰기 효과를 재려면 `--repair`를 붙인다. 결과는 별도 태그 `v2r`로 저장되어 기존 `v2` 결과와 섞이지 않는다.
+
+```sh
+uv run python scripts/compare_generators.py run --set eval --backend ollama --model <모델> --repair
+uv run python scripts/compare_generators.py rank --tag v2r     # ranking_eval_v2r.md
+```
+
+`rank`는 태그별로 따로 표를 만든다(기본 `v2` = 팀 공식 비교).

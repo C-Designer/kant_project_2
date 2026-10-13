@@ -2,16 +2,24 @@
 
 explain() matches OpenAIProvider.explain(text, type_id, *, allow_paid, limitations, synthetic),
 so the service can swap providers without other changes. The classifier decides type_id;
-the LLM only writes the explanation for that type. No automatic retries.
+the LLM only writes the explanation for that type.
+
+explain() runs an LCEL chain: draft -> rule checks (checks.py) -> if anything failed, one
+repair call that is told what to fix -> PublicResult. Network/provider failures are not
+retried. analysis_chain() puts the BERT classifier in front of that chain.
+draft() stays a single call: the team comparison protocol scores first drafts.
 """
 
+import json
 import os
 import re
 import time
 
+from langchain_core.runnables import RunnableBranch, RunnableLambda, RunnablePassthrough
 from langsmith import tracing_context
 from pydantic import BaseModel, Field
 
+from .checks import HARD, find_problems
 from .contracts import AXIS_KEYS, AXIS_LABELS, AXIS_VALUES, TAXONOMY, PublicResult
 from .provider import ProviderError
 from .settings import settings
@@ -62,6 +70,26 @@ def prompt():
     from langchain_core.prompts import ChatPromptTemplate
 
     return ChatPromptTemplate.from_messages([("system", SYSTEM), ("human", HUMAN)])
+
+
+REPAIR = (
+    "방금 쓴 해설에 아래 문제가 있다. 같은 형식으로 처음부터 다시 쓴다. "
+    "문제가 없는 부분은 살리고, 지적한 부분만 고친다.\n{problems}"
+)
+
+
+SCHEMA_FIX = (
+    "지정한 JSON 형식(summary, strengths 2개, adjustments 2개, conversation_tip)으로만 답한다."
+)
+
+
+def repair_prompt():
+    """Same conversation plus the first draft and what to fix (one repair only)."""
+    from langchain_core.prompts import ChatPromptTemplate
+
+    return ChatPromptTemplate.from_messages(
+        [("system", SYSTEM), ("human", HUMAN), ("ai", "{previous}"), ("human", REPAIR)]
+    )
 
 
 MBTI_WORDS = dict(zip("EISNTFJP", ["외향", "내향", "감각", "직관", "사고", "감정", "판단", "인식"]))
@@ -157,9 +185,9 @@ class LangChainExplainer:
         """True when derived chart data leaves this machine (needs user consent)."""
         return self.backend == "openai"
 
-    def chain(self):
+    def chain(self, repair=False):
         llm = self._llm or make_llm(self.backend, self.model)
-        return prompt() | llm.with_structured_output(
+        return (repair_prompt() if repair else prompt()) | llm.with_structured_output(
             Explanation, method="json_schema", include_raw=True,
             **({"strict": True} if self.external else {}),
         )
@@ -173,10 +201,8 @@ class LangChainExplainer:
         if s.provider != "openai" or not s.api_key or not self.model:
             raise ProviderError("OPENAI_CONFIGURATION_REQUIRED")
 
-    def draft(self, text, type_id, *, allow_paid=False, synthetic=True):
-        """One LLM call. Returns (parsed dict or None, meta); meta["error"] names a failure."""
-        self._guard(allow_paid, synthetic)
-        meta = {
+    def _meta(self):
+        return {
             "backend": self.backend,
             "model": self.model,
             "prompt_version": PROMPT_VERSION,
@@ -193,11 +219,15 @@ class LangChainExplainer:
             "error": None,
             "usage": {},
         }
+
+    def _call(self, chain, inputs):
+        """One LLM call. Returns (parsed dict or None, meta); meta["error"] names a failure."""
+        meta = self._meta()
         start = time.perf_counter()
         try:
             # Request bodies must not be exported even if a shell enables LangSmith tracing.
             with tracing_context(enabled=False):
-                out = self.chain().invoke(prompt_inputs(text, type_id))
+                out = chain.invoke(inputs)
         except Exception:  # noqa: BLE001 - any provider/network/parser error maps to one code
             # No prompts, responses or credentials in errors.
             meta.update(
@@ -216,20 +246,115 @@ class LangChainExplainer:
             return None, meta
         return parsed.model_dump(), meta
 
-    def explain(self, text, type_id, *, allow_paid=False, limitations=(), synthetic=True):
-        parsed, meta = self.draft(text, type_id, allow_paid=allow_paid, synthetic=synthetic)
+    def draft(self, text, type_id, *, allow_paid=False, synthetic=True):
+        """One LLM call, no repair (the team comparison protocol scores first drafts)."""
+        self._guard(allow_paid, synthetic)
+        return self._call(self.chain(), prompt_inputs(text, type_id))
+
+    # --- LCEL steps; each takes and returns a state dict -------------------------------
+
+    def _draft_step(self, state):
+        parsed, meta = self._call(self.chain(), prompt_inputs(state["text"], state["type_id"]))
+        return {**state, "parsed": parsed, "meta": meta}
+
+    def _review_step(self, state):
+        if state["meta"]["error"] == "PROVIDER_REQUEST_FAILED":
+            problems = []  # network or provider failure: a second call would likely fail too
+        elif state["parsed"] is None:
+            problems = [("schema", SCHEMA_FIX)]
+        else:
+            problems = find_problems(state["parsed"], state["type_id"], state["text"])
+        return {**state, "problems": problems}
+
+    def _repair_step(self, state):
+        previous = state["parsed"]
+        inputs = prompt_inputs(state["text"], state["type_id"]) | {
+            "previous": json.dumps(previous, ensure_ascii=False) if previous else "(형식 오류)",
+            "problems": "\n".join(f"- {fix}" for _, fix in state["problems"]),
+        }
+        parsed, meta = self._call(self.chain(repair=True), inputs)
+        first = state["meta"]
+        meta["elapsed_seconds"] += first["elapsed_seconds"]
+        meta["usage"] = {
+            k: first["usage"].get(k, 0) + meta["usage"].get(k, 0)
+            for k in ("input_tokens", "output_tokens", "total_tokens")
+            if k in first["usage"] or k in meta["usage"]
+        }
+        # Kinds only: the offending text is not logged.
+        meta["repair"] = {"reasons": sorted({k for k, _ in state["problems"]})}
+        return self._review_step({**state, "parsed": parsed, "meta": meta})
+
+    def revise_chain(self):
+        """LCEL: draft -> rule checks -> one repair (told what to fix) only if a check failed.
+
+        Input {"text", "type_id"}; output adds "parsed", "meta" and "problems" still left.
+        """
+        return (
+            RunnableLambda(self._draft_step)
+            | RunnableLambda(self._review_step)
+            | RunnableBranch(
+                (lambda s: bool(s["problems"]), RunnableLambda(self._repair_step)),
+                RunnablePassthrough(),
+            )
+        )
+
+    def explain_chain(self, *, limitations=()):
+        """LCEL: revise_chain -> PublicResult. Input {"text", "type_id"}; output (result, meta)."""
+        return self.revise_chain() | RunnableLambda(lambda s: self._finalize(s, limitations))
+
+    def _finalize(self, state, limitations):
+        meta = state["meta"]
+        meta["remaining_problems"] = sorted({k for k, _ in state["problems"]})
         if meta["error"] == "PROVIDER_REQUEST_FAILED":
             raise ProviderError("PROVIDER_REQUEST_FAILED")
-        if parsed is None:
+        if state["parsed"] is None or HARD & set(meta["remaining_problems"]):
             raise ProviderError("OUTPUT_REJECTED")
         try:
             result = PublicResult(
-                **parsed,
-                type_id=type_id,
-                axes=TAXONOMY[type_id]["axes"],
+                **state["parsed"],
+                type_id=state["type_id"],
+                axes=TAXONOMY[state["type_id"]]["axes"],
                 limitations=list(limitations),
                 evidence_status="ai_draft_unreviewed",
             )
         except (ValueError, TypeError):
             raise ProviderError("OUTPUT_REJECTED") from None
+        # Wording problems (e.g. an opposite-pole word) that survive the repair are returned
+        # and listed in meta; only contract-level problems fail the request.
         return result, meta
+
+    def revise(self, text, type_id, *, allow_paid=False, synthetic=True):
+        """Draft plus at most one repair, without PublicResult. Returns (parsed or None, meta)."""
+        self._guard(allow_paid, synthetic)
+        with tracing_context(enabled=False):
+            state = self.revise_chain().invoke({"text": text, "type_id": type_id})
+        state["meta"]["remaining_problems"] = sorted({k for k, _ in state["problems"]})
+        return state["parsed"], state["meta"]
+
+    def explain(self, text, type_id, *, allow_paid=False, limitations=(), synthetic=True):
+        self._guard(allow_paid, synthetic)
+        with tracing_context(enabled=False):
+            return self.explain_chain(limitations=limitations).invoke(
+                {"text": text, "type_id": type_id}
+            )
+
+
+def analysis_chain(classifier, explainer, *, limitations=()):
+    """LCEL for the whole analysis: BERT classifier -> explanation with one repair.
+
+    Input {"classifier_text", "text"}: compact v5 text for BERT, narrative v2 text for the LLM.
+    Output (PublicResult, meta). Use analyze() so the consent guard and tracing-off apply.
+    """
+    classify = RunnableLambda(lambda x: classifier.predict(x["classifier_text"]))
+    return RunnablePassthrough.assign(type_id=classify) | explainer.explain_chain(
+        limitations=limitations
+    )
+
+
+def analyze(classifier, explainer, classifier_text, text, *, allow_paid=False, limitations=(),
+            synthetic=True):
+    explainer._guard(allow_paid, synthetic)
+    with tracing_context(enabled=False):
+        return analysis_chain(classifier, explainer, limitations=limitations).invoke(
+            {"classifier_text": classifier_text, "text": text}
+        )

@@ -74,7 +74,8 @@ def test_langchain_web_transport(engine, monkeypatch, status):
             assert not calls
             body["external_processing_consent"] = True
             response = web.post("/api/v1/analyses", json=body)
-            assert len(calls) == 1
+            # Bad outputs get one repair call; HTTP/provider errors are not retried.
+            assert len(calls) == (1 if status in (200, 429, 500) else 2)
             assert "private error" not in response.text
             if status == 200:
                 assert response.status_code == 200, response.text
