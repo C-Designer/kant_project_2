@@ -1447,3 +1447,81 @@ dialog {
     font-size: 1.875rem;
   }
 }
+
+/* Pending results retain the atlas layout without inventing progress or content. */
+.loading-heading {
+  text-align: center;
+  padding: 32px 0;
+}
+.loading-heading h1 {
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  margin: 16px 0 8px;
+}
+.loading-heading p {
+  color: var(--muted);
+}
+.loading-circle {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: loading-turn 1s linear infinite;
+}
+.loading-circle-small {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.skeleton-shape {
+  height: 16px;
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.skeleton-art {
+  height: auto;
+  aspect-ratio: 1;
+}
+.skeleton-copy {
+  display: grid;
+  gap: 16px;
+  align-content: center;
+  min-width: 0;
+}
+.skeleton-short {
+  width: 45%;
+}
+.skeleton-title {
+  width: 85%;
+  height: 36px;
+}
+.skeleton-axes {
+  display: grid;
+  gap: 16px;
+}
+.skeleton-axes .skeleton-shape {
+  height: 28px;
+}
+@keyframes loading-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-circle {
+    animation: none;
+  }
+}
+@media (forced-colors: active) {
+  .loading-circle {
+    border-color: GrayText;
+    border-top-color: Highlight;
+  }
+  .skeleton-shape {
+    border-color: GrayText;
+  }
+}
