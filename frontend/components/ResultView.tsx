@@ -2,18 +2,9 @@
 import Link from 'next/link';
 import TypeIllustration from './TypeIllustration';
 import types from '@/data/relationship-types.json';
-import { Analysis, Result } from '@/lib/api';
+import { Result } from '@/lib/api';
 import { axisEntries } from '@/lib/relationship';
-import SharePanel from './SharePanel';
-export default function ResultView({
-  result,
-  analysis,
-  expires,
-}: {
-  result: Result;
-  analysis?: Analysis;
-  expires?: string;
-}) {
+export default function ResultView({ result }: { result: Result }) {
   const relationshipType = types.find((type) => type.id === result.type_id);
   return (
     <div className="result-wrap">
@@ -25,7 +16,7 @@ export default function ResultView({
         </strong>
         <p>
           {result.evidence_status === 'fixture'
-            ? '화면과 공유 기능을 살펴보기 위한 고정 예시예요. 입력한 정보로 계산한 결과가 아니에요.'
+            ? '결과 화면을 살펴보기 위한 고정 예시예요. 입력한 정보로 계산한 결과가 아니에요.'
             : '개발·실험용 결과예요. 관계의 객관적인 평가가 아니에요.'}
         </p>
       </div>
@@ -97,13 +88,9 @@ export default function ResultView({
           사주와 MBTI를 바탕으로 한 참고·오락용 해석이에요. 실제 관계와 미래를 단정하지 않아요.
         </p>
       </article>
-      {expires && (
-        <p className="small-note center">
-          {new Date(expires).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (한국 시간)까지 볼
-          수 있어요.
-        </p>
-      )}
-      {analysis && <SharePanel key={analysis.analysis_id} analysis={analysis} />}
+      <p className="small-note center">
+        결과는 이 화면에만 표시돼요. 새로고침하거나 닫으면 사라져요.
+      </p>
     </div>
   );
 }

@@ -1,0 +1,18 @@
+{
+  "framework": "fastapi",
+  "buildCommand": "python build_model.py",
+  "functions": {
+    "main.py": {
+      "maxDuration": 120
+    }
+  },
+  "regions": [
+    "iad1"
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true
+    }
+  }
+}

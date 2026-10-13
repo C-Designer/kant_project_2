@@ -1,5 +1,7 @@
 # 코드 구조와 읽는 순서
 
+> 2026-10-13 팀 테스트 배포 범위 변경: 공유·삭제 UI와 서버 결과 저장은 제외했습니다. Vercel 배포는 `LC_SHARE_SAVE_ENABLED=false`로 DB 없이 입력 → BERT 분류 → OpenAI 해설만 제공합니다. 결과는 현재 브라우저 화면에만 남고 새로고침하면 사라집니다. 아래 PostgreSQL·공유 관련 설명은 선택적으로 남겨 둔 이전 구현의 기록입니다. 현재 실행·배포 방법은 루트 README를 따릅니다.
+
 현재 구현 기준: 2026-10-11. 제품 의도는 PRD, API·보관 정책은 TECH_SPEC, 이 문서는 코드 탐색 안내다.
 
 ## 먼저 한 요청을 따라 읽기
@@ -31,11 +33,20 @@
 | `scripts/serve_mock_analysis.py` | 모의 상용 API + 별도 test DB 검증 | 배포 진입점으로 사용 금지 |
 | `scripts/verify.py` | 전체 오프라인 검증과 보고서 | 실패 exit code 확인 |
 
-## 이번 정리에서 제거 / 유지한 것
+## 현재 웹 분석 연결 (2026-10-13)
+
+`service.py`가 Release BERT의 `compact-v5` 입력을 만든 뒤 분류하고,
+`generator.py`의 `LangChainExplainer`가 유형별 프롬프트 → OpenAI 구조화 응답 →
+`PublicResult` 검증을 수행한다. 유형과 축은 서버가 넣으므로 해설 모델이 바꿀 수 없다.
+`LC_MODEL`과 기존 키를 사용하고, LangSmith tracing은 요청 중 비활성화한다.
+`tests/test_langchain_web.py`에서 실제 LangChain/SDK와 모의 HTTP를 연결해
+호출 횟수, 동의 차단, 실패·거절·불완전 응답·금지 출력 차단을 검증한다.
+
+## 이전 정리에서 제거 / 유지한 것
 
 - 제거: 사용처가 없는 PairArt, TypeExplorer, 옛 홈/필터 관련 CSS 규칙, 사용하지 않는 form ref.
 - CSS: 미사용 규칙 62개와 같은 문맥의 동일 selector/property에서 덮어써지는 선언 36개 제거. 모바일 override는 반응형 동작에 필요해 유지했다.
-- 직접 의존성에서 제거: 실제 import가 없는 langchain-core, pyyaml. PyYAML은 다른 패키지의 간접 의존성으로 남을 수 있다. 아직 존재하지 않는 LangChain 계층을 추가하지 않았다.
+- 당시 미사용이던 langchain-core, pyyaml을 직접 의존성에서 제거했다. 이후 LangChain 실험 해설기가 추가되면서 langchain-core와 모델 연동 패키지가 다시 도입되었고, 현재 웹에도 연결되어 있다.
 - 테스트에서만 사용하는 korean-lunar-calendar는 dev 그룹으로 이동. 이미 쓰는 python-dotenv는 간접 의존에 기대지 않도록 직접 명시했다.
 - 유지: 학습/비교 경로, 동시성/멱등성 처리, 삭제키·ticket 정책, 예시/모의 응답 구분. 웹에서 호출되지 않는다는 이유만으로 CLI 기능이나 안전장치를 삭제하지 않았다.
 - 추가: 개발용 Prettier와 format check, TypeScript 미사용 선언 검사. 실행용 라이브러리를 추가하지 않았다.

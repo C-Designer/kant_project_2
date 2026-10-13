@@ -117,7 +117,7 @@ export default function Test() {
       {analysis && (
         <>
           <div tabIndex={-1} ref={resultTop}>
-            <ResultView result={analysis.result} analysis={analysis} />
+            <ResultView result={analysis.result} />
           </div>
           <button
             className="text-button"
@@ -145,7 +145,7 @@ export default function Test() {
           <p>
             {ready
               ? '입력 없이 예시 결과를 살펴볼 수 있어요.'
-              : '지금은 예시 결과와 공유 기능을 이용할 수 있어요.'}
+              : '지금은 예시 결과를 살펴볼 수 있어요.'}
           </p>
           <button type="button" className="text-button" disabled={busy} onClick={demo}>
             {busy && operation === 'demo' ? '예시 여는 중…' : '입력 없이 예시 결과 보기 →'}
@@ -214,7 +214,7 @@ export default function Test() {
           {step === 2 && (
             <p className="small-note">
               {ready
-                ? '분석에 최대 2분 정도 걸릴 수 있어요.'
+                ? '요청이 몰리면 잠시 대기해요. 분석에 최대 2분 정도 걸릴 수 있어요.'
                 : '실제 분석이 준비되면 이용할 수 있어요. 지금은 위의 예시 결과를 살펴보세요.'}
             </p>
           )}

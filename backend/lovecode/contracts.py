@@ -136,8 +136,8 @@ def demo_result():
 class AnalysisResponse(Strict):
     analysis_id: str
     result: PublicResult
-    save_ticket: str
-    save_expires_at: datetime
+    save_ticket: str | None = None
+    save_expires_at: datetime | None = None
 
 
 class SavedResponse(Strict):

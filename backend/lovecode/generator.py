@@ -9,6 +9,7 @@ import os
 import re
 import time
 
+from langsmith import tracing_context
 from pydantic import BaseModel, Field
 
 from .contracts import AXIS_KEYS, AXIS_LABELS, AXIS_VALUES, TAXONOMY, PublicResult
@@ -130,6 +131,8 @@ def make_llm(backend, model, **kwargs):
             api_key=kwargs.pop("api_key", s.api_key),
             timeout=45,
             max_retries=0,
+            max_tokens=2000,
+            base_url="https://api.openai.com/v1",
             use_responses_api=True,
             store=False,
             **kwargs,
@@ -155,7 +158,8 @@ class LangChainExplainer:
     def chain(self):
         llm = self._llm or make_llm(self.backend, self.model)
         return prompt() | llm.with_structured_output(
-            Explanation, method="json_schema", include_raw=True
+            Explanation, method="json_schema", include_raw=True,
+            **({"strict": True} if self.external else {}),
         )
 
     def _guard(self, allow_paid, synthetic):
@@ -164,7 +168,7 @@ class LangChainExplainer:
         s = settings()
         if not allow_paid or not s.api_enabled or (not synthetic and not s.real_analysis_enabled):
             raise ProviderError("API_DISABLED_OR_NON_SYNTHETIC")
-        if not s.api_key or not self.model:
+        if s.provider != "openai" or not s.api_key or not self.model:
             raise ProviderError("OPENAI_CONFIGURATION_REQUIRED")
 
     def draft(self, text, type_id, *, allow_paid=False, synthetic=True):
@@ -184,7 +188,9 @@ class LangChainExplainer:
         }
         start = time.perf_counter()
         try:
-            out = self.chain().invoke(prompt_inputs(text, type_id))
+            # Request bodies must not be exported even if a shell enables LangSmith tracing.
+            with tracing_context(enabled=False):
+                out = self.chain().invoke(prompt_inputs(text, type_id))
         except Exception:  # noqa: BLE001 - any provider/network/parser error maps to one code
             # No prompts, responses or credentials in errors.
             meta.update(
@@ -193,6 +199,10 @@ class LangChainExplainer:
             return None, meta
         meta["elapsed_seconds"] = time.perf_counter() - start
         meta["usage"] = dict(getattr(out.get("raw"), "usage_metadata", None) or {})
+        response_meta = getattr(out.get("raw"), "response_metadata", {})
+        if response_meta.get("status", "completed") != "completed":
+            meta["error"] = "INCOMPLETE_RESPONSE"
+            return None, meta
         parsed = out.get("parsed")
         if out.get("parsing_error") is not None or parsed is None:
             meta["error"] = "SCHEMA_REJECTED"
