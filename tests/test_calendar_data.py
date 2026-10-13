@@ -77,6 +77,7 @@ def test_dataset_contract():
         {"birth_date": "2024-02-30"},
         {"birth_time": "24:00"},
         {"birth_date": "1899-01-01"},
+        {"birth_date": "1939-12-31"},
         {"birth_date": "2099-01-01"},
         {"mbti": "XXXX"},
     ],
@@ -90,3 +91,7 @@ def test_person_rejects_invalid(change):
     }
     with pytest.raises(ValueError):
         Person(**(values | change))
+
+
+def test_person_accepts_first_supported_birthday():
+    assert person("1940-01-01").birth_date == date(1940, 1, 1)
