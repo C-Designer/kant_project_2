@@ -84,16 +84,37 @@ def prompt_inputs(text, type_id):
     }
 
 
+# Prompt + output stay under ~2k tokens; a small window keeps the KV cache from pushing
+# 12B-class models past 8GB VRAM.
+OLLAMA_NUM_CTX = int(os.environ.get("LC_OLLAMA_NUM_CTX", "4096"))
+# Writing the explanation needs no deep reasoning; low effort keeps latency and cost down.
+OPENAI_REASONING_EFFORT = os.environ.get("LC_REASONING_EFFORT", "low")
+
+
+def _ollama_can_think(base_url, model):
+    import httpx
+
+    try:
+        r = httpx.post(f"{base_url}/api/show", json={"model": model}, timeout=10, trust_env=False)
+        return "thinking" in r.json().get("capabilities", [])
+    except (httpx.HTTPError, ValueError):
+        return False
+
+
 def make_llm(backend, model, **kwargs):
     if backend == "ollama":
         from langchain_ollama import ChatOllama
 
         base_url = kwargs.pop("base_url", os.environ.get("LC_OLLAMA_URL", "http://127.0.0.1:11434"))
+        # Thinking output slows hybrid models (qwen3 etc.) and can break the JSON schema.
+        if "reasoning" not in kwargs and _ollama_can_think(base_url, model):
+            kwargs["reasoning"] = False
         return ChatOllama(
             model=model,
             base_url=base_url,
             temperature=0.3,
             num_predict=1200,
+            num_ctx=OLLAMA_NUM_CTX,
             keep_alive="10m",
             **kwargs,
         )
@@ -101,6 +122,9 @@ def make_llm(backend, model, **kwargs):
         from langchain_openai import ChatOpenAI
 
         s = settings()
+        if OPENAI_REASONING_EFFORT and "reasoning" not in kwargs:
+            kwargs["reasoning"] = {"effort": OPENAI_REASONING_EFFORT}
+        # temperature is left unset: reasoning models may reject or ignore it.
         return ChatOpenAI(
             model=model,
             api_key=kwargs.pop("api_key", s.api_key),
@@ -150,6 +174,11 @@ class LangChainExplainer:
             "backend": self.backend,
             "model": self.model,
             "prompt_version": PROMPT_VERSION,
+            "settings": (
+                {"temperature": 0.3, "num_ctx": OLLAMA_NUM_CTX, "thinking": "off_if_supported"}
+                if self.backend == "ollama"
+                else {"reasoning_effort": OPENAI_REASONING_EFFORT, "temperature": "default"}
+            ),
             "error": None,
             "usage": {},
         }

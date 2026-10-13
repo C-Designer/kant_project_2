@@ -28,6 +28,7 @@ from lovecode.contracts import TAXONOMY
 from lovecode.dataset import HEADERS, validate, write_csv
 from lovecode.features import VERSION
 from lovecode.saju import build_pair, build_person
+from lovecode.saju.textgen import make_fixed_text
 
 SEED = 20261012  # 2일차 gen_data.py와 같은 시드 → 같은 텍스트
 LABELS = ROOT / "data/labeling/labels"
@@ -83,6 +84,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="data/lovecode-v2")
     ap.add_argument("--check-against", help="2일차 원본 pairs.jsonl: 사주·특징·텍스트 동일성 확인")
+    ap.add_argument(
+        "--text",
+        choices=["templated", "fixed"],
+        default="templated",
+        help="templated: 서비스 입력(v2, 템플릿 4종). fixed: 고정 형식 v3 실험용",
+    )
     a = ap.parse_args()
     out = ROOT / a.out
     if (out / "couples.csv").exists():
@@ -122,8 +129,11 @@ def main():
                 o["a"] == A
                 and o["b"] == B
                 and o["features"] == pair["features"]
-                and o["text"].replace("\n- ", "\n• ").removeprefix("- ")
-                == pair["text"].removeprefix("• ")
+                and (
+                    a.text == "fixed"
+                    or o["text"].replace("\n- ", "\n• ").removeprefix("- ")
+                    == pair["text"].removeprefix("• ")
+                )
             )
             mismatch += not same
         lab = reviewed.get(p["pair_id"]) or first[p["pair_id"]]
@@ -137,7 +147,9 @@ def main():
                     [
                         p["pair_id"],
                         groups[p["pair_id"]],
-                        pair["text"],
+                        pair["text"]
+                        if a.text == "templated"
+                        else make_fixed_text(A, B, pair["features"]),
                         TAXONOMY[tid]["label"],
                         reason.lstrip("=+-@"),
                         status,
@@ -201,7 +213,8 @@ def main():
     )
     status = Counter(r["review_status"] for r in rows)
     manifest = {
-        "dataset_version": "lovecode-v2",
+        "dataset_version": "lovecode-v2" if a.text == "templated" else "lovecode-v3-fixed-text",
+        "text_format": a.text,
         "source": "synthetic",
         "seed": SEED,
         "count": len(rows),

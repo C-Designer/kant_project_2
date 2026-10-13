@@ -46,4 +46,30 @@ def pair_text(a: Person, b: Person) -> tuple[str, list[str]]:
     return text, limitations(sa, sb)
 
 
-__all__ = ["VERSION", "ManseInputError", "limitations", "pair_text", "to_saju_person"]
+def compact_text(a: Person, b: Person) -> tuple[str, list[str]]:
+    """Input for the rule-label classifiers (data/lovecode-rule5, v5 compact text).
+
+    Same text builder as scripts/build_rule_dataset.py --text v5. Canonical A/B order keeps
+    it swap invariant; the final model was also trained with A/B-swapped copies.
+    """
+    from .saju import analyze_pair
+    from .saju.textgen import make_compact_text
+
+    sa, sb = to_saju_person(a), to_saju_person(b)
+    keyed = sorted(
+        ((json.dumps(p.model_dump(mode="json"), sort_keys=True), s) for p, s in ((a, sa), (b, sb))),
+        key=lambda kv: kv[0],
+    )
+    first, second = keyed[0][1], keyed[1][1]
+    text = make_compact_text(first, second, analyze_pair(first, second), v5=True)
+    return text, limitations(sa, sb)
+
+
+__all__ = [
+    "VERSION",
+    "ManseInputError",
+    "compact_text",
+    "limitations",
+    "pair_text",
+    "to_saju_person",
+]
