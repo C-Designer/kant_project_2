@@ -11,18 +11,13 @@ export type Result = {
 export type Analysis = {
   analysis_id: string;
   result: Result;
-  save_ticket: string;
-  save_expires_at: string;
-};
-export type Saved = {
-  result_id: string;
-  created_at: string;
-  expires_at: string;
-  result?: Result;
 };
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), path === 'analyses' ? 110000 : 8000);
+  const timer = setTimeout(
+    () => controller.abort(),
+    path === 'analyses' ? 110000 : path === 'health' ? 30000 : 8000,
+  );
   try {
     const r = await fetch('/api/v1/' + path, {
       ...options,
@@ -42,11 +37,4 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   } finally {
     clearTimeout(timer);
   }
-}
-export function token() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replaceAll('=', '');
 }

@@ -38,6 +38,8 @@ def offline_api_boundary(monkeypatch):
 
     monkeypatch.setattr(settings(), "api_enabled", False)
     monkeypatch.setattr(settings(), "real_analysis_enabled", False)
+    # Retain coverage of the optional legacy PostgreSQL storage path.
+    monkeypatch.setattr(settings(), "share_save_enabled", True)
 
     def reject_network(*args, **kwargs):
         raise AssertionError("Real HTTP requests are forbidden in offline tests")
