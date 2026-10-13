@@ -2,12 +2,12 @@
 
 따뜻한 관계 도감과 3단계 입력, Release BERT의 16유형 분류, LangChain/OpenAI 해설을 제공합니다.
 현재 UI에서는 공유·삭제를 제외했습니다. 결과는 브라우저의 현재 화면에만 유지하며 새로고침하면 사라집니다.
-`LC_SHARE_SAVE_ENABLED=false`(기본값)에서는 DB 연결·서버 결과 저장·공유 API·저장 티켓 발급을 모두 하지 않습니다.
+저장·공유·삭제 백엔드와 DB 의존성을 제거했습니다. 분석 결과는 응답으로만 반환합니다.
 OpenAI 해설에는 별도의 API 사용료가 발생합니다.
 
 ## 실행
 
-설치된 Python 3.12/uv, Node 22.18 이상/npm이 필요합니다. 이전 PostgreSQL 저장 경로의 테스트에는 Docker가 필요합니다. 프로젝트 루트에서:
+설치된 Python 3.12/uv, Node 22.18 이상/npm이 필요합니다. 프로젝트 루트에서:
 
 ```sh
 uv sync --frozen
@@ -15,7 +15,7 @@ npm --prefix frontend ci
 cp .env.example .env  # 기존 .env가 없을 때만
 ```
 
-현재 앱 실행에는 DB가 필요하지 않습니다. `.env`의 OpenAI 설정과 BERT 경로를 아래 안내대로 설정하세요. 기존 저장 경로를 테스트할 때만 `uv run python scripts/local_db.py`로 격리된 테스트 DB를 준비합니다.
+현재 앱 실행에는 DB가 필요하지 않습니다. `.env`의 OpenAI 설정과 BERT 경로를 아래 안내대로 설정하세요.
 
 터미널 1:
 
@@ -41,7 +41,7 @@ npm --prefix frontend run start
 - 화면: https://kant-lovecode.vercel.app
 - API: https://kant-lovecode-api.vercel.app
 - 두 프로젝트 모두 Hobby, API는 CPU BERT를 포함한 Large Functions 베타를 사용합니다.
-- 공유·삭제와 Neon DB는 사용하지 않습니다. `deploy/vercel/main.py`가 저장 모드를 강제로 끕니다.
+- 공유·삭제와 DB는 사용하지 않습니다. 배포 진입점은 `deploy/vercel/main.py`입니다.
 - OpenAI 키는 **API 프로젝트의 서버 환경변수**에만 설정합니다. 프런트엔드에는 넣지 않습니다.
 - 인스턴스당 최대 20건을 수용합니다(`LC_ANALYSIS_CAPACITY`). BERT는 2건(`LC_BERT_CONCURRENCY`), 해설은 5건(`LC_EXPLANATION_CONCURRENCY`)씩 별도 실행합니다. BERT 슬롯은 해설 대기 전에 반환합니다. 각 단계는 FIFO 대기하며 분석 시작 후 30초를 공통 대기 기한으로 사용합니다(`LC_ANALYSIS_WAIT_SECONDS`). 실행 중 호출을 중단하는 기한은 아니며, 해설 API 타임아웃은 별도 45초입니다. 초과·대기 만료 시 429와 `Retry-After: 5`를 반환합니다. 전역·영속 큐가 아니므로 재시작 시 대기 요청을 복구하지 않습니다.
 - 같은 IP의 분석 5회/10분 제한은 유지합니다. 같은 사무실 NAT에서 20명이 접속하는 경우 이 제한이 먼저 걸릴 수 있습니다. 해설 5건 동시 호출은 OpenAI 계정의 RPM/TPM 한도에 따라 실패할 수 있으며 재시도하지 않습니다. 로컬 20건 성공은 운영 환경의 성능 보장이 아닙니다.
@@ -66,7 +66,7 @@ Vercel API 키나 OpenAI 키를 GitHub 저장소에 커밋하지 않습니다.
 `scripts/prepare_vercel.py`는 로컬 배포 패키지를 점검하는 보조 도구이며, Git 연결 프로젝트의 자동 배포에는 사용하지 않습니다.
 
 API 서버 환경변수: `LC_API_KEY`, `LC_MODEL`, `LC_PROVIDER=openai`, `LC_API_ENABLED=true`,
-`LC_REAL_ANALYSIS_ENABLED=true`, `LC_CLASSIFIER_MODE=local`, `LC_SHARE_SAVE_ENABLED=false`,
+`LC_REAL_ANALYSIS_ENABLED=true`, `LC_CLASSIFIER_MODE=local`,
 `LC_ALLOWED_ORIGINS=https://kant-lovecode.vercel.app`, `LC_DAILY_ANALYSIS_LIMIT=20`,
 `VERCEL_SUPPORT_LARGE_FUNCTIONS=1`.
 화면의 빌드 환경변수: `API_INTERNAL_ORIGIN=https://kant-lovecode-api.vercel.app`.
@@ -85,7 +85,7 @@ LC_MODELS_DIR=artifacts/models/lovecode-rule5-v5-train4800h-axes-reg
 
 백엔드를 재시작하면 모델 보고서의 `dataset.text_format=compact-v5`에 맞춰 입력을 만들고,
 축별 BERT가 16유형을 결정합니다. LangChain 해설기가 `ChatPromptTemplate`과
-`ChatOpenAI.with_structured_output`을 연결하며, OpenAI는 결정된 유형의 해설에만 한 번 호출됩니다.
+`ChatOpenAI.with_structured_output`을 연결하며, OpenAI는 결정된 유형의 해설을 작성하며, 출력 검증에 실패하면 한 번 재작성합니다.
 따라서 기존 OpenAI 키·모델과 `LC_API_ENABLED=true`, `LC_REAL_ANALYSIS_ENABLED=true` 설정도 필요합니다.
 가중치 체크섬 또는 모델 로딩에 문제가 있으면 실제 분석을 비활성화하며 다른 분류기로 대체하지 않습니다.
 설정 후 `/api/v1/health`의 `analysis_ready`를 확인하세요.
@@ -122,7 +122,7 @@ uv run python -m lovecode.train --allow-ai-drafts --dry-run
 uv run python -m lovecode.experiment --dry-run
 ```
 
-pytest는 `.env`의 `LC_TEST_DATABASE_URL`이 `/lovecode_test`로 끝나는 별도 DB만 초기화합니다. 실제 시연 DB는 초기화하지 않습니다. 현재 train dry-run의 `ready=false`는 아직 라벨이 없다는 정직한 상태입니다.
+pytest는 DB·Docker 없이 실행하며 실제 HTTP 호출을 차단합니다. 현재 train dry-run의 `ready=false`는 아직 라벨이 없다는 정직한 상태입니다.
 
 CSV 재현(기존 데이터 덮어쓰기 금지):
 

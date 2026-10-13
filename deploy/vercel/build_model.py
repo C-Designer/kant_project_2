@@ -14,6 +14,8 @@ def stage_sources(root=ROOT):
     source = root.resolve().parents[1] / "backend/lovecode"
     destination = root / "lovecode"
     if source.is_dir():
+        if destination.exists():
+            shutil.rmtree(destination)
         shutil.copytree(source, destination, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("__pycache__", ".env*"))
     if not (destination / "api.py").is_file():

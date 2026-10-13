@@ -146,29 +146,6 @@
           },
           "result": {
             "$ref": "#/components/schemas/PublicResult"
-          },
-          "save_ticket": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Save Ticket"
-          },
-          "save_expires_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Save Expires At"
           }
         },
         "additionalProperties": false,

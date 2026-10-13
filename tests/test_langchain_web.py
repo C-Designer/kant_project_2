@@ -14,7 +14,7 @@ from lovecode.settings import settings
 
 
 @pytest.mark.parametrize("status", [200, 429, 500, "incomplete", "refusal", "invalid"])
-def test_langchain_web_transport(engine, monkeypatch, status):
+def test_langchain_web_transport(monkeypatch, status):
     for key, value in {
         "api_enabled": True, "real_analysis_enabled": True,
         "api_key": "test-only", "model": "configured-model", "provider": "openai",
@@ -62,7 +62,7 @@ def test_langchain_web_transport(engine, monkeypatch, status):
         llm = make_llm("openai", "configured-model", http_client=client)
         explainer = LangChainExplainer("openai", llm=llm)
         service = AnalysisService(classifier=Classifier(), explainer=explainer)
-        with TestClient(create_app(engine, service)) as web:
+        with TestClient(create_app(service)) as web:
             body = {
                 "external_processing_consent": False,
                 "person_a": {"gender": "male", "birth_date": "1994-06-15",

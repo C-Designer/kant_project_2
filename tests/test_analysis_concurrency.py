@@ -16,7 +16,6 @@ from test_analysis import request_body
 
 def configure(monkeypatch):
     for name, value in {
-        "share_save_enabled": False,
         "rate_limit_enabled": False,
         "daily_analysis_limit": 40,
         "analysis_wait_seconds": 3,
