@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import ResultView from '@/components/ResultView';
+import ResultLoading from '@/components/ResultLoading';
 import PersonFields from '@/components/PersonFields';
 import PersonReview from '@/components/PersonReview';
 import { Analysis, api } from '@/lib/api';
@@ -10,6 +11,18 @@ export default function Test() {
     [error, setError] = useState('');
   const resultTop = useRef<HTMLDivElement>(null);
   const lock = useRef(false);
+  const loadingTop = useRef<HTMLDivElement>(null);
+  const errorTop = useRef<HTMLParagraphElement>(null);
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    if (busy) {
+      loadingTop.current?.focus();
+      loadingTop.current?.scrollIntoView({ behavior: 'instant' });
+    } else if (error) {
+      errorTop.current?.focus();
+      errorTop.current?.scrollIntoView({ behavior: 'instant' });
+    }
+  }, [busy, error]);
   const [ready, setReady] = useState(false);
   const [verification, setVerification] = useState(false);
   const [operation, setOperation] = useState<'demo' | 'analysis'>('demo');
@@ -40,7 +53,8 @@ export default function Test() {
         setReady(h.analysis_ready);
         setVerification(h.verification_mode);
       })
-      .catch(() => setReady(false));
+      .catch(() => setReady(false))
+      .finally(() => setChecking(false));
   }, []);
   function showResult(value: Analysis) {
     setAnalysis(value);
@@ -114,7 +128,12 @@ export default function Test() {
           <p>실제 OpenAI 응답이 아닙니다. 연결 흐름만 검증합니다.</p>
         </aside>
       )}
-      {analysis && (
+      {busy && (
+        <div ref={loadingTop} tabIndex={-1}>
+          <ResultLoading demo={operation === 'demo'} />
+        </div>
+      )}
+      {analysis && !busy && (
         <>
           <div tabIndex={-1} ref={resultTop}>
             <ResultView result={analysis.result} />
@@ -130,7 +149,7 @@ export default function Test() {
           </button>
         </>
       )}
-      <div hidden={!!analysis} className="atlas-form">
+      <div hidden={!!analysis || busy} className="atlas-form">
         <div className="form-intro">
           <p className="eyebrow">우리 사이 알아보기</p>
           <h1>
@@ -141,7 +160,16 @@ export default function Test() {
           <p>한 사람씩 알려주세요. 입력한 정보는 서비스 DB에 저장하지 않아요.</p>
         </div>
         <aside className="notice">
-          <strong>{ready ? '어떤 결과인지 먼저 볼까요?' : '실제 분석은 아직 준비 중이에요'}</strong>
+          <strong>
+            {checking && (
+              <span className="loading-circle loading-circle-small" aria-hidden="true" />
+            )}
+            {checking
+              ? '분석 서비스를 준비하고 있어요'
+              : ready
+                ? '어떤 결과인지 먼저 볼까요?'
+                : '실제 분석은 아직 준비 중이에요'}
+          </strong>
           <p>
             {ready
               ? '입력 없이 예시 결과를 살펴볼 수 있어요.'
@@ -220,7 +248,7 @@ export default function Test() {
           )}
         </form>
       </div>
-      <p className="error" role="alert">
+      <p className="error" role="alert" ref={errorTop} tabIndex={-1}>
         {error}
       </p>
       {error && !analysis && (
