@@ -46,13 +46,23 @@ npm --prefix frontend run start
 - 인스턴스당 분석 2건을 동시 실행하고 추가 4건은 최대 30초 대기합니다. 초과·시간 만료 시 429와 `Retry-After: 5`를 반환합니다. 대기는 인스턴스 메모리 안에서만 유지하며, 전역·영속 큐나 엄격한 선착순 보장은 아닙니다.
 - `LC_DAILY_ANALYSIS_LIMIT=20`은 인스턴스별 제한입니다. DB를 쓰지 않으므로 재시작·다중 인스턴스를 합친 비용 상한은 아닙니다. Vercel 무료 한도와 OpenAI 사용료는 별개입니다.
 
-재배포 소스는 다음 명령으로 준비합니다. `.env`, 로컬 DB, 학습 데이터, 캐시는 업로드하지 않습니다.
+GitHub 연결 후 `main`에 PR이 병합되면 두 Vercel 프로젝트가 각각 자동 배포됩니다.
+프로덕션 브랜치는 `main`이며, 다른 브랜치는 각 `vercel.json`의 `git.deploymentEnabled` 규칙으로 자동 배포를 끕니다.
 
-```sh
-uv run python scripts/prepare_vercel.py
-vercel deploy --cwd .runtime/vercel-app/api --project kant-lovecode-api --scope zerocode-studio --prod
-vercel deploy --cwd .runtime/vercel-app/web --project kant-lovecode --scope zerocode-studio --prod
-```
+| Vercel 프로젝트 | Root Directory | 프레임워크 | 루트 외 소스 포함 |
+| --- | --- | --- | --- |
+| `kant-lovecode` | `frontend` | Next.js | 아니요 |
+| `kant-lovecode-api` | `deploy/vercel` | FastAPI | 예 |
+
+API 빌드는 `backend/lovecode`를 함수 패키지에 복사한 뒤 고정 Release의 모델을 다운로드합니다.
+루트 외 소스 포함 설정이 꺼져 있으면 소스 누락 오류로 빌드를 중단합니다.
+배포 성공 시 기존 공개 주소가 갱신되며, 빌드 실패 시 기존 배포가 유지됩니다.
+변경이 없는 프로젝트 자동 생략은 꺼 두어 백엔드 경로 변경도 배포에 반영합니다.
+두 프로젝트는 별도 배포이므로 화면·API 계약 변경은 전후 버전 모두 호환되도록 진행하세요.
+
+Vercel의 GitHub 연결은 계정의 GitHub 로그인 연결 및 해당 저장소에 대한 Vercel GitHub 앱 권한이 필요합니다.
+Vercel API 키나 OpenAI 키를 GitHub 저장소에 커밋하지 않습니다.
+`scripts/prepare_vercel.py`는 로컬 배포 패키지를 점검하는 보조 도구이며, Git 연결 프로젝트의 자동 배포에는 사용하지 않습니다.
 
 API 서버 환경변수: `LC_API_KEY`, `LC_MODEL`, `LC_PROVIDER=openai`, `LC_API_ENABLED=true`,
 `LC_REAL_ANALYSIS_ENABLED=true`, `LC_CLASSIFIER_MODE=local`, `LC_SHARE_SAVE_ENABLED=false`,
