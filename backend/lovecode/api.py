@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from .concurrency import AnalysisBusy
 from .contracts import (
     TAXONOMY,
     AnalysisInput,
@@ -45,15 +46,20 @@ def error(code, status, message="요청을 처리하지 못했어요. 다시 확
 
 
 def create_app(engine=None, analysis_service=None):
-    engine = engine or make_engine(settings().database_url)
-    store = Store(engine)
+    storage_enabled = settings().share_save_enabled
+    engine = (engine or make_engine(settings().database_url)) if storage_enabled else None
+    store = Store(engine) if storage_enabled else None
     service = analysis_service or AnalysisService()
-    analysis_slot = threading.BoundedSemaphore(2)
+    # Bound total in-flight work; the service independently limits each expensive stage.
+    analysis_admission = threading.BoundedSemaphore(settings().analysis_capacity)
     budget_lock = threading.Lock()
     budget = {"day": "", "count": 0}
 
     @asynccontextmanager
     async def lifespan(app):
+        if not storage_enabled:
+            yield
+            return
         metadata.create_all(engine)
 
         async def cleanup():
@@ -181,8 +187,9 @@ def create_app(engine=None, analysis_service=None):
 
     @app.get("/api/v1/health")
     def health():
-        with engine.connect() as c:
-            c.execute(text("SELECT 1"))
+        if engine is not None:
+            with engine.connect() as c:
+                c.execute(text("SELECT 1"))
         return {
             "status": "ok",
             "analysis_ready": service.ready(),
@@ -198,7 +205,18 @@ def create_app(engine=None, analysis_service=None):
     def taxonomy():
         return TAXONOMY
 
-    @app.post("/api/v1/analyses", response_model=AnalysisResponse)
+    def analysis_response(result, versions=None):
+        if not storage_enabled:
+            return {"analysis_id": str(uuid.uuid4()), "result": result.model_dump()}
+        p, ticket = issue(result, versions)
+        return {
+            "analysis_id": p["analysis_id"],
+            "result": p["result"],
+            "save_ticket": ticket,
+            "save_expires_at": datetime.fromtimestamp(p["expires_at"], UTC),
+        }
+
+    @app.post("/api/v1/analyses", response_model=AnalysisResponse, response_model_exclude_none=True)
     def analyse(body: AnalysisInput):
         if not service.ready():
             return error(
@@ -208,10 +226,16 @@ def create_app(engine=None, analysis_service=None):
             )
         if not body.external_processing_consent:
             return error("CONSENT_REQUIRED", 422, "OpenAI 처리 동의를 확인해 주세요.")
-        if not analysis_slot.acquire(blocking=False):
-            return error(
-                "ANALYSIS_BUSY", 429, "다른 분석이 진행 중이에요. 잠시 후 다시 시도해 주세요."
+        def busy():
+            response = error(
+                "ANALYSIS_BUSY", 429,
+                "분석 요청이 많아 대기 시간이 길어지고 있어요. 잠시 후 다시 시도해 주세요.",
             )
+            response.headers["Retry-After"] = "5"
+            return response
+
+        if not analysis_admission.acquire(blocking=False):
+            return busy()
         try:
             with budget_lock:
                 day = datetime.now(UTC).date().isoformat()
@@ -223,13 +247,9 @@ def create_app(engine=None, analysis_service=None):
                     )
                 budget["count"] += 1
             result, versions = service.analyse(body)
-            p, ticket = issue(result, versions)
-            return {
-                "analysis_id": p["analysis_id"],
-                "result": p["result"],
-                "save_ticket": ticket,
-                "save_expires_at": datetime.fromtimestamp(p["expires_at"], UTC),
-            }
+            return analysis_response(result, versions)
+        except AnalysisBusy:
+            return busy()
         except ProviderError:
             return error(
                 "PROVIDER_UNAVAILABLE", 502, "분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요."
@@ -241,19 +261,17 @@ def create_app(engine=None, analysis_service=None):
                 "분석 설정을 확인하고 있어요. 잠시 후 다시 시도해 주세요.",
             )
         finally:
-            analysis_slot.release()
+            analysis_admission.release()
 
-    @app.post("/api/v1/demo-analysis", response_model=AnalysisResponse)
+    @app.post("/api/v1/demo-analysis", response_model=AnalysisResponse, response_model_exclude_none=True)
     def demo(body: Strict):
         if not settings().demo_enabled:
             return error("ANALYSIS_UNAVAILABLE", 503)
-        p, ticket = issue(demo_result())
-        return {
-            "analysis_id": p["analysis_id"],
-            "result": p["result"],
-            "save_ticket": ticket,
-            "save_expires_at": datetime.fromtimestamp(p["expires_at"], UTC),
-        }
+        return analysis_response(demo_result())
+
+    # Stateless deployments expose no save, share-read, or delete routes.
+    if not storage_enabled:
+        return app
 
     @app.post("/api/v1/results", response_model=SavedResponse)
     def save(body: SaveInput, response: Response):

@@ -114,6 +114,9 @@ def validate(dest):
         raise ValueError("분할 불일치")
     if manifest["source"] != "synthetic" or any(p["source"] != "synthetic" for p in people):
         raise ValueError("가상 데이터만 허용")
+    # Validate source birthdays before any classifier training can start.
+    for person in people:
+        Person.model_validate({key: person[key] for key in Person.model_fields})
     pairmap = {p["couple_id"]: p for p in pairs}
     personmap = {p["person_id"]: p for p in people}
     seen = {}

@@ -153,3 +153,14 @@ def test_timeout_and_malformed_envelope(monkeypatch):
             OpenAIProvider(
                 httpx.MockTransport(lambda r, payload=payload: httpx.Response(200, json=payload))
             ).label("fixture", allow_paid=True)
+
+
+def test_training_rejects_unsupported_birthday_before_fit(dataset, tmp_path):
+    source = dataset / "synthetic_people.json"
+    people = json.loads(source.read_text())
+    people[0]["birth_date"] = "1939-12-31"
+    source.write_text(json.dumps(people))
+    args = SimpleNamespace(dir=dataset, output=tmp_path / "models")
+    with pytest.raises(ValueError, match="1940"):
+        train(args)
+    assert not args.output.exists()

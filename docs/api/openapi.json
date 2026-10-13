@@ -112,93 +112,6 @@
           }
         }
       }
-    },
-    "/api/v1/results": {
-      "get": {
-        "summary": "Get",
-        "operationId": "get_api_v1_results_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SharedResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Save",
-        "operationId": "save_api_v1_results_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SaveInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SavedResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/results/{result_id}": {
-      "delete": {
-        "summary": "Remove",
-        "operationId": "remove_api_v1_results__result_id__delete",
-        "parameters": [
-          {
-            "name": "result_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Result Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
@@ -235,12 +148,26 @@
             "$ref": "#/components/schemas/PublicResult"
           },
           "save_ticket": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Save Ticket"
           },
           "save_expires_at": {
-            "type": "string",
-            "format": "date-time",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Save Expires At"
           }
         },
@@ -248,9 +175,7 @@
         "type": "object",
         "required": [
           "analysis_id",
-          "result",
-          "save_ticket",
-          "save_expires_at"
+          "result"
         ],
         "title": "AnalysisResponse"
       },
@@ -405,89 +330,6 @@
           "evidence_status"
         ],
         "title": "PublicResult"
-      },
-      "SaveInput": {
-        "properties": {
-          "save_ticket": {
-            "type": "string",
-            "maxLength": 32768,
-            "title": "Save Ticket"
-          },
-          "read_token": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9_-]{43}$",
-            "title": "Read Token"
-          },
-          "delete_token": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9_-]{43}$",
-            "title": "Delete Token"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "save_ticket",
-          "read_token",
-          "delete_token"
-        ],
-        "title": "SaveInput"
-      },
-      "SavedResponse": {
-        "properties": {
-          "result_id": {
-            "type": "string",
-            "title": "Result Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Expires At"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "result_id",
-          "created_at",
-          "expires_at"
-        ],
-        "title": "SavedResponse"
-      },
-      "SharedResponse": {
-        "properties": {
-          "result_id": {
-            "type": "string",
-            "title": "Result Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Expires At"
-          },
-          "result": {
-            "$ref": "#/components/schemas/PublicResult"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "result_id",
-          "created_at",
-          "expires_at",
-          "result"
-        ],
-        "title": "SharedResponse"
       },
       "Strict": {
         "properties": {},

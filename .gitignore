@@ -17,3 +17,8 @@ frontend/tsconfig.tsbuildinfo
 
 artifacts/qa/**/*.png
 artifacts/qa/*.png
+
+.vercel/
+deploy/vercel/lovecode/
+deploy/vercel/model/
+deploy/vercel/release.zip
