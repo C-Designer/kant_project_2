@@ -261,3 +261,42 @@ def test_compact_text_matches_training_format_and_is_swap_invariant():
     text_ba, _ = compact_text(b, a)
     assert text_ab == text_ba and lim_ab == ["missing_hour_b"]
     assert "MBTI비교" in text_ab and text_ab.startswith("A ") and "\n관계 " in text_ab
+
+
+def test_generation_checks_and_ranking_order():
+    import sys
+
+    sys.path.insert(0, "scripts")
+    import compare_generators as cg
+
+    item = {"type_id": "T03", "limitations": [], "input_text": "A 월지 술과 B 월지 진이 충입니다."}
+    parsed = GOOD | {
+        "summary": "차분한 안정형 관계예요."
+    }  # T03 is 열정형: 안정형 is the opposite pole
+    checks = cg.check(item, parsed)
+    assert "안정형" in checks["opposite_pole"]
+    rows = [
+        {
+            "violations": 1,
+            "cost_usd": 0.0,
+            "latency_median_s": 5.0,
+            "external_transfer": False,
+            "m": "a",
+        },
+        {
+            "violations": 0,
+            "cost_usd": 0.02,
+            "latency_median_s": 6.0,
+            "external_transfer": True,
+            "m": "b",
+        },
+        {
+            "violations": 0,
+            "cost_usd": 0.0,
+            "latency_median_s": 30.0,
+            "external_transfer": False,
+            "m": "c",
+        },
+    ]
+    # 품질 > 비용 > 시간 > 개인정보
+    assert [r["m"] for r in cg.ranked(rows)] == ["c", "b", "a"]
