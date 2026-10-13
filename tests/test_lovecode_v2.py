@@ -144,6 +144,82 @@ def test_langchain_explainer_rejects_bad_output():
         LangChainExplainer("ollama", llm=FakeLLM(leaky)).explain("입력", "T01")
 
 
+class SeqLLM:
+    """Returns the given payloads in order and keeps the prompts it was sent."""
+
+    def __init__(self, *payloads):
+        self.payloads, self.prompts = list(payloads), []
+
+    def with_structured_output(self, schema, **kwargs):
+        def respond(prompt_value):
+            self.prompts.append(prompt_value.to_string())
+            payload = self.payloads[min(len(self.prompts), len(self.payloads)) - 1]
+            raw = AIMessage(
+                content="",
+                usage_metadata={"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+            )
+            return {
+                "raw": raw,
+                "parsed": schema(**payload) if payload else None,
+                "parsing_error": None if payload else ValueError("bad"),
+            }
+
+        return RunnableLambda(respond)
+
+
+OPPOSITE = GOOD | {"summary": "닮은꼴처럼 보이지만 서로 다른 결이 만나는 관계예요."}  # T16 is 보완형
+
+
+def test_clean_draft_is_not_repaired():
+    llm = SeqLLM(GOOD)
+    _, meta = LangChainExplainer("ollama", llm=llm).explain("입력", "T16")
+    assert len(llm.prompts) == 1 and "repair" not in meta and meta["remaining_problems"] == []
+
+
+def test_violation_is_repaired_once_with_the_reason():
+    llm = SeqLLM(OPPOSITE, GOOD)
+    result, meta = LangChainExplainer("ollama", llm=llm).explain("입력", "T16")
+    assert len(llm.prompts) == 2 and result.summary == GOOD["summary"]
+    assert "반대 극 '닮은꼴' 표현은" in llm.prompts[1] and OPPOSITE["summary"] in llm.prompts[1]
+    assert meta["repair"] == {"reasons": ["opposite_pole"]} and meta["remaining_problems"] == []
+    assert meta["usage"]["output_tokens"] == 10  # both calls counted
+
+
+def test_repair_failure_rules():
+    # A wording problem that survives the repair is returned and reported...
+    llm = SeqLLM(OPPOSITE, OPPOSITE)
+    _, meta = LangChainExplainer("ollama", llm=llm).explain("입력", "T16")
+    assert len(llm.prompts) == 2 and meta["remaining_problems"] == ["opposite_pole"]
+    # ...but contract problems (here Markdown) still fail the request after one repair.
+    bold = GOOD | {"summary": "**보완형** 관계예요."}
+    llm = SeqLLM(bold, bold)
+    with pytest.raises(ProviderError, match="OUTPUT_REJECTED"):
+        LangChainExplainer("ollama", llm=llm).explain("입력", "T16")
+    assert len(llm.prompts) == 2
+    # A schema failure is repaired too.
+    result, _ = LangChainExplainer("ollama", llm=SeqLLM(None, GOOD)).explain("입력", "T16")
+    assert result.type_id == "T16"
+
+
+def test_draft_stays_a_single_call_for_the_comparison_protocol():
+    llm = SeqLLM(OPPOSITE, GOOD)
+    parsed, _ = LangChainExplainer("ollama", llm=llm).draft("입력", "T16")
+    assert len(llm.prompts) == 1 and parsed["summary"] == OPPOSITE["summary"]
+
+
+def test_analysis_chain_classifies_then_explains():
+    from lovecode.generator import analyze
+
+    class Classifier:
+        def predict(self, text):
+            assert text == "압축 텍스트"
+            return "T16"
+
+    result, _ = analyze(Classifier(), LangChainExplainer("ollama", llm=SeqLLM(GOOD)),
+                        "압축 텍스트", "서술 텍스트", limitations=["missing_hour_a"])
+    assert result.type_id == "T16" and result.limitations == ["missing_hour_a"]
+
+
 def test_openai_explainer_is_gated(monkeypatch):
     monkeypatch.setattr(settings(), "model", "configured-model")
     explainer = LangChainExplainer("openai", llm=FakeLLM(GOOD))
