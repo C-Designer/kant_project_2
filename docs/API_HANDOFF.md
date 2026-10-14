@@ -23,31 +23,18 @@ LC_ALLOWED_ORIGINS=http://127.0.0.1:3100,http://localhost:3100
 
 첫 실연결에서는 가상 인물 입력 한 쌍으로 실제 분석→공유→삭제를 확인한다. 사용한 모델·응답/토큰 사용량은 별도의 안전한 검토 기록으로 남기고 원문 입력·권한 키·API 키는 기록하지 않는다. 사람이 검수하지 않은 결과는 계속 AI 초안으로 표시한다.
 
-## 가상 라벨링·학습
+## 분류 모델
 
-원본600행은 무라벨로 보존했다. 실행 시 성공한 행만 pending 라벨이 채워지고, 실패하면 자동 재시도 없이 중단한다. 다시 실행하면 이미 채운 행은 건너뛴다.
-
-```sh
-uv run python -m lovecode.pipeline --dry-run
-uv run python -m lovecode.annotate --allow-paid --max-calls 1
-```
-
-다음은 실제600건 범위 유료 라벨링→두 후보 학습/검증선정→선정모델 test1회→가상1건 해설까지 실행하는 명령이다. 최대 미라벨600회+해설1회이며 명시적으로 실행할 때만 호출한다. 모델 다운로드도 실제 학습 때 발생하므로 encoder revision을 실제40자리 commit SHA로 고정한다.
-
-```sh
-uv run python -m lovecode.pipeline --allow-paid --max-label-calls 600 \
-  --encoder-revision 실제_40자리_commit_SHA \
-  --output artifacts/models/comparison-v1
-```
-
-분할별16유형 coverage 또는 라벨 정책이 부족하면 중단한다. 유형을 맞추려고 라벨을 조작하지 않는다. 필요한 경우 독립적인 추가 가상 데이터를 설계하고 다시 검수한다. 기존 artifact는 덮어쓰지 않는다. train/experiment 개별 명령도 계속 제공한다. 실험 값은 교사 라벨 재현 성능이며 실제 관계 타당성의 정확도가 아니다.
+분류는 규칙 라벨(`labeler.py`, 판단 기준 v1.2)로 학습한 Release BERT가 맡는다. OpenAI 유료 라벨링 경로는 2026-10-14에 제거했다.
+학습·선정·test 1회 평가 도구는 [CODE_GUIDE](./CODE_GUIDE.md)의 목록을, 웹 연결은 [README](../README.md)의 "Release BERT를 웹 분석에 사용하기"를 따른다.
+분할별16유형 coverage 또는 라벨 정책이 부족하면 학습을 중단한다. 유형을 맞추려고 라벨을 조작하지 않는다. 기존 artifact는 덮어쓰지 않는다. 실험 값은 교사 라벨 재현 성능이며 실제 관계 타당성의 정확도가 아니다.
 
 ```dotenv
 LC_CLASSIFIER_MODE=local
-LC_MODELS_DIR=artifacts/models/comparison-v1
+LC_MODELS_DIR=artifacts/models/lovecode-rule5-v5-train4800h-axes-reg
 ```
 
-로컬 모드 서버에는 직접 생성한 모델 파일과 report 및 encoder 캐시가 필요하다. 외부에서 받은 pickle을 로드하지 않는다. fixture 모델은 runtime이 거부한다. 학습/런타임 패키지는 lockfile을 함께 사용한다.
+로컬 모드 서버에는 Release 모델 파일과 report(`dataset.text_format=compact-v5`)가 필요하다. 외부에서 받은 pickle을 로드하지 않는다. fixture 모델은 runtime이 거부한다. 학습/런타임 패키지는 lockfile을 함께 사용한다.
 
 ## 배포 시 연결 기준
 

@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STAGE = ROOT / ".runtime/vercel-app"
 API_MODULES = (
     "__init__", "api", "settings", "contracts", "concurrency", "checks", "service",
-    "provider", "generator", "inference", "bert", "axes", "calendar", "features",
+    "provider", "generator", "inference", "bert", "axes", "features",
 )
 
 

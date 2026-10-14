@@ -1,7 +1,7 @@
-"""Classifier input from the API contract: Person → saju modules → pair text + limitations.
+"""Model inputs from the API contract: Person → saju modules → texts + limitations.
 
-Training data (scripts/build_lovecode_dataset.py) and serving both go through pair_text(),
-so the classifier always sees text produced by the same code path.
+compact_text() is the rule5 classifier input (same builder as scripts/build_rule_dataset.py),
+pair_text() the narrative explanation input; analysis_inputs() derives both from one chart.
 """
 
 import hashlib
@@ -55,7 +55,7 @@ def _compact(first: dict, second: dict) -> str:
 
 
 def pair_text(a: Person, b: Person) -> tuple[str, list[str]]:
-    """Narrative text (lovecode-v2 classifiers and the explanation evaluation sets)."""
+    """Narrative explanation text (same builder as the explanation evaluation sets)."""
     sa, sb = to_saju_person(a), to_saju_person(b)
     # Limitations keep the caller's person_a / person_b naming.
     return _narrative(*_canonical(a, b, sa, sb)), limitations(sa, sb)

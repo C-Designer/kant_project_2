@@ -26,7 +26,7 @@ def configure(monkeypatch):
 
 class Classifier:
     def __init__(self):
-        self.report = {}
+        self.report = {"dataset": {"text_format": "compact-v5"}}
         self.lock = threading.Lock()
         self.active = self.peak = self.calls = 0
         self.all_called = threading.Event()

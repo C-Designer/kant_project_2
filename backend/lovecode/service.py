@@ -41,7 +41,8 @@ class AnalysisService:
                         self.classifier = Classifier(s.models_dir)
             except (OSError, ValueError, KeyError):
                 return False
-        return True
+        # The serving input builder only exists for compact-v5 (rule5) models.
+        return self.classifier.report.get("dataset", {}).get("text_format") == "compact-v5"
 
     def analyse(self, body):
         deadline = time.monotonic() + settings().analysis_wait_seconds
@@ -50,17 +51,8 @@ class AnalysisService:
         inputs = analysis_inputs(body.person_a, body.person_b)
         text, missing = inputs["narrative"], inputs["limitations"]
         if settings().classifier_mode == "local":
-            # Release models declare their training format; keep historical models compatible.
-            dataset = self.classifier.report.get("dataset", {})
-            if dataset.get("text_format") == "compact-v5":
-                classifier_text = inputs["compact"]
-            else:
-                # Pre-rule5 models were trained on the legacy calendar text.
-                from .calendar import input_text
-
-                classifier_text = input_text(body.person_a, body.person_b)
             with self._bert_slots.acquire(deadline):
-                type_id = self.classifier.predict(classifier_text)
+                type_id = self.classifier.predict(inputs["compact"])
         else:
             with self._explanation_slots.acquire(deadline):
                 label, _ = self.provider.label(text, allow_paid=True, synthetic=False)

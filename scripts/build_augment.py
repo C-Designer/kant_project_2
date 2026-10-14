@@ -19,9 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from eval_llm_classifier import load_pair_facts
 from lovecode.contracts import TAXONOMY
-from lovecode.dataset import HEADERS, write_csv
+from lovecode.dataset import HEADERS, load_pair_facts, write_csv
 from lovecode.labeler import label
 from lovecode.saju import analyze_pair
 from lovecode.saju.textgen import make_compact_text
@@ -38,7 +37,7 @@ def main():
         raise SystemExit(f"{dest} 이미 있음")
     with (d / "couples.csv").open(encoding="utf-8", newline="") as f:
         train = [r for r in csv.DictReader(f) if r["split"] == "train"]
-    facts = load_pair_facts(a.dir)
+    facts = load_pair_facts(d)
     rows, stats = [], Counter()
     for r in train:
         A, B, F = facts[r["couple_id"]]

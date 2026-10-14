@@ -116,24 +116,17 @@ uv run python scripts/verify.py
 uv run pytest -q
 uv run ruff check backend tests scripts
 npm --prefix frontend run typecheck
-uv run python -m lovecode.dataset validate
-uv run python -m lovecode.annotate --dry-run
-uv run python -m lovecode.train --allow-ai-drafts --dry-run
-uv run python -m lovecode.experiment --dry-run
+uv run python -m lovecode.dataset validate --dir data/lovecode-rule5/train4800h
+uv run python -m lovecode.train --dir data/lovecode-rule5/train4800h --allow-ai-drafts --dry-run
 ```
 
-pytest는 DB·Docker 없이 실행하며 실제 HTTP 호출을 차단합니다. 현재 train dry-run의 `ready=false`는 아직 라벨이 없다는 정직한 상태입니다.
+pytest는 DB·Docker 없이 실행하며 실제 HTTP 호출을 차단합니다. 학습용 fixture 데이터는 `tests/conftest.py`가 임시 디렉터리에 생성합니다. train dry-run은 rule5 데이터의 라벨·split 커버리지만 확인하고(`ready=true`) 학습은 실행하지 않습니다.
 
-CSV 재현(기존 데이터 덮어쓰기 금지):
-
-```sh
-uv run python -m lovecode.dataset generate --dir .runtime/reproduced-data
-```
+가상 데이터 생성 도구는 `scripts/build_rule_dataset.py`입니다(옵션은 파일 상단 설명 참고). 커밋된 `data/lovecode-rule5`를 덮어쓰지 않도록 새 `--out`을 지정합니다.
 
 ## 문서
 
-- [내일 OpenAI 연결](docs/API_HANDOFF.md)
+- [OpenAI 연결 설정](docs/API_HANDOFF.md)
 - [실행 검증·남은 한계](docs/VALIDATION.md)
-- [변경된 완료 기준](docs/EXECUTION_PLAN.md)
 - [PRD](docs/PRD.md) · [테크스펙](docs/TECH_SPEC.md) · [데이터 스키마](docs/DATA_SCHEMA.md) · [디자인 시스템](docs/DESIGN_SYSTEM.md)
-- [OpenAPI](docs/api/openapi.json) · [CSV](data/synthetic-v1/couples.csv)
+- [OpenAPI](docs/api/openapi.json) · [학습 CSV](data/lovecode-rule5/train4800h/couples.csv) · [라벨 기준](docs/labeling/labeling_guideline.md)
