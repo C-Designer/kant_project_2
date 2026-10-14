@@ -69,8 +69,8 @@ def build_fixture_dataset(dest, sizes=(48, 16, 16), seed=7):
         pairs.append({"couple_id": cid, "group_id": gid, "person_a_id": ids[0], "person_b_id": ids[1]})
         rows.append(dict(zip(HEADERS, [cid, gid, text, "", "", "pending", split], strict=True)))
     write_csv(dest / "couples.csv", rows)
-    (dest / "synthetic_people.json").write_text(json.dumps(people, ensure_ascii=False))
-    (dest / "synthetic_pairs.json").write_text(json.dumps(pairs, ensure_ascii=False))
+    (dest / "synthetic_people.json").write_text(json.dumps(people, ensure_ascii=False), encoding="utf-8")
+    (dest / "synthetic_pairs.json").write_text(json.dumps(pairs, ensure_ascii=False), encoding="utf-8")
     manifest = {
         "dataset_version": "test-fixture",
         "source": "synthetic",
@@ -84,7 +84,7 @@ def build_fixture_dataset(dest, sizes=(48, 16, 16), seed=7):
         "taxonomy_version": "love-code-v1",
         "input_sha256": hashlib.sha256("".join(r["input_text"] for r in rows).encode()).hexdigest(),
     }
-    (dest / "dataset_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False))
+    (dest / "dataset_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
     (dest / "annotation_records.jsonl").touch()
     return dest
 
