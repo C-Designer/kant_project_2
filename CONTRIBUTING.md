@@ -15,7 +15,7 @@ gh pr create --fill
 
 1. 최신 `main`에서 자기 피처 브랜치를 만든다.
 2. 작업 후 push하고 `main` 대상으로 PR을 연다. PR 템플릿의 체크리스트를 채운다.
-3. CI 3개(`branch-name`, `backend-lint`, `frontend`)가 모두 통과해야 머지 버튼이 활성화된다.
+3. CI 4개(`branch-name`, `backend-lint`, `backend-test`, `frontend`)가 모두 통과해야 머지 버튼이 활성화된다.
 4. 리뷰 승인은 필수가 아니지만, 다른 팀원에게 리뷰를 요청하는 것을 권장한다.
 5. 머지 후 브랜치를 삭제하고 다시 1번부터 시작한다.
 
@@ -44,9 +44,9 @@ git push -u origin HEAD
 
 - `main`에 직접 push 금지 (PR 필수)
 - force push와 브랜치 삭제 금지
-- 필수 CI 통과: `branch-name`, `backend-lint`, `frontend`
+- 필수 CI 통과: `branch-name`, `backend-lint`, `backend-test`, `frontend`
 
-CI는 DB와 무거운 ML 의존성이 필요 없는 검사만 돌린다. pytest와 데이터·학습 dry-run은 PR 전에 로컬에서 실행한다.
+`backend-test`는 torch·CUDA 패키지만 빼고 설치한 뒤 pytest를 실행한다. 테스트는 실제 HTTP를 막으므로 유료 API를 부르지 않는다. 데이터·학습 dry-run과 프런트 빌드까지 포함한 전체 검증은 PR 전에 로컬에서 실행한다.
 
 ```sh
 uv run python scripts/verify.py

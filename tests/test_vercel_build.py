@@ -49,7 +49,7 @@ def test_manual_package_includes_all_relative_runtime_imports():
     repo = BUILD_SCRIPT.parents[2]
     modules = set(runpy.run_path(str(repo / 'scripts/prepare_vercel.py'))['API_MODULES'])
     for module in modules:
-        tree = ast.parse((repo / 'backend/lovecode' / (module + '.py')).read_text())
+        tree = ast.parse((repo / 'backend/lovecode' / (module + '.py')).read_text(encoding='utf-8'))
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module:
                 dependency = node.module.split('.')[0]

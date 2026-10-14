@@ -29,6 +29,7 @@
         "required_status_checks": [
           { "context": "branch-name" },
           { "context": "backend-lint" },
+          { "context": "backend-test" },
           { "context": "frontend" }
         ]
       }

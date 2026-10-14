@@ -83,9 +83,9 @@ def test_timeout_and_malformed_envelope(monkeypatch):
 
 def test_training_rejects_unsupported_birthday_before_fit(synthetic_dataset, tmp_path):
     source = synthetic_dataset / "synthetic_people.json"
-    people = json.loads(source.read_text())
+    people = json.loads(source.read_text(encoding="utf-8"))
     people[0]["birth_date"] = "1939-12-31"
-    source.write_text(json.dumps(people))
+    source.write_text(json.dumps(people), encoding="utf-8")
     args = SimpleNamespace(dir=synthetic_dataset, output=tmp_path / "models")
     with pytest.raises(ValueError, match="1940"):
         train(args)
