@@ -136,6 +136,49 @@ def test_release_classifier_uses_training_text(live_config, monkeypatch):
     assert all("type_id" not in c["text"]["format"]["schema"]["properties"] for c in calls)
 
 
+def test_classifier_and_explainer_share_one_saju(live_config, monkeypatch):
+    # 23:38 birth: the team convention (sect=1) moves the day pillar to the next day, which the
+    # legacy calendar.py does not. The explainer must read the same charts as the classifier.
+    from lovecode.calendar import facts
+    from lovecode.contracts import AnalysisInput
+    from lovecode.features import analysis_inputs, pair_text, to_saju_person
+
+    monkeypatch.setattr(settings(), "classifier_mode", "local")
+    inputs, calls = [], []
+
+    class RecordingClassifier:
+        def __init__(self):
+            self.report = {"dataset": {"text_format": "compact-v5"}}
+
+        def predict(self, text):
+            inputs.append(text)
+            return "T13"
+
+    body = request_body()
+    body["person_a"] = {
+        "gender": "female", "birth_date": "1985-05-22", "birth_time": "23:38", "mbti": "INFP"
+    }
+    body["person_b"] = {
+        "gender": "male", "birth_date": "1987-07-10", "birth_time": "14:20", "mbti": "ESTJ"
+    }
+    parsed = AnalysisInput.model_validate(body)
+    assert to_saju_person(parsed.person_a)["saju"]["day"] == "壬戌"
+    assert facts(parsed.person_a)["day_pillar"] == "辛酉"  # legacy rule, no longer served
+
+    expected = analysis_inputs(parsed.person_a, parsed.person_b)
+    assert expected["narrative"] == pair_text(parsed.person_a, parsed.person_b)[0]
+    service = AnalysisService(mock_provider(calls=calls), RecordingClassifier())
+    with TestClient(create_app(service)) as c:
+        r = c.post("/api/v1/analyses", json=body)
+        assert r.status_code == 200, r.text
+        assert r.json()["result"]["limitations"] == expected["limitations"]
+    assert inputs == [expected["compact"]]
+    [call] = calls
+    prompt = call["input"][1]["content"]
+    assert expected["narrative"] in prompt
+    assert "day_pillar" not in prompt and "unknown" not in prompt
+
+
 @pytest.mark.parametrize("status", [401, 429, 500])
 def test_provider_failure_no_save_ticket(live_config, status):
     calls = []

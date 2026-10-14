@@ -33,17 +33,32 @@ def limitations(a: dict, b: dict) -> list[str]:
     return out
 
 
-def pair_text(a: Person, b: Person) -> tuple[str, list[str]]:
-    """Deterministic and A/B swap invariant: canonical order, seed derived from the inputs."""
-    sa, sb = to_saju_person(a), to_saju_person(b)
+def _canonical(a: Person, b: Person, sa: dict, sb: dict) -> tuple[dict, dict, int]:
+    """Canonical A/B order and a seed derived from the inputs, so texts are swap invariant."""
     keyed = sorted(
         ((json.dumps(p.model_dump(mode="json"), sort_keys=True), s) for p, s in ((a, sa), (b, sb))),
         key=lambda kv: kv[0],
     )
     seed = int(hashlib.sha256("|".join(k for k, _ in keyed).encode()).hexdigest()[:8], 16)
-    text = build_pair(keyed[0][1], keyed[1][1], seed=seed)["text"]
+    return keyed[0][1], keyed[1][1], seed
+
+
+def _narrative(first: dict, second: dict, seed: int) -> str:
+    return build_pair(first, second, seed=seed)["text"]
+
+
+def _compact(first: dict, second: dict) -> str:
+    from .saju import analyze_pair
+    from .saju.textgen import make_compact_text
+
+    return make_compact_text(first, second, analyze_pair(first, second), v5=True)
+
+
+def pair_text(a: Person, b: Person) -> tuple[str, list[str]]:
+    """Narrative text (lovecode-v2 classifiers and the explanation evaluation sets)."""
+    sa, sb = to_saju_person(a), to_saju_person(b)
     # Limitations keep the caller's person_a / person_b naming.
-    return text, limitations(sa, sb)
+    return _narrative(*_canonical(a, b, sa, sb)), limitations(sa, sb)
 
 
 def compact_text(a: Person, b: Person) -> tuple[str, list[str]]:
@@ -52,22 +67,30 @@ def compact_text(a: Person, b: Person) -> tuple[str, list[str]]:
     Same text builder as scripts/build_rule_dataset.py --text v5. Canonical A/B order keeps
     it swap invariant; the final model was also trained with A/B-swapped copies.
     """
-    from .saju import analyze_pair
-    from .saju.textgen import make_compact_text
-
     sa, sb = to_saju_person(a), to_saju_person(b)
-    keyed = sorted(
-        ((json.dumps(p.model_dump(mode="json"), sort_keys=True), s) for p, s in ((a, sa), (b, sb))),
-        key=lambda kv: kv[0],
-    )
-    first, second = keyed[0][1], keyed[1][1]
-    text = make_compact_text(first, second, analyze_pair(first, second), v5=True)
-    return text, limitations(sa, sb)
+    first, second, _ = _canonical(a, b, sa, sb)
+    return _compact(first, second), limitations(sa, sb)
+
+
+def analysis_inputs(a: Person, b: Person) -> dict:
+    """One saju computation for a web request: classifier text, explanation text, limitations.
+
+    Both texts come from the same charts, so the classifier and the explainer never read
+    different pillars for the same person.
+    """
+    sa, sb = to_saju_person(a), to_saju_person(b)
+    first, second, seed = _canonical(a, b, sa, sb)
+    return {
+        "compact": _compact(first, second),
+        "narrative": _narrative(first, second, seed),
+        "limitations": limitations(sa, sb),
+    }
 
 
 __all__ = [
     "VERSION",
     "ManseInputError",
+    "analysis_inputs",
     "compact_text",
     "limitations",
     "pair_text",
