@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from langsmith import get_tracing_context
 from lovecode.api import create_app
-from lovecode.contracts import demo_result
+from lovecode.contracts import TAXONOMY, demo_result
 from lovecode.generator import LangChainExplainer, make_llm
 from lovecode.service import AnalysisService
 from lovecode.settings import settings
@@ -87,3 +87,24 @@ def test_langchain_web_transport(monkeypatch, status):
 
 def test_default_service_uses_langchain():
     assert isinstance(AnalysisService().explainer, LangChainExplainer)
+
+
+@pytest.mark.parametrize("type_id", list(TAXONOMY))
+def test_prompt_shows_only_own_poles(type_id):
+    # The opposite_pole check rejects these words, so the prompt itself must not show them.
+    from lovecode.checks import opposite_poles, poles
+    from lovecode.generator import prompt, prompt_inputs, repair_prompt
+
+    inputs = prompt_inputs("", type_id)
+    rendered = [
+        "\n".join(m.content for m in prompt().format_messages(**inputs)),
+        "\n".join(
+            m.content
+            for m in repair_prompt().format_messages(**inputs, previous="{}", problems="")
+        ),
+    ]
+    for text in rendered:
+        assert all(pole in text for pole in poles(type_id))
+        assert not [pole for pole in opposite_poles(type_id) if pole in text]
+        # The first draft is told the rule the opposite_pole check enforces, not only the repair.
+        assert "반대쪽 극의 이름은 비교하거나 대조할 때도 쓰지 않는다" in text

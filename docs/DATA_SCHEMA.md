@@ -197,12 +197,13 @@ Release verdict: Not assessed
 
 ## 9. 현재 생성물과 실행 경계
 
-- `data/synthetic-v1/couples.csv`: 600쌍, train 360 / validation 120 / test 120. 라벨·이유는 빈 값, review_status는 전부 pending. 라벨/승인 0건을 정상 준비 상태로 취급한다.
-- `synthetic_people.json`: person_id + PersonInput + source=synthetic + seed. `synthetic_pairs.json`: couple_id/group_id/person_a_id/person_b_id.
-- `dataset_manifest.json`: seed, calendar_version, input_sha256, 분할 수, 미검수 표시. 각 인물은 한 쌍에만 사용하여 연결 그룹과 인물 누수를 방지한다.
-- `annotation_records.jsonl`: OpenAI 실행 후 source/model/prompt_version/status=pending/usage 기록. 사람 승인 기록은 source=human, reviewer, reviewed_at, status=approved, label 일치가 필요하다. 자동 승인은 없다.
-- 현재 고정 예시 티켓의 versions는 generator=static-fixture-v1 / classifier=not-trained / calendar=not-activated를 사용한다. 운영용 VersionSet 전체 연결은 모델 활성화 단계의 미완료 조건이다.
-- 내부 input_text는 정렬된 두 PersonFacts JSON이다. 생년월일·성별은 feature에 포함하지 않는다. `strength`/`needed_elements`는 unknown. 합·충·원진 pair_facts 규칙은 아직 구현하지 않아 입력에 만들어 넣지 않는다.
+- `data/lovecode-rule5/train4800h/couples.csv`: 6,240쌍(train 6,000 / validation 120 / test 120). 라벨은 `labeler.py`(판단 기준 v1.2)가 붙였고 review_status는 전부 `rule_labeled`다. 사람 승인(`approved`)은 0건이며 미검수로 표시한다.
+- `train_aug.csv`: train 행의 A/B 자리를 바꾼 증강본(`scripts/build_augment.py`). 평가 split에는 쓰지 않는다.
+- `synthetic_people.json`: person_id + 입력 필드 + source=synthetic + seed. `synthetic_pairs.json`: couple_id/group_id/person_a_id/person_b_id. `group_id`는 인물 연결 요소라 한 사람이 두 split에 걸치지 않는다.
+- `dataset_manifest.json`: seed, calendar_version, text_format=compact-v5, input_sha256, 분할 수, `train_size_experiment`, 미검수 표시.
+- `annotation_records.jsonl`: 규칙 라벨러의 축별 점수와 결정 경로. 사람 승인 기록은 source=human, reviewer, reviewed_at, status=approved, label 일치가 필요하다. 자동 승인은 없다.
+- `dev1200.csv`: 모델 선정용 별도 개발 세트. `generation_development.jsonl`(15건)과 `generation_eval.jsonl`(24건)은 해설 모델 비교의 고정 세트다.
+- 입력 텍스트는 `features.compact_text()`가 만드는 compact-v5 형식이다(두 사람의 팔자·오행·강약·조후·용신, 공급·유사도, 관계 목록). 생년월일·성별 원문은 넣지 않는다. 해설 입력은 같은 계산에서 나온 서술형 텍스트다.
 
 ## 실제 요청 처리 개정
 

@@ -48,9 +48,9 @@ def type_of(label):
 def make_sets(_):
     import csv
 
-    from eval_llm_classifier import load_pair_facts
+    from lovecode.dataset import load_pair_facts
 
-    facts = load_pair_facts(SOURCE.relative_to(ROOT))
+    facts = load_pair_facts(SOURCE)
     with (SOURCE / "couples.csv").open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
     for name, (split, n) in SETS.items():

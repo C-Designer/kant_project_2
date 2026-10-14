@@ -1,6 +1,6 @@
 # v1.2 검수 기록: 해석 규약과 남은 쟁점 (2026-10-12)
 
-600쌍 전체를 판단 기준 v1.2로 AI 검수했습니다 (`data/labeling/labels/reviewed_01~08.jsonl`, `review_status = ai_reviewed`). **사람 검수가 아닙니다.**
+600쌍 전체를 판단 기준 v1.2로 AI 검수했습니다 (`data/labeling/labels/reviewed_01~08.jsonl`, `review_status = ai_reviewed`). **사람 검수가 아닙니다.** 이 라벨 파일과 lovecode-v2 데이터는 규칙 라벨러(`labeler.py`)로 대체된 뒤 2026-10-14에 제거했고 Git 이력에 남아 있습니다. 아래 1절의 해석 규약은 규칙 라벨러가 그대로 구현하므로 현행 문서입니다.
 
 - 1차 검수 358쌍: 이전 세션
 - 나머지 242쌍: 이번 세션. 7묶음으로 나눠 검수한 뒤, 아래 규약으로 다시 맞춤

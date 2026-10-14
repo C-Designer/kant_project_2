@@ -1,14 +1,12 @@
-"""Fixture labels/encoder verify execution only; never claim model quality."""
+"""Fixture labels verify execution only; never claim model quality."""
 
 import csv
 import hashlib
 import json
-import shutil
 from types import SimpleNamespace
 
 import httpx
 import pytest
-from lovecode.annotate import annotate
 from lovecode.contracts import TAXONOMY
 from lovecode.dataset import write_csv
 from lovecode.inference import ArtifactError, Classifier
@@ -17,18 +15,12 @@ from lovecode.settings import settings
 from lovecode.train import train
 
 
-class FixtureEncoder:
-    def __init__(self, *args, **kwargs):
-        from sklearn.feature_extraction.text import HashingVectorizer
-
-        self.vectorizer = HashingVectorizer(
-            n_features=128, analyzer="char", ngram_range=(2, 3), alternate_sign=False
-        )
-
-    def encode(self, texts, **kwargs):
-        return self.vectorizer.transform(texts).toarray()
+def read_rows(dataset):
+    with (dataset / "couples.csv").open(encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
 
 
+<<<<<<< HEAD
 @pytest.fixture
 def dataset(tmp_path):
     dest = tmp_path / "data"
@@ -86,48 +78,51 @@ def test_annotation_checkpoint_resume(dataset, monkeypatch):
 
 def test_real_estimators_fixture_data_and_artifact_guards(dataset, tmp_path):
     rows = list(csv.DictReader((dataset / "couples.csv").open(encoding="utf-8")))
+=======
+def test_real_estimators_fixture_data_and_artifact_guards(synthetic_dataset, tmp_path):
+    rows = read_rows(synthetic_dataset)
+>>>>>>> origin/main
     labels = [v["label"] for v in TAXONOMY.values()]
     counters = {}
     for r in rows:
         n = counters.get(r["split"], 0)
         r.update(label=labels[n % 16], label_reason="모의 학습 배선 검증 전용, 정답 아님")
         counters[r["split"]] = n + 1
-    write_csv(dataset / "couples.csv", rows)
+    write_csv(synthetic_dataset / "couples.csv", rows)
     args = SimpleNamespace(
-        dir=dataset,
+        dir=synthetic_dataset,
         allow_ai_drafts=True,
         dry_run=False,
-        encoder="fixture-hashing",
-        encoder_revision="fixture",
         output=tmp_path / "models",
         fixture=True,
     )
-    report = train(args, encoder_factory=FixtureEncoder)
+    report = train(args)
     assert report["fixture"] is True and report["human_review"] == "incomplete"
-    assert set(report["candidates"]) == {"tfidf_lr", "pretrained_encoder_lr"}
+    assert set(report["candidates"]) == {"tfidf_lr"} and report["selected"] == "tfidf_lr"
     assert len(report["test"]["confusion_matrix"]) == 16
     with pytest.raises(ArtifactError, match="FIXTURE"):
         Classifier(args.output)
-    model = Classifier(args.output, allow_fixture=True, encoder_factory=FixtureEncoder)
+    model = Classifier(args.output, allow_fixture=True)
     assert model.predict(rows[0]["input_text"]) in TAXONOMY
-    name = "tfidf_lr.joblib" if report["selected"] == "tfidf_lr" else "encoder_lr.joblib"
-    (args.output / name).write_bytes(b"tampered")
+    (args.output / "tfidf_lr.joblib").write_bytes(b"tampered")
     with pytest.raises(ArtifactError, match="DIGEST"):
+<<<<<<< HEAD
         Classifier(args.output, allow_fixture=True, encoder_factory=FixtureEncoder)
     assert (
         report["csv_sha256"] == hashlib.sha256((dataset / "couples.csv").read_bytes()).hexdigest()
     )
     with open("data/synthetic-v1/couples.csv", encoding="utf-8") as f:
         assert not any(r["label"] for r in csv.DictReader(f))
+=======
+        Classifier(args.output, allow_fixture=True)
+    csv_bytes = (synthetic_dataset / "couples.csv").read_bytes()
+    assert report["csv_sha256"] == hashlib.sha256(csv_bytes).hexdigest()
+>>>>>>> origin/main
 
 
-def test_unlabeled_training_blocked(dataset, tmp_path):
+def test_unlabeled_training_blocked(synthetic_dataset, tmp_path):
     args = SimpleNamespace(
-        dir=dataset,
-        allow_ai_drafts=True,
-        dry_run=False,
-        encoder_revision="a" * 40,
-        output=tmp_path / "models",
+        dir=synthetic_dataset, allow_ai_drafts=True, dry_run=False, output=tmp_path / "models"
     )
     with pytest.raises(ValueError, match="coverage"):
         train(args)
@@ -155,12 +150,21 @@ def test_timeout_and_malformed_envelope(monkeypatch):
             ).label("fixture", allow_paid=True)
 
 
+<<<<<<< HEAD
 def test_training_rejects_unsupported_birthday_before_fit(dataset, tmp_path):
     source = dataset / "synthetic_people.json"
     people = json.loads(source.read_text(encoding="utf-8"))
     people[0]["birth_date"] = "1939-12-31"
     source.write_text(json.dumps(people), encoding="utf-8")
     args = SimpleNamespace(dir=dataset, output=tmp_path / "models")
+=======
+def test_training_rejects_unsupported_birthday_before_fit(synthetic_dataset, tmp_path):
+    source = synthetic_dataset / "synthetic_people.json"
+    people = json.loads(source.read_text())
+    people[0]["birth_date"] = "1939-12-31"
+    source.write_text(json.dumps(people))
+    args = SimpleNamespace(dir=synthetic_dataset, output=tmp_path / "models")
+>>>>>>> origin/main
     with pytest.raises(ValueError, match="1940"):
         train(args)
     assert not args.output.exists()

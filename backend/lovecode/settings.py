@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     model: str = ""
     real_analysis_enabled: bool = False
     classifier_mode: str = "openai"
-    models_dir: str = "artifacts/models/comparison-v1"
+    models_dir: str = "artifacts/models/lovecode-rule5-v5-train4800h-axes-reg"
     allowed_origins: str = "http://127.0.0.1:3100,http://localhost:3100"
     daily_analysis_limit: int = 20
     analysis_wait_seconds: float = Field(default=30, gt=0, le=45)

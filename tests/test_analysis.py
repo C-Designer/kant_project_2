@@ -137,9 +137,8 @@ def test_release_classifier_uses_training_text(live_config, monkeypatch):
 
 
 def test_classifier_and_explainer_share_one_saju(live_config, monkeypatch):
-    # 23:38 birth: the team convention (sect=1) moves the day pillar to the next day, which the
-    # legacy calendar.py does not. The explainer must read the same charts as the classifier.
-    from lovecode.calendar import facts
+    # 23:38 birth: the team convention (sect=1) moves the day pillar to the next day.
+    # The explainer must read the same charts as the classifier.
     from lovecode.contracts import AnalysisInput
     from lovecode.features import analysis_inputs, pair_text, to_saju_person
 
@@ -163,7 +162,6 @@ def test_classifier_and_explainer_share_one_saju(live_config, monkeypatch):
     }
     parsed = AnalysisInput.model_validate(body)
     assert to_saju_person(parsed.person_a)["saju"]["day"] == "壬戌"
-    assert facts(parsed.person_a)["day_pillar"] == "辛酉"  # legacy rule, no longer served
 
     expected = analysis_inputs(parsed.person_a, parsed.person_b)
     assert expected["narrative"] == pair_text(parsed.person_a, parsed.person_b)[0]

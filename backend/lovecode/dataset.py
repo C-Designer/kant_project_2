@@ -1,19 +1,16 @@
-"""Reproducible synthetic inputs; never manufacture model labels or human approvals."""
+"""Dataset contract: CSV writer, validator and per-pair fact loader. Never manufactures labels."""
 
 import argparse
 import csv
 import hashlib
 import json
-import random
 from collections import Counter
-from datetime import date, timedelta
 from pathlib import Path
 
-from .calendar import VERSION, input_text
 from .contracts import TAXONOMY, Person
 
 HEADERS = ["couple_id", "group_id", "input_text", "label", "label_reason", "review_status", "split"]
-SEED = 20261011
+DEFAULT_DIR = "data/lovecode-rule5/train4800h"
 
 
 def write_csv(path, rows):
@@ -25,6 +22,7 @@ def write_csv(path, rows):
     tmp.replace(path)
 
 
+<<<<<<< HEAD
 def generate(dest):
     dest = Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
@@ -92,6 +90,8 @@ def generate(dest):
     return validate(dest)
 
 
+=======
+>>>>>>> origin/main
 def validate(dest):
     dest = Path(dest)
     with (dest / "couples.csv").open(encoding="utf-8", newline="") as f:
@@ -155,7 +155,7 @@ def validate(dest):
             raise ValueError("입력/라벨 유출 오류")
         if r["label"] and r["label"] not in labels:
             raise ValueError("알 수 없는 라벨")
-        # ai_reviewed: second-pass AI review (lovecode-v2). Never counts as human approval.
+        # Only "approved" with a matching human record counts as human review.
         if r["review_status"] not in ("pending", "ai_reviewed", "rule_labeled", "approved", "needs_revision"):
             raise ValueError("검수 상태 오류")
         if r["review_status"] == "approved" and (
@@ -179,18 +179,36 @@ def validate(dest):
     }
 
 
+def load_pair_facts(directory):
+    """couple_id -> (A, B, F) rebuilt from the dataset's own people/pairs (same facts as the text)."""
+    from .saju import analyze_pair, build_person
+
+    root = Path(directory)
+    people = {
+        p["person_id"]: p
+        for p in json.loads((root / "synthetic_people.json").read_text(encoding="utf-8"))
+    }
+    gender = {"male": "M", "female": "F"}
+
+    def person(pid):
+        p = people[pid]
+        y, m, d = map(int, p["birth_date"].split("-"))
+        h, mi = map(int, p["birth_time"].split(":")) if p["birth_time"] else (None, None)
+        return build_person(gender.get(p["gender"], "U"), y, m, d, h, mi, p["mbti"])
+
+    out = {}
+    for pair in json.loads((root / "synthetic_pairs.json").read_text(encoding="utf-8")):
+        a, b = person(pair["person_a_id"]), person(pair["person_b_id"])
+        out[pair["couple_id"]] = (a, b, analyze_pair(a, b))
+    return out
+
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("command", choices=["generate", "validate"])
-    p.add_argument("--dir", default="data/synthetic-v1")
+    p.add_argument("command", choices=["validate"])
+    p.add_argument("--dir", default=DEFAULT_DIR)
     a = p.parse_args()
-    print(
-        json.dumps(
-            generate(a.dir) if a.command == "generate" else validate(a.dir),
-            ensure_ascii=False,
-            indent=2,
-        )
-    )
+    print(json.dumps(validate(a.dir), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
