@@ -1,0 +1,22 @@
+[
+  {
+    "file": "eval__openai__gpt-6-luna__v4r.jsonl",
+    "backend": "openai",
+    "model": "gpt-6-luna",
+    "tag": "v4r",
+    "n": 24,
+    "violations": 0,
+    "by_check": {
+      "contract_error": 0,
+      "fabricated_relations": 0,
+      "opposite_pole": 0,
+      "assertive": 0,
+      "superiority": 0,
+      "request_or_schema_error": 0
+    },
+    "cost_usd": 0.0073803,
+    "latency_median_s": 5.5591916250414215,
+    "external_transfer": true,
+    "gpu": null
+  }
+]
