@@ -14,11 +14,8 @@ COMMANDS = [
     ["npm", "--prefix", "frontend", "test"],
     ["npm", "--prefix", "frontend", "run", "format:check"],
     ["npm", "--prefix", "frontend", "run", "build"],
-    ["uv", "run", "python", "-m", "lovecode.dataset", "validate"],
-    ["uv", "run", "python", "-m", "lovecode.annotate", "--dry-run"],
-    ["uv", "run", "python", "-m", "lovecode.train", "--allow-ai-drafts", "--dry-run"],
-    ["uv", "run", "python", "-m", "lovecode.experiment", "--dry-run"],
-    ["uv", "run", "python", "-m", "lovecode.pipeline", "--dry-run"],
+    ["uv", "run", "python", "-m", "lovecode.dataset", "validate", "--dir", "data/lovecode-rule5/train4800h"],
+    ["uv", "run", "python", "-m", "lovecode.train", "--dir", "data/lovecode-rule5/train4800h", "--allow-ai-drafts", "--dry-run"],
 ]
 
 

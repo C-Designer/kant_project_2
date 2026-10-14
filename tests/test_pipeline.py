@@ -1,8 +1,6 @@
-"""lovecode-v2: ported saju text, dataset, classifier candidates, LangChain explainer (offline)."""
+"""Saju text builders, training candidates and the LangChain explainer (offline)."""
 
 import csv
-import json
-import shutil
 from datetime import date
 from types import SimpleNamespace
 
@@ -10,7 +8,6 @@ import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 from lovecode.contracts import TAXONOMY, Person
-from lovecode.dataset import validate
 from lovecode.features import pair_text, to_saju_person
 from lovecode.generator import Explanation, LangChainExplainer
 from lovecode.provider import ProviderError
@@ -46,20 +43,9 @@ def test_dst_and_utc830_are_corrected():
     assert old["std_time"] == "1955-03-01 11:00"
 
 
-def test_lovecode_v2_dataset_is_valid_and_covers_all_types():
-    summary = validate("data/lovecode-v2")
-    assert summary["rows"] == 600 and summary["approved"] == 0
-    with open("data/lovecode-v2/couples.csv", encoding="utf-8", newline="") as f:
-        rows = list(csv.DictReader(f))
-    assert {r["review_status"] for r in rows} <= {"ai_reviewed", "pending"}
-    for s in ("train", "validation", "test"):
-        assert len({r["label"] for r in rows if r["split"] == s}) == 16
-
-
 @pytest.fixture
-def fixture_labels(tmp_path):
-    dest = tmp_path / "data"
-    shutil.copytree("data/synthetic-v1", dest)
+def fixture_labels(synthetic_dataset):
+    dest = synthetic_dataset
     from lovecode.dataset import write_csv
 
     rows = list(csv.DictReader((dest / "couples.csv").open(encoding="utf-8", newline="")))
@@ -78,8 +64,6 @@ def test_candidate_selection_and_bert_revision_guard(fixture_labels, tmp_path):
         "dir": fixture_labels,
         "allow_ai_drafts": True,
         "dry_run": False,
-        "encoder": "x",
-        "encoder_revision": None,
         "fixture": True,
     }
     with pytest.raises(ValueError, match="bert-revision"):
@@ -253,79 +237,6 @@ def test_openai_llm_uses_low_reasoning_effort_without_temperature():
     llm = generator.make_llm("openai", "configured-model", api_key="test-only")
     assert llm.reasoning == {"effort": generator.OPENAI_REASONING_EFFORT}
     assert llm.temperature is None
-
-
-class FakeChoiceLLM:
-    def __init__(self, type_id):
-        self.type_id = type_id
-
-    def with_structured_output(self, schema, **kwargs):
-        def respond(_):
-            raw = AIMessage(
-                content="",
-                usage_metadata={"input_tokens": 9, "output_tokens": 3, "total_tokens": 12},
-            )
-            parsed = schema(type_id=self.type_id) if self.type_id else None
-            return {
-                "raw": raw,
-                "parsed": parsed,
-                "parsing_error": None if parsed else ValueError("bad"),
-            }
-
-        return RunnableLambda(respond)
-
-
-def test_llm_classifier_returns_one_of_sixteen_and_is_gated(monkeypatch):
-    from lovecode.llm_classifier import LLMClassifier, TypeChoice
-
-    pred, meta = LLMClassifier("ollama", llm=FakeChoiceLLM("T07")).classify("입력")
-    assert pred == "T07" and meta["error"] is None and meta["usage"]["output_tokens"] == 3
-    assert LLMClassifier("ollama", llm=FakeChoiceLLM(None)).classify("입력")[0] is None
-    with pytest.raises(ValueError):
-        TypeChoice(type_id="T17")
-    monkeypatch.setattr(settings(), "model", "configured-model")
-    with pytest.raises(ProviderError, match="API_DISABLED"):
-        LLMClassifier("openai", llm=FakeChoiceLLM("T01")).classify("입력", allow_paid=True)
-
-
-def test_jev_classifier_request_parse_and_retry(monkeypatch):
-    import httpx
-    from lovecode import jev_classifier as jev
-
-    monkeypatch.setenv("LC_JEV_API_KEY", "test-only")
-    monkeypatch.setattr(jev.time, "sleep", lambda s: None)
-    seen = []
-
-    def handle(request):
-        seen.append(json.loads(request.content))
-        if len(seen) == 1:
-            return httpx.Response(429)
-        opt = jev.option("T15")
-        return httpx.Response(
-            200,
-            json={
-                "model": "jev-1.13.0",
-                "answers": {
-                    "relationship_type": {
-                        "type": "choice",
-                        "choice": opt,
-                        "confidence": 0.7,
-                        "probabilities": {opt: 0.7, jev.option("T01"): 0.3},
-                    }
-                },
-                "usage": {"input_tokens": 10, "output_tokens": 0},
-            },
-        )
-
-    clf = jev.JevClassifier("guided", transport=httpx.MockTransport(handle))
-    pred, meta = clf.classify("입력", allow_paid=True)
-    assert pred == "T15" and meta["error"] is None and meta["probabilities"]["T01"] == 0.3
-    body = seen[-1]
-    assert len(seen) == 2 and body["model"] == jev.MODEL
-    criteria = body["questions"]["relationship_type"]["criteria"]
-    assert len(criteria) == 16 and "labeling_rules" in body["state"]
-    assert "labeling_rules" not in jev.request_body("입력", "noguide")["state"]
-    assert jev.JevClassifier().classify("입력")[1]["error"] == "API_DISABLED"
 
 
 def test_compact_text_matches_training_format_and_is_swap_invariant():

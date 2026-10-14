@@ -1,6 +1,6 @@
 """선정된 분류기를 test split으로 한 번만 평가한다 (train.py --skip-test 이후).
 
-사용: uv run python scripts/evaluate_test.py --models artifacts/models/lovecode-v2
+사용: uv run python scripts/evaluate_test.py --models artifacts/models/<실험 디렉터리>
 - 학습 때와 같은 couples.csv인지 sha256으로 확인한다
 - report.json에 test 결과가 이미 있으면 거부한다 (test는 한 번만)
 """
@@ -23,9 +23,9 @@ from lovecode.inference import Classifier
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", default="artifacts/models/lovecode-v2")
-    ap.add_argument("--dir", default="data/lovecode-v2")
-    ap.add_argument("--copy-to", default="artifacts/reports/classifier-selection-lovecode-v2.json")
+    ap.add_argument("--models", default="artifacts/models/lovecode-rule5-v5-train4800h-axes-reg")
+    ap.add_argument("--dir", default="data/lovecode-rule5/train4800h")
+    ap.add_argument("--copy-to", default="artifacts/reports/classifier-test-lovecode-rule5.json")
     a = ap.parse_args()
     report_path = ROOT / a.models / "report.json"
     report = json.loads(report_path.read_text(encoding="utf-8"))

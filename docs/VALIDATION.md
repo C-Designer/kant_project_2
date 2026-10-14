@@ -1,5 +1,7 @@
 # 실행 검증 기록 — API 연결 전
 
+> 2026-10-14: 아래는 2026-10-11 당시 기록이다. 표의 CSV 계약·재현과 OpenAI 라벨링·해설 dry-run은 synthetic-v1 데이터 기준이며, 그 데이터와 경로는 규칙 라벨 데이터(`data/lovecode-rule5`)로 대체된 뒤 제거했다. 현재 검증 명령은 [README](../README.md)의 검증 절을 따른다.
+
 2026-10-11, macOS arm64 로컬 환경. 아래는 실제 실행한 범위다. 전체 MVP의 실사용 준비·배포 승인을 의미하지 않는다. 코드와 현재 실행 절차는 [루트 README](../README.md), 다음 유료 실행은 [API 인계](./API_HANDOFF.md)를 따른다.
 
 ## 자동 검증
@@ -17,7 +19,7 @@
 | 해설 dry-run | 정상 대기 | 모델 artifact 없음, API 비활성, 실제 호출0 |
 | 실행 서버 | 통과 | Next3100·API8100·전용DB55439, proxy health200/analysis_ready=false |
 
-원문 실행 결과: [offline-verification.json](../artifacts/reports/offline-verification.json), [data-reproducibility.json](../artifacts/reports/data-reproducibility.json). `uv run python scripts/verify.py`로 키 없이 재실행한다. OpenAPI는 [openapi.json](./api/openapi.json)에 저장했다.
+원문 실행 결과: [offline-verification.json](../artifacts/reports/offline-verification.json). `uv run python scripts/verify.py`로 키 없이 재실행한다. OpenAPI는 [openapi.json](./api/openapi.json)에 저장했다.
 
 자동 테스트는 다음을 포함한다.
 

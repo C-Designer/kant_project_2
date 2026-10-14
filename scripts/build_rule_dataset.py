@@ -23,7 +23,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from build_lovecode_dataset import components
 from lovecode.contracts import TAXONOMY
 from lovecode.dataset import HEADERS, validate, write_csv
 from lovecode.features import VERSION
@@ -31,6 +30,26 @@ from lovecode.labeler import label
 from lovecode.saju import analyze_pair, build_person
 from lovecode.saju.textgen import make_compact_text
 from lunar_python import Solar
+
+
+def components(pairs):
+    """인물 연결 요소 → group_id. 한 사람이 3쌍에 나오므로 쌍 단위 id로는 누수를 못 막는다."""
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for p in pairs:
+        parent[find(p["person_a"])] = find(p["person_b"])
+    roots = {}
+    return {
+        p["pair_id"]: roots.setdefault(find(p["person_a"]), f"G{len(roots) + 1:03d}") for p in pairs
+    }
+
 
 SEED = 20261013
 # 성별당 인물 수 → 쌍 = 3 × 인물 수 (한 사람이 정확히 3쌍)

@@ -13,25 +13,19 @@ from .contracts import TAXONOMY
 from .dataset import validate
 
 # *_axes: per-axis comparison (four binary decisions combined into the 16-type label).
-CANDIDATES = (
-    "tfidf_lr", "pretrained_encoder_lr", "klue_bert", "tfidf_lr_axes", "klue_bert_axes"
-)
+CANDIDATES = ("tfidf_lr", "klue_bert", "tfidf_lr_axes", "klue_bert_axes")
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--dir", default="data/synthetic-v1")
+    p.add_argument("--dir", default="data/lovecode-rule5/train4800h")
     p.add_argument("--allow-ai-drafts", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--skip-test", action="store_true", help="stop after validation selection")
     p.add_argument(
-        "--encoder", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    )
-    p.add_argument("--encoder-revision")
-    p.add_argument(
         "--candidates",
-        default="tfidf_lr,pretrained_encoder_lr",
-        help="comma list of tfidf_lr, pretrained_encoder_lr, klue_bert",
+        default="tfidf_lr",
+        help="comma list of tfidf_lr, klue_bert, tfidf_lr_axes, klue_bert_axes",
     )
     p.add_argument("--bert-model", default="klue/bert-base")
     p.add_argument("--bert-revision")
@@ -39,7 +33,7 @@ def main():
     p.add_argument("--bert-lr", type=float, default=3e-5)
     p.add_argument("--bert-batch-size", type=int, default=8)
     p.add_argument("--bert-max-length", type=int, default=512)
-    p.add_argument("--output", default="artifacts/models/comparison-v1")
+    p.add_argument("--output", default="artifacts/models/local-experiment")
     p.add_argument("--bert-dropout", type=float, help="default: model config (0.1)")
     p.add_argument("--bert-weight-decay", type=float, default=0.01)
     p.add_argument("--bert-label-smoothing", type=float, default=0.0)
@@ -52,16 +46,14 @@ def main():
     return train(a)
 
 
-def train(a, *, encoder_factory=None):
+def train(a):
     def fail(message):
         raise ValueError(message)
 
     validate(a.dir)
     with (Path(a.dir) / "couples.csv").open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
-    names = [
-        n.strip() for n in getattr(a, "candidates", "tfidf_lr,pretrained_encoder_lr").split(",")
-    ]
+    names = [n.strip() for n in getattr(a, "candidates", "tfidf_lr").split(",")]
     if not names or set(names) - set(CANDIDATES) or "tfidf_lr" not in names:
         fail(f"--candidates는 tfidf_lr를 포함한 {CANDIDATES} 조합")
     eligible = [
@@ -102,12 +94,6 @@ def train(a, *, encoder_factory=None):
 
     fixture = bool(getattr(a, "fixture", False))
     sha = re.compile(r"[0-9a-f]{40}")
-    if (
-        "pretrained_encoder_lr" in names
-        and not fixture
-        and not sha.fullmatch(a.encoder_revision or "")
-    ):
-        fail("재현 가능한 --encoder-revision commit SHA 필요")
     bert_names = {"klue_bert", "klue_bert_axes"} & set(names)
     if bert_names and not sha.fullmatch(getattr(a, "bert_revision", None) or ""):
         fail("재현 가능한 --bert-revision commit SHA 필요")
@@ -134,7 +120,7 @@ def train(a, *, encoder_factory=None):
     start = time.perf_counter()
     baseline.fit(x["train"], y["train"])
     train_seconds = {"tfidf_lr": time.perf_counter() - start}
-    encoder = encoded = bert = bert_axes = tfidf_axes = None
+    bert = bert_axes = tfidf_axes = None
     if "tfidf_lr_axes" in names:
         from .axes import AxesLR
 
@@ -146,18 +132,6 @@ def train(a, *, encoder_factory=None):
             )
         ).fit(x["train"], y["train"])
         train_seconds["tfidf_lr_axes"] = time.perf_counter() - start
-    if "pretrained_encoder_lr" in names:
-        if encoder_factory is None:
-            from sentence_transformers import SentenceTransformer
-
-            encoder_factory = SentenceTransformer
-        start = time.perf_counter()
-        encoder = encoder_factory(a.encoder, revision=a.encoder_revision, trust_remote_code=False)
-        train_features = encoder.encode(x["train"], normalize_embeddings=True)
-        encoded = LogisticRegression(max_iter=2000, random_state=42, class_weight="balanced").fit(
-            train_features, y["train"]
-        )
-        train_seconds["pretrained_encoder_lr"] = time.perf_counter() - start
     # Epoch selection set: a separate dev CSV keeps the official validation for model selection.
     sel_x, sel_y, epoch_selection = x, y, "validation"
     if getattr(a, "dev_csv", None):
@@ -219,8 +193,6 @@ def train(a, *, encoder_factory=None):
         "dataset": json.loads((Path(a.dir) / "dataset_manifest.json").read_text(encoding="utf-8")),
         "review_status": dict(Counter(r["review_status"] for r in eligible)),
         "split_rows": {s: len(split[s]) for s in split},
-        "encoder": a.encoder if encoder else None,
-        "encoder_revision": a.encoder_revision if encoder else None,
         "bert": bert_log,
         "bert_axes": bert_axes_log,
         "epoch_selection": epoch_selection,
@@ -240,7 +212,7 @@ def train(a, *, encoder_factory=None):
         elif name == "tfidf_lr_axes":
             pred = tfidf_axes.predict(x[s])
         else:
-            pred = encoded.predict(encoder.encode(x[s], normalize_embeddings=True))
+            fail(f"알 수 없는 후보 {name}")
         return {
             "macro_f1": f1_score(
                 y[s], pred, labels=sorted(classes), average="macro", zero_division=0
@@ -267,9 +239,6 @@ def train(a, *, encoder_factory=None):
     output.mkdir(parents=True, exist_ok=True)
     joblib.dump(baseline, output / "tfidf_lr.joblib")
     artifacts = ["tfidf_lr.joblib"]
-    if encoded is not None:
-        joblib.dump(encoded, output / "encoder_lr.joblib")
-        artifacts.append("encoder_lr.joblib")
     if bert is not None:
         artifacts.append("klue_bert/" + BERT_WEIGHTS)
     if bert_axes is not None:

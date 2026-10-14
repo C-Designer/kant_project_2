@@ -28,12 +28,6 @@ PROMPT_VERSION = "explain-lc-v4"
 # OpenAI model comes from LC_MODEL (settings().model); no default is assumed.
 DEFAULT_MODELS = {"ollama": "qwen3:4b-instruct-2507-q4_K_M", "openai": None}
 
-AXIS_GUIDE = {
-    "chemistry": "연애 케미: 닮은꼴=비슷한 기질이 편안함을 줌 / 보완형=서로 없는 부분을 채워 줌",
-    "temperature": "연애 온도: 열정형=감정 표현과 변화가 큰 편 / 안정형=꾸준하고 차분한 편",
-    "distance": "관계 거리: 밀착형=함께하는 시간을 중시 / 독립형=각자의 공간을 중시",
-    "conflict": "갈등 해결: 바로 풀기=그 자리에서 대화로 풂 / 시간 두기=감정을 가라앉힌 뒤 대화",
-}
 # The explainer sees only the couple's own pole: in v2 the axis guide and the HUMAN example
 # put opposite-pole words in front of the LLM, and the opposite_pole check then forced a
 # repair call on about one draft in five.

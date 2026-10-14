@@ -21,8 +21,8 @@
 백엔드 파일 경로는 별도 표기가 없으면 `backend/lovecode/` 기준이다.
 `contracts.py`의 유형 ID와 축이 기준이며 프런트의 `data/relationship-types.json`은 이름·설명·이미지를 연결한다.
 `lib/relationship.ts`는 축의 표시 순서를 고정한다.
-웹 요청은 `features.analysis_inputs()`로 사주를 한 번만 계산한다. 분류기와 해설기가 같은 팔자를 읽어야 하므로
-`calendar.py`는 compact-v5 이전 모델 호환과 `dataset.py`(synthetic-v1)에만 남긴다.
+웹 요청은 `features.analysis_inputs()`로 사주를 한 번만 계산한다. 분류기와 해설기가 같은 팔자를 읽는다.
+만세력 구현은 `saju/` 하나뿐이며, 서비스는 compact-v5 형식으로 학습한 모델만 `analysis_ready`로 인정한다.
 
 ## 코드의 세 가지 용도
 
@@ -33,18 +33,20 @@ BERT는 2건, 해설은 5건씩 별도 실행하며 BERT 슬롯은 해설 대기
 전체 입장 한도는 인스턴스당 20건이고 단계별 FIFO 대기에는 공통 30초 기한을 적용한다.
 IP 제한·일일 제한은 별도로 적용된다. 메모리 큐와 예산은 인스턴스 간 공유되지 않는다.
 
-### 데이터·학습·평가 도구 — 유지
+### 데이터·학습·평가 도구
 
-- `scripts/build_rule_dataset.py`, `labeler.py`: 규칙 라벨 데이터 생성.
-- `scripts/build_lovecode_dataset.py`, `dataset.py`, `annotate.py`: 데이터 생성·검증·라벨링.
-- `train.py`, `bert.py`, `scripts/train_catboost.py`: 학습과 비교 모델.
-- `scripts/eval_dev.py`, `scripts/evaluate_test.py`: 개발/테스트 분할 평가.
-- `scripts/compare_generators.py`, `docs/generation_eval_protocol.md`: 해설 품질·속도 비교.
-- `jev_classifier.py`, `jev_axes.py`, `llm_classifier.py`, `scripts/eval_llm_classifier.py`: 과거 및 비교 실험.
-- `experiment.py`, `pipeline.py`, `provider.py`: 실험 경로와 직접 OpenAI 호출 어댑터.
+- `scripts/build_rule_dataset.py`, `labeler.py`: 규칙 라벨 데이터 생성 (`data/lovecode-rule5`).
+- `scripts/build_augment.py`: train 행의 A/B 자리 바꾸기 증강 → `train_aug.csv` (`train.py --extra-train-csv`).
+- `dataset.py`: CSV 계약 검증(`validate`)과 쓰기, 인물·쌍 사실 로더(`load_pair_facts`).
+- `train.py`, `bert.py`, `axes.py`: 후보 학습과 validation 선정 (tfidf_lr, klue_bert, 축별 변형).
+- `scripts/eval_dev.py`, `scripts/evaluate_test.py`: dev1200 평가와 test 1회 평가.
+- `scripts/compare_generators.py`, `docs/generation_eval_protocol.md`: 해설 모델 품질·속도 비교.
+- `provider.py`: 직접 OpenAI 호출 어댑터 (`LC_CLASSIFIER_MODE=openai` 분류와 테스트).
 
-웹에서 직접 호출되지 않는다는 이유로 지우지 않는다. 평가 결과는 `artifacts/reports/`에 보존한다.
-학습의 규칙 라벨 일치율과 실제 인간 관계 예측 정확도는 구분해야 한다.
+2026-10-14 정리 기준: 현재 서비스·학습·평가 경로가 쓰지 않는 코드와 데이터는 제거한다. 보존하는 평가 결과는
+채택 모델의 보고서(`classifier-test-lovecode-rule5.json`, `dev1200-eval*.json`)와 해설 모델 선정 근거
+(`generation/rule5/`)다. 제거한 실험(synthetic-v1·lovecode-v2 데이터, OpenAI 라벨링 pipeline, Jev·LLM 분류,
+CatBoost, 옛 `calendar.py`)은 Git 이력에서 찾는다. 학습의 규칙 라벨 일치율과 실제 인간 관계 예측 정확도는 구분해야 한다.
 
 `generator.py`의 `analysis_chain()/analyze()`는 별도 LCEL 실행·테스트 경로다.
 현재 웹은 동시성 제한을 가진 `service.py`를 사용한다. 두 경로를 같은 호출 경로로 설명하지 않는다.
@@ -64,8 +66,9 @@ IP 제한·일일 제한은 별도로 적용된다. 메모리 큐와 예산은 �
 2. `tests/test_stateless.py`, `tests/test_analysis.py`: 무저장 계약·16유형·동의·분류 입력·일일 제한.
 3. `tests/test_analysis_concurrency.py`: 단계 분리·FIFO·수용 한도·실패 후 슬롯 반환.
 4. `tests/test_langchain_web.py`: 실제 SDK + 모의 HTTP로 해설 연결·재작성·실패 검증.
-5. `tests/test_lovecode_v2.py`, `tests/test_training.py`: 데이터·학습·비교 도구 회귀 검증.
-6. `tests/test_vercel_build.py`: 배포 소스 조립 및 누락 검출.
+5. `tests/test_saju.py`, `tests/test_contracts.py`: 만세력 독립 대조·경계 규칙과 입력·출력 계약.
+6. `tests/test_pipeline.py`, `tests/test_training.py`: 사주 텍스트·학습·해설 도구 회귀 검증. fixture 데이터는 `conftest.py`가 생성한다.
+7. `tests/test_vercel_build.py`: 배포 소스 조립 및 누락 검출.
 
 `tests/conftest.py`가 실제 HTTP 전송을 차단한다. 삭제된 저장 기능만을 위한 테스트는 제거했으며,
 입력 검증과 분석에 대한 테스트는 유지한다. 전체 검증은 `uv run python scripts/verify.py`로 실행한다.
