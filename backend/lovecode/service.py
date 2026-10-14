@@ -3,9 +3,8 @@
 import threading
 import time
 
-from .calendar import VERSION, facts, input_text
 from .concurrency import StageLimit
-from .features import compact_text
+from .features import VERSION, analysis_inputs
 from .generator import LangChainExplainer
 from .inference import Classifier
 from .provider import OpenAIProvider
@@ -47,22 +46,19 @@ class AnalysisService:
     def analyse(self, body):
         deadline = time.monotonic() + settings().analysis_wait_seconds
         # Raw birthday, time and gender stay on this server; only derived chart/MBTI go out.
-        text = input_text(body.person_a, body.person_b)
-        missing = []
-        for suffix, person in (("a", body.person_a), ("b", body.person_b)):
-            fact = facts(person)
-            if fact["missing_hour"]:
-                missing.append("missing_hour_" + suffix)
-            if fact["pillar_candidates"]:
-                missing.append("boundary_time_unknown_" + suffix)
-        text = text.replace("가상 인물", "인물")
+        # One saju computation feeds the classifier, the explainer and the limitations.
+        inputs = analysis_inputs(body.person_a, body.person_b)
+        text, missing = inputs["narrative"], inputs["limitations"]
         if settings().classifier_mode == "local":
             # Release models declare their training format; keep historical models compatible.
             dataset = self.classifier.report.get("dataset", {})
             if dataset.get("text_format") == "compact-v5":
-                classifier_text, missing = compact_text(body.person_a, body.person_b)
+                classifier_text = inputs["compact"]
             else:
-                classifier_text = text.replace("인물", "가상 인물")
+                # Pre-rule5 models were trained on the legacy calendar text.
+                from .calendar import input_text
+
+                classifier_text = input_text(body.person_a, body.person_b)
             with self._bert_slots.acquire(deadline):
                 type_id = self.classifier.predict(classifier_text)
         else:

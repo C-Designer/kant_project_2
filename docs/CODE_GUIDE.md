@@ -13,7 +13,7 @@
 | 3 | `frontend/lib/api.ts`, `frontend/next.config.ts` | 요청·타임아웃·오류 및 API 프록시 |
 | 4 | `backend/lovecode/api.py` | 요청 검증·IP/일일 제한·20건 입장 제한·오류 응답 |
 | 5 | `backend/lovecode/service.py` | 사주 입력 준비·분류·해설의 순서와 단계별 실행 제한 |
-| 6 | `calendar.py`, `features.py`, `saju/` | 사주 사실 계산과 모델별 입력 텍스트 생성 |
+| 6 | `features.py`, `saju/` | 사주를 한 번 계산해 분류용(compact-v5)·해설용(서술형) 텍스트와 한계 표시를 함께 생성 |
 | 7 | `inference.py`, `bert.py`, `axes.py` | 체크섬 검증·모델 로딩·축별 예측을 16유형으로 변환 |
 | 8 | `generator.py`, `checks.py`, `contracts.py` | 해설 초안·검증·필요 시 1회 재작성·공개 결과 검증 |
 | 9 | `frontend/components/ResultLoading.tsx`, `ResultView.tsx` | 대기 상태·유형 이미지·해설 표시 |
@@ -21,6 +21,8 @@
 백엔드 파일 경로는 별도 표기가 없으면 `backend/lovecode/` 기준이다.
 `contracts.py`의 유형 ID와 축이 기준이며 프런트의 `data/relationship-types.json`은 이름·설명·이미지를 연결한다.
 `lib/relationship.ts`는 축의 표시 순서를 고정한다.
+웹 요청은 `features.analysis_inputs()`로 사주를 한 번만 계산한다. 분류기와 해설기가 같은 팔자를 읽어야 하므로
+`calendar.py`는 compact-v5 이전 모델 호환과 `dataset.py`(synthetic-v1)에만 남긴다.
 
 ## 코드의 세 가지 용도
 
