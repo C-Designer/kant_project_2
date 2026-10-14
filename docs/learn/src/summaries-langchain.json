@@ -1,0 +1,178 @@
+{
+  "lc-1-what": {
+    "bullets": [
+      "LCEL 은 Runnable 부품을 | 로 잇는 조합 문법이다",
+      "직접 쓰는 패키지는 langchain-core 와 두 어댑터",
+      "에이전트·검색 증강·대화 기억은 이 코드베이스에 없다"
+    ],
+    "takeaway": "이 프로젝트의 LangChain 은 조합기 세 개와 채팅 모델 어댑터 둘뿐이며, 같은 프롬프트로 로컬과 상용 모델을 바꿔 끼우려고 씁니다."
+  },
+  "lc-1-role": {
+    "bullets": [
+      "KLUE BERT 분류기가 16유형 중 type_id 를 정한다",
+      "LLM 은 정해진 유형의 해설(요약·강점·조정·팁)만 쓴다",
+      "explain 입력은 text·type_id·limitations"
+    ],
+    "takeaway": "유형 결정은 분류기 하나에 모으고 LLM 은 해설만 쓰게 해, 해설 모델을 바꿔도 유형 분포가 흔들리지 않게 합니다."
+  },
+  "lc-1-chain-overview": {
+    "bullets": [
+      "revise_chain 은 초안·검사·조건부 수리 3단계",
+      "explain_chain 은 뒤에 PublicResult 변환을 붙인다",
+      "각 단계는 state dict 에 키를 더해 다음 단계로 넘긴다"
+    ],
+    "takeaway": "체인은 초안, 규칙 검사, 문제 있을 때 1회 수리, PublicResult 변환의 평탄한 4단계이며 analysis_chain 이 재사용합니다."
+  },
+  "lc-1-llm": {
+    "bullets": [
+      "make_llm 이 백엔드 문자열로 채팅 모델을 고른다",
+      "Ollama 는 고정 seed, OpenAI 는 store=False",
+      "external 은 openai 일 때만 True 로 동의 검사를 켠다"
+    ],
+    "takeaway": "두 어댑터가 같은 BaseChatModel 인터페이스라 체인 코드는 한 벌이고, 제공자별 옵션은 make_llm 한 곳에서 흡수합니다."
+  },
+  "lc-2-prompts": {
+    "bullets": [
+      "SYSTEM 규칙 7개, HUMAN 형식, REPAIR 수정 지시",
+      "repair_prompt 는 ai 턴에 초안을 넣은 4메시지 대화",
+      "prompt_inputs 는 커플 쪽 극만 고르고 MBTI 를 푼다"
+    ],
+    "takeaway": "반대 극 단어를 프롬프트에서 숨기고 MBTI 코드를 한글로 풀어 써서, 모델이 금지어를 베껴 쓰는 일을 입구에서 막습니다."
+  },
+  "lc-2-schema": {
+    "bullets": [
+      "Explanation Pydantic 모델이 그대로 출력 스키마가 된다",
+      "json_schema 방식에 include_raw=True 를 붙인다",
+      "JSON 스키마 변환과 strict 부착은 openai SDK 가 한다"
+    ],
+    "takeaway": "include_raw=True 로 raw·parsed·parsing_error 를 받아 파싱 실패를 예외가 아닌 데이터로 다루고 토큰 사용량을 남깁니다."
+  },
+  "lc-2-call": {
+    "bullets": [
+      "_call 은 (parsed 또는 None, meta) 를 돌려준다",
+      "실패는 요청 실패·미완료·스키마 거부 세 코드로 접는다",
+      "tracing_context 블록이 추적 환경변수를 이긴다"
+    ],
+    "takeaway": "LLM 한 번 호출의 실패를 세 코드로 접고 프롬프트·응답·키는 meta 에 남기지 않아 유출 경로를 없앱니다."
+  },
+  "lc-2-steps": {
+    "bullets": [
+      "세 단계는 state 를 복사해 키를 더한 새 dict 를 돌려준다",
+      "제공자 실패면 problems 를 비워 수리 호출을 막는다",
+      "find_problems 는 kind·instruction 쌍 목록"
+    ],
+    "takeaway": "초안이 규칙 검사에 걸리면 같은 대화에 수정 지시를 붙여 딱 한 번만 다시 부르고, 네트워크 실패는 재시도하지 않습니다."
+  },
+  "lc-2-finalize": {
+    "bullets": [
+      "남은 kind 를 meta remaining_problems 에 기록한다",
+      "HARD 네 종류가 수리 뒤에도 남으면 거절한다",
+      "ProviderError 는 api.py 에서 502 로 바뀐다"
+    ],
+    "takeaway": "계약 수준 문제(HARD)만 OUTPUT_REJECTED 로 거절하고 표현 문제는 결과를 돌려주되 meta 에 적어 502 를 줄입니다."
+  },
+  "lc-2-provider": {
+    "bullets": [
+      "OpenAIProvider 는 httpx 로 요청 본문을 손수 조립한다",
+      "두 경로의 HTTP 요청은 store·토큰 상한·strict 까지 같다",
+      "LangChain 은 직렬화·스키마 변환·파싱·fallback 을 맡는다"
+    ],
+    "takeaway": "직접 호출은 요청이 다 보이지만 다중 턴과 백엔드 교체는 LangChain 이 맡으므로, 가짜 전송 테스트로 요청 본문을 고정합니다."
+  },
+  "lc-3-runnable": {
+    "bullets": [
+      "a | b 는 a.__or__(b) 호출로 시퀀스를 만든다",
+      "coerce_to_runnable 이 함수·dict 를 포장한다",
+      "체인 조립 시점에는 LLM 호출이 일어나지 않는다"
+    ],
+    "takeaway": "| 는 LangChain 전용 문법이 아니라 __or__ 연산자 오버로딩이며, 오른쪽을 포장해 새 시퀀스를 만들 뿐 실행은 없습니다."
+  },
+  "lc-3-sequence-invoke": {
+    "bullets": [
+      "__or__ 가 시퀀스를 펼쳐 평탄한 4단계로 만든다",
+      "invoke 는 for 루프로 반환값을 다음 입력에 넘긴다",
+      "예외는 on_chain_error 뒤 그대로 다시 던져진다"
+    ],
+    "takeaway": "시퀀스는 조건도 반복도 없는 for 루프라 되돌아갈 수 없고, 수리가 정확히 한 번뿐이라 이 구조로 충분합니다."
+  },
+  "lc-3-lambda-branch": {
+    "bullets": [
+      "바운드 메서드는 self 가 안 보여 func(state) 로 불린다",
+      "config·run_manager 파라미터가 있을 때만 그 인자를 넘긴다",
+      "RunnableBranch 는 첫 참 가지, 없으면 기본 가지"
+    ],
+    "takeaway": "수리 분기를 RunnableBranch 로 드러내 두 번째 LLM 호출이 일어날 자리를 체인 구조 한 곳으로 못 박습니다."
+  },
+  "lc-3-assign": {
+    "bullets": [
+      "assign 은 입력 dict 를 유지한 채 type_id 키를 더한다",
+      "assign 은 Assign(Parallel) 두 겹 구조를 돌려준다",
+      "웹은 이 체인 대신 service.py 로 단계별 슬롯을 잡는다"
+    ],
+    "takeaway": "analysis_chain 은 오프라인 검증용이고, 웹은 LLM 대기 중 BERT 슬롯을 쥐지 않도록 service.py 가 두 단계를 따로 부릅니다."
+  },
+  "lc-3-structured": {
+    "bullets": [
+      "Pydantic 클래스가 그대로 text_format 이 된다",
+      "스키마 변환과 strict 부착은 openai SDK 몫이다",
+      "include_raw 는 with_fallbacks 로 구현된다"
+    ],
+    "takeaway": "strict=True 는 추적 메타에만 남고 실제 strict 는 SDK 가 항상 붙이며, include_raw 로 파싱 실패를 데이터로 받습니다."
+  },
+  "lc-3-failure-modes": {
+    "bullets": [
+      "예외는 요청 실패 코드로 접혀 수리 없이 502 가 된다",
+      "status 미완료·파싱 실패는 수리 1회 뒤 남으면 502",
+      "timeout=45, max_retries=0 으로 SDK 재시도를 끈다"
+    ],
+    "takeaway": "중간 단계가 판단할 실패는 meta 코드로 넘기고 복구 불가 실패만 ProviderError 로 던져 HTTP 계층이 502 로 번역합니다."
+  },
+  "lc-3-prompt-design": {
+    "bullets": [
+      "규칙 1~5 는 checks.py 정규식·입력 대조 검사와 짝이다",
+      "규칙 6(데이터로 읽기)·7(존댓말)은 검사 짝이 없다",
+      "반대 극을 보여주지 않는 설계를 16유형 테스트가 고정한다"
+    ],
+    "takeaway": "프롬프트는 부탁이고 검사는 강제라 규칙마다 정규식 짝을 두고, 금지어는 나열하지 않고 숨겨 모델의 복사를 막습니다."
+  },
+  "lc-3-repair-loop": {
+    "bullets": [
+      "repair_prompt 는 초안을 ai 턴에 넣은 4메시지 대화",
+      "previous 는 초안 JSON, problems 는 지시문 목록",
+      "되돌아가는 간선이 없어 재작성은 정확히 한 번이다"
+    ],
+    "takeaway": "대화 이력을 클라이언트가 재구성해 자기 답에 대한 피드백으로 보이게 하고, 비용·지연 상한을 위해 한 번만 고칩니다."
+  },
+  "lc-3-checks": {
+    "bullets": [
+      "checks.py 는 LangChain 에 의존하지 않는 순수 파이썬이다",
+      "길이, MBTI·한자·마크업, 반대 극, 관계, 단정, 우열 순 검사",
+      "지어낸 관계는 출력엔 있고 입력엔 없는 용어만 잡는다"
+    ],
+    "takeaway": "결정적 정규식 검사를 재작성 트리거와 팀 비교 채점기가 공유해 순위표의 위반과 서비스가 고치는 위반이 어긋나지 않습니다."
+  },
+  "lc-3-provider-swap": {
+    "bullets": [
+      "Ollama 옵션은 options dict 와 최상위 키로 나뉜다",
+      "OpenAI 옵션은 SDK 클라이언트와 요청 본문으로 갈라진다",
+      "external 과 _guard 가 동의·설정 게이트를 세 겹으로 둔다"
+    ],
+    "takeaway": "BaseChatModel 은 호출 모양만 통일하므로 제공자 분기를 make_llm 한 곳에 모으고 옵션과 실패 모드는 어댑터별로 확인합니다."
+  },
+  "lc-3-ops": {
+    "bullets": [
+      "tracing_context 가 contextvar 로 추적을 끈다",
+      "예외 객체는 버리고 코드 문자열과 소요 시간만 남긴다",
+      "meta 는 api.py 에서 버려져 응답에 실리지 않는다"
+    ],
+    "takeaway": "요청 본문·응답·키가 LangSmith, 로그, API 응답으로 새지 않도록 모든 invoke 에서 추적을 끄고 오류는 코드로만 기록합니다."
+  },
+  "lc-3-tests": {
+    "bullets": [
+      "MockTransport 로 소켓만 바꾸고 SDK 코드는 실제 실행",
+      "핸들러가 경로·store·토큰 상한·strict·생일 미포함을 단언",
+      "호출 횟수로 재작성 규칙을 검증하고 실패는 모두 502"
+    ],
+    "takeaway": "외부 API 를 SDK 경계가 아니라 전송 경계에서 격리해 요청 본문 계약을 검증하고 오류 응답을 결정적으로 재현합니다."
+  }
+}

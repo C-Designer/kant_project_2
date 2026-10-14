@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>러브코드로 배우는 FastAPI와 LangChain</title>
+<style>
+:root {
+  --bg: #f6f3ec; --panel: #fbf9f4; --ink: #1c1a16; --muted: #6a655b; --line: #d9d3c5; --line-strong: #b9b1a0;
+  --accent: #8a3b12; --accent-bg: #f3e6dc; --teal: #1f5f4f; --teal-bg: #e2eee9; --coral: #8a3b12; --coral-bg: #f3e6dc;
+  --amber: #7a5410; --amber-bg: #f4ead6; --red: #9b2c2c; --red-bg: #f6e3e3; --green: #3b6d11; --green-bg: #e8efdc;
+  --code-bg: #efebe1; --code-line: #e6e0d2; --code-mark: #f6e6b8;
+  --k: #6b2fb5; --s: #1f5f4f; --c: #8a847a; --d: #a4560f; --n: #1d4f8a; --b: #2b4a7a; --f: #1b3c8a;
+  --radius: 2px;
+  --serif: "Noto Serif KR", "Apple Myungjo", "AppleMyungjo", "Nanum Myeongjo", Georgia, "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17160f; --panel: #1d1c15; --ink: #ece7da; --muted: #a39d8d; --line: #343128; --line-strong: #4e4a3d;
+    --accent: #e3a07a; --accent-bg: #3a2416; --teal: #8fd1b8; --teal-bg: #16342b; --coral: #e3a07a; --coral-bg: #3a2416;
+    --amber: #e8c27a; --amber-bg: #3b2c0c; --red: #ec9b9b; --red-bg: #4a1818; --green: #b7dd8a; --green-bg: #1f3a0a;
+    --code-bg: #1f1e16; --code-line: #2a2920; --code-mark: #44391a;
+    --k: #cdb0ff; --s: #9fdcc4; --c: #8a847a; --d: #f0b267; --n: #93c4f5; --b: #aacdf3; --f: #a9bdff;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; font-family: var(--sans); color: var(--ink); background: var(--bg); line-height: 1.75; font-size: 16.5px; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.25; margin: 0; letter-spacing: -0.005em; text-wrap: balance; }
+h1 { font-size: 26px; }
+h2 { font-size: 28px; margin: 0 0 8px; }
+h3 { font-size: 20px; margin: 28px 0 8px; }
+h4 { font-size: 15px; font-family: var(--sans); margin: 0 0 4px; }
+p { margin: 0 0 14px; max-width: 70ch; text-wrap: pretty; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; max-width: 70ch; }
+li { margin: 3px 0; }
+code { font-family: var(--mono); font-size: 0.88em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0 18px; font-size: 14.5px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--line-strong); }
+button { font-family: inherit; font-size: 14px; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.top { position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line-strong); padding: 14px 40px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 36px; }
+header .brand h1 { font-style: italic; font-weight: 500; }
+header .brand p { margin: 0; color: var(--muted); font-size: 13px; }
+nav.tracks { display: flex; gap: 26px; margin-left: auto; }
+nav.tracks button { border: 0; background: transparent; color: var(--muted); padding: 4px 0; font-size: 14.5px; border-bottom: 2px solid transparent; }
+nav.tracks button.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
+aside.side { position: sticky; top: 70px; align-self: start; height: calc(100dvh - 70px); overflow: auto; padding: 32px 20px 32px 40px; font-size: 14px; }
+aside.side.hidden { display: none; }
+.depths { display: grid; gap: 0; margin-bottom: 28px; border-top: 1px solid var(--line-strong); }
+.depths button { border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted); padding: 10px 0; display: grid; grid-template-columns: 40px 1fr; align-items: baseline; text-align: left; }
+.depths button .lv { font-family: var(--serif); font-size: 20px; color: var(--ink); }
+.depths button .st { font-size: 12.5px; }
+.depths button.active .lv { color: var(--accent); }
+.depths button.active { color: var(--ink); }
+.depths button.done .st { color: var(--green); }
+ol.toc { list-style: none; padding: 0; margin: 0; counter-reset: toc; }
+ol.toc li a { display: block; padding: 6px 0 6px 26px; color: var(--muted); text-decoration: none; position: relative; line-height: 1.45; }
+ol.toc li:not(.quiz) a::before { counter-increment: toc; content: counter(toc, decimal-leading-zero); position: absolute; left: 0; top: 7px; font-family: var(--mono); font-size: 11px; color: var(--line-strong); }
+ol.toc li a.current { color: var(--ink); }
+ol.toc li a.current::before { color: var(--accent); }
+ol.toc li.quiz a { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 12px; font-style: italic; }
+.side-note { margin-top: 22px; color: var(--muted); font-size: 12.5px; line-height: 1.5; max-width: 22ch; }
+
+main { padding: 40px 48px 120px; min-width: 0; counter-reset: lesson; }
+.layout.full main { grid-column: 1 / -1; max-width: 980px; margin: 0 auto; width: 100%; }
+.view { display: none; }
+.view.active { display: block; }
+.depth-head { margin-bottom: 36px; padding: 0 0 18px; border-bottom: 1px solid var(--line-strong); }
+.depth-head h2 { font-size: 34px; font-weight: 500; }
+.depth-head p { margin: 8px 0 0; color: var(--muted); font-size: 15px; max-width: 60ch; }
+
+section.lesson { display: none; padding: 40px 0 44px; border-top: 1px solid var(--line); scroll-margin-top: 80px; position: relative; }
+section.lesson.show { display: block; }
+section.lesson.show::before { counter-increment: lesson; content: counter(lesson, decimal-leading-zero); display: block; font-family: var(--serif); font-size: 44px; line-height: 1; color: var(--accent); opacity: .85; margin-bottom: 14px; }
+section.lesson p.lead { color: var(--muted); font-size: 15.5px; margin-bottom: 22px; font-style: italic; }
+aside.principle { border-left: 2px solid var(--accent); padding: 4px 0 4px 18px; margin: 22px 0 26px; max-width: 70ch; }
+aside.principle h4 { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+aside.principle p { font-size: 15.5px; }
+aside.principle p:last-child { margin-bottom: 0; }
+p.ref { font-size: 13px; color: var(--muted); margin-top: 16px; font-family: var(--mono); }
+pre.ascii { font-family: var(--mono); font-size: 12.5px; background: var(--code-bg); padding: 12px 14px; overflow: auto; line-height: 1.45; border-top: 1px solid var(--line-strong); }
+
+figure.code { margin: 20px 0 10px; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line); background: var(--code-bg); }
+figure.code figcaption { display: flex; align-items: baseline; gap: 14px; padding: 8px 14px; font-size: 12px; font-family: var(--mono); color: var(--muted); border-bottom: 1px dashed var(--line); }
+figure.code figcaption .path { color: var(--ink); }
+figure.code figcaption .lib { font-size: 11px; color: var(--amber); font-family: var(--sans); }
+figure.code figcaption a.open { margin-left: auto; font-family: var(--sans); }
+figure.code pre { margin: 0; padding: 10px 0; overflow: auto; font-family: var(--mono); font-size: 12.8px; line-height: 1.6; }
+figure.code code { background: transparent; padding: 0; font-size: inherit; display: block; min-width: max-content; }
+figure.code .line { display: flex; padding: 0 14px 0 0; }
+figure.code .line.hit { background: var(--code-mark); }
+figure.code .line.hot { background: var(--code-mark); box-shadow: inset 3px 0 0 var(--accent); }
+figure.code .ln { width: 52px; flex: none; text-align: right; padding-right: 12px; color: var(--line-strong); user-select: none; position: relative; }
+figure.code .ln .mark { position: absolute; left: 6px; top: 3px; width: 15px; height: 15px; border-radius: 50%; background: var(--accent); color: var(--bg); font-size: 10px; line-height: 15px; text-align: center; font-family: var(--sans); font-weight: 700; }
+figure.code .src { white-space: pre; }
+.k { color: var(--k); } .s { color: var(--s); } .c { color: var(--c); font-style: italic; } .d { color: var(--d); } .n { color: var(--n); } .b { color: var(--b); } .f { color: var(--f); font-weight: 600; }
+ol.notes { list-style: none; padding: 0; margin: 0 0 20px; counter-reset: note; max-width: 70ch; }
+ol.notes li { counter-increment: note; position: relative; padding: 6px 0 6px 34px; font-size: 14.5px; cursor: pointer; border-bottom: 1px solid var(--line); }
+ol.notes li::before { content: counter(note); position: absolute; left: 6px; top: 9px; width: 17px; height: 17px; border-radius: 50%; background: var(--accent); color: var(--bg); font-size: 11px; line-height: 17px; text-align: center; font-weight: 700; }
+ol.notes li:hover, ol.notes li.active { background: var(--accent-bg); }
+ol.notes li .lnum { color: var(--muted); font-family: var(--mono); font-size: 12px; margin-right: 6px; }
+pre.broken { background: var(--red-bg); color: var(--red); padding: 10px; }
+
+.quiz { margin-top: 44px; padding: 28px 0 0; border-top: 3px double var(--line-strong); }
+.quiz h2 { font-size: 26px; }
+.quiz .q { margin: 26px 0 8px; font-weight: 600; font-family: var(--serif); font-size: 18px; max-width: 70ch; }
+.quiz .opts { display: grid; gap: 0; margin-bottom: 10px; max-width: 70ch; border-top: 1px solid var(--line); }
+.quiz .opts label { display: flex; gap: 12px; align-items: flex-start; padding: 10px 6px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 15.5px; }
+.quiz .opts label.correct { background: var(--green-bg); }
+.quiz .opts label.wrong { background: var(--red-bg); }
+.quiz .opts input { margin-top: 6px; accent-color: var(--accent); }
+.quiz .explain { display: none; font-size: 14.5px; padding: 12px 16px; border-left: 2px solid var(--line-strong); margin: 10px 0; max-width: 70ch; }
+.quiz .explain.show { display: block; }
+.quiz .explain .ref { color: var(--muted); font-size: 12.5px; font-family: var(--mono); }
+.quiz .actions { display: flex; gap: 14px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+.quiz .score { font-weight: 600; font-family: var(--serif); }
+.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--bg); padding: 9px 18px; border-radius: 2px; font-weight: 600; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+.quiz .err { color: var(--red); font-size: 14px; }
+
+.map h2 { font-size: 34px; font-weight: 500; }
+.map .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 32px; margin: 20px 0 32px; border-top: 1px solid var(--line-strong); }
+.card { padding: 20px 0 24px; border-bottom: 1px solid var(--line); }
+.card h3 { margin-top: 0; }
+.card .meta { font-size: 12.5px; color: var(--muted); font-family: var(--mono); }
+.progress { display: flex; gap: 6px; margin-top: 12px; }
+.progress span { flex: 1; height: 3px; background: var(--line); }
+.progress span.done { background: var(--accent); }
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; margin: 14px 0 28px; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); }
+.flow div { padding: 12px 14px 12px 0; font-size: 14px; border-right: 1px solid var(--line); margin-right: 14px; }
+.flow div:last-child { border-right: 0; }
+.flow div b { display: block; font-size: 11.5px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.flow div.fa b { color: var(--accent); } .flow div.lc b { color: var(--teal); }
+.legend { display: grid; gap: 10px; margin: 10px 0 24px; font-size: 15px; max-width: 70ch; }
+
+.sim { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 36px; align-items: start; }
+.sim form { display: grid; gap: 18px; position: sticky; top: 86px; }
+.sim fieldset { border: 0; border-top: 1px solid var(--line-strong); padding: 10px 0 6px; margin: 0; }
+.sim legend { font-weight: 600; font-size: 11.5px; color: var(--muted); padding: 0 8px 0 0; text-transform: uppercase; letter-spacing: .08em; }
+.sim .field { display: grid; gap: 3px; margin: 8px 0; font-size: 14px; }
+.sim .field label { font-weight: 600; font-size: 13.5px; }
+.sim .field select, .sim .field input[type=range] { width: 100%; font-family: inherit; font-size: 14px; }
+.sim .field select { padding: 6px 8px; border-radius: 2px; border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink); }
+.sim .field input[type=range] { accent-color: var(--accent); }
+.sim .field .val { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.sim .field .help { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.sim .presets { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 6px; }
+.sim .presets button { border: 0; background: transparent; color: var(--accent); padding: 2px 0; font-size: 13.5px; text-decoration: underline; text-underline-offset: 3px; }
+.trace { display: grid; gap: 0; border-top: 1px solid var(--line-strong); }
+.step { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.step .chip { font-size: 11.5px; font-weight: 700; padding: 2px 0; text-transform: uppercase; letter-spacing: .06em; align-self: start; font-family: var(--mono); }
+.step.pass .chip { color: var(--green); }
+.step.reject .chip { color: var(--red); }
+.step.skip .chip { color: var(--muted); }
+.step.info .chip { color: var(--accent); }
+.step.skip { opacity: .65; }
+.step .t { font-weight: 600; font-size: 15.5px; font-family: var(--serif); }
+.step .d { font-size: 14.5px; color: var(--muted); margin-top: 3px; max-width: 68ch; }
+.step .r { font-size: 12.5px; font-family: var(--mono); margin-top: 5px; }
+.resp { margin-top: 24px; border-top: 3px double var(--line-strong); }
+.resp .status { padding: 12px 0; font-weight: 600; font-family: var(--mono); font-size: 15px; }
+.resp.ok .status { color: var(--green); }
+.resp.fail .status { color: var(--red); }
+.resp pre { margin: 0; padding: 12px 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; background: var(--code-bg); overflow: auto; }
+.resp .hdr { padding: 8px 0; font-family: var(--mono); font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+.sim-note { font-size: 13.5px; color: var(--muted); margin: 12px 0 0; }
+.next-step { margin-top: 32px; text-align: right; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; font-size: 13.5px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
+.toast.show { opacity: 1; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  aside.side { position: static; height: auto; padding: 20px 24px; border-bottom: 1px solid var(--line-strong); }
+  main { padding: 24px 24px 80px; }
+  header.top { padding: 12px 24px; }
+  .sim { grid-template-columns: 1fr; }
+  .sim form { position: static; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition-duration: 0.01ms !important; } }
+
+/* ---------- journey layout additions ---------- */
+.lead-text { color: var(--muted); font-size: 15.5px; max-width: 64ch; margin-bottom: 20px; }
+.stepper-wrap { position: sticky; top: 70px; z-index: 15; background: var(--bg); border-bottom: 1px solid var(--line); }
+.stepper-wrap.hidden { display: none; }
+ol.stepper { list-style: none; margin: 0 auto; padding: 0 40px; max-width: 1180px; display: flex; overflow-x: auto; scrollbar-width: none; }
+ol.stepper::-webkit-scrollbar { display: none; }
+ol.stepper li { flex: 1 0 auto; position: relative; }
+ol.stepper li button { border: 0; background: transparent; color: var(--muted); padding: 10px 14px 9px 10px; display: flex; align-items: center; gap: 8px; font-size: 13px; white-space: nowrap; border-bottom: 2px solid transparent; width: 100%; }
+ol.stepper li button .n { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line-strong); font-family: var(--serif); font-size: 12px; line-height: 18px; text-align: center; color: var(--muted); flex: none; }
+ol.stepper li.visited button .n { border-color: var(--ink); color: var(--ink); }
+ol.stepper li.current button { color: var(--ink); border-bottom-color: var(--accent); }
+ol.stepper li.current button .n { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+ol.stepper li + li::before { content: ""; position: absolute; left: -6px; top: 50%; width: 12px; height: 1px; background: var(--line-strong); }
+.layout.full .stepper-wrap { display: none; }
+
+.side-stage { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line-strong); display: grid; gap: 2px; }
+.side-stage .k { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.side-stage strong { font-family: var(--serif); font-size: 18px; font-weight: 600; }
+ol.toc li.toc-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 14px 0 4px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+ol.toc li.toc-label:first-child { padding-top: 0; }
+
+.stage-head { padding: 0 0 20px; border-bottom: 1px solid var(--line-strong); margin-bottom: 8px; }
+.stage-head .stage-no { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.stage-head h2 { font-size: 36px; font-weight: 500; }
+.stage-head .gate { font-family: var(--mono); font-size: 13px; color: var(--accent); margin: 8px 0 10px; }
+.stage-head .intro { font-size: 16.5px; max-width: 64ch; margin: 0; }
+
+.stage { display: none; }
+.stage.active { display: block; }
+.depth-group { border-top: 1px solid var(--line); }
+.depth-group-head h3 { margin: 22px 0 0; font-size: 12px; font-family: var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.depth-group .disclose { width: 100%; display: flex; align-items: center; gap: 12px; border: 0; background: transparent; color: var(--ink); padding: 18px 0; text-align: left; font-size: 16px; }
+.depth-group .disclose .dl { font-family: var(--serif); font-size: 19px; }
+.depth-group .disclose .cnt { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.depth-group .disclose .chev { width: 9px; height: 9px; border-right: 1.5px solid var(--accent); border-bottom: 1.5px solid var(--accent); transform: rotate(-45deg); transition: transform 150ms cubic-bezier(0.25, 1, 0.5, 1); flex: none; }
+.depth-group.open .disclose .chev { transform: rotate(45deg); }
+.depth-group-body { display: none; }
+.depth-group.open .depth-group-body { display: block; }
+.depth-group.depth-1 .depth-group-body { display: block; }
+.depth-group .depth-group-body section.lesson { border-top: 0; padding-top: 10px; }
+.depth-group .depth-group-body section.lesson + section.lesson { border-top: 1px solid var(--line); padding-top: 40px; }
+
+.summary { margin: 0 0 22px; padding: 14px 0 14px 18px; border-left: 2px solid var(--line-strong); max-width: 70ch; }
+.summary h4 { font-family: var(--sans); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+.summary ul { margin: 0; padding-left: 18px; }
+.summary li { margin: 2px 0; font-size: 15px; }
+p.takeaway { margin: 24px 0 8px; padding: 14px 18px; background: var(--accent-bg); color: var(--ink); font-size: 15.5px; max-width: 70ch; border-left: 2px solid var(--accent); }
+p.takeaway b { display: block; font-family: var(--sans); font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin-bottom: 4px; }
+
+.walk { margin: 20px 0 22px; }
+.walk figure.code { margin: 0; }
+.walk figure.code pre { max-height: 420px; }
+.walk-bar { display: flex; align-items: center; gap: 10px; padding: 8px 0 0; font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+.walk-bar button { border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink); padding: 5px 12px; border-radius: 2px; font-size: 13px; }
+.walk-bar button.next { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.walk-bar button:disabled { opacity: .4; cursor: default; }
+.walk-bar button.all { margin-left: auto; border-color: transparent; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.walk-note { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: baseline; padding: 12px 14px; margin-top: 8px; background: var(--code-mark); border-left: 3px solid var(--accent); font-size: 15px; max-width: none; }
+.walk-note .step { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: var(--bg); font-size: 11px; line-height: 18px; text-align: center; font-weight: 700; align-self: start; margin-top: 3px; }
+.walk-note .ln-ref { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.walk ol.notes { display: none; margin-top: 8px; }
+.walk.all ol.notes { display: grid; }
+.walk.all .walk-note { display: none; }
+figure.code .line.hit { cursor: pointer; }
+
+.term { text-decoration: underline dotted var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: help; }
+.term:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tip { position: absolute; z-index: 40; background: var(--ink); color: var(--bg); padding: 10px 14px; font-size: 13.5px; line-height: 1.55; border-radius: 3px; box-shadow: 0 6px 18px rgb(0 0 0 / .18); }
+.tip[hidden] { display: none; }
+
+.stage-foot { margin-top: 36px; border-top: 1px solid var(--line-strong); padding-top: 18px; }
+.related-quiz { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; font-size: 14px; margin-bottom: 18px; }
+.related-quiz span { font-family: var(--sans); font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.stage-nav { display: flex; gap: 12px; align-items: center; }
+
+.map-stages { list-style: none; padding: 0; margin: 20px 0 32px; border-top: 1px solid var(--line-strong); }
+.map-stages li { display: grid; grid-template-columns: 56px 1fr; gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.map-stages li .n { font-family: var(--serif); font-size: 34px; line-height: 1; color: var(--line-strong); }
+.map-stages li.visited .n { color: var(--accent); }
+.map-stages li h3 { margin: 2px 0 2px; font-size: 20px; }
+.map-stages li .gate { font-family: var(--mono); font-size: 12.5px; color: var(--accent); margin: 0 0 6px; }
+.map-stages li .intro { font-size: 15px; color: var(--muted); margin: 0 0 6px; max-width: 70ch; }
+.map-stages li .counts { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+@media (hover: hover) and (pointer: fine) { .map-stages li:hover h3 { color: var(--accent); } }
+
+.quiz-sets { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); margin-bottom: 24px; }
+.quiz-sets button { border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--ink); padding: 12px 14px; text-align: left; display: grid; gap: 2px; }
+.quiz-sets button:last-child { border-right: 0; }
+.quiz-sets button .l { font-family: var(--serif); font-size: 16px; }
+.quiz-sets button .s { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.quiz-sets button.active { background: var(--accent-bg); }
+.quiz-sets button.done .s { color: var(--green); }
+#view-quiz .quiz { margin-top: 0; border-top: 0; padding-top: 0; }
+.step .r { display: flex; gap: 16px; flex-wrap: wrap; }
+.step .r a.learn { font-family: var(--sans); font-size: 12.5px; }
+
+@media (max-width: 900px) {
+  .stepper-wrap { top: 0; }
+  ol.stepper { padding: 0 12px; }
+  .stage-head h2 { font-size: 28px; }
+  .walk-note { grid-template-columns: auto 1fr; }
+  .walk-note .ln-ref { grid-column: 2; }
+}
+
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>러브코드로 배우는 FastAPI와 LangChain</h1>
+    <p>요청 한 건이 지나는 순서대로, backend/lovecode 코드를 한 줄씩</p>
+  </div>
+  <nav class="tracks" role="tablist" aria-label="보기">
+    <button data-track="map">지도</button>
+    <button data-track="journey">요청 여정</button>
+    <button data-track="quiz">개념 체크</button>
+    <button data-track="sim">시뮬레이터</button>
+  </nav>
+</header>
+
+<div class="stepper-wrap" id="stepperWrap"><ol class="stepper" id="stepper"></ol></div>
+
+<div class="layout" id="layout">
+  <aside class="side" id="side">
+    <div class="side-stage" id="sideStage"></div>
+    <ol class="toc" id="toc"></ol>
+    <div class="side-note">코드 블록의 "다음 줄" 을 누르면 실행 순서대로 한 줄씩 강조되고 설명이 따라옵니다. 점선 밑줄 용어에 마우스를 올리면 뜻이 뜹니다.</div>
+  </aside>
+
+  <main>
+    <div id="view-map" class="view map">
+      <h2>지도</h2>
+      <p class="lead-text">이 페이지는 러브코드 백엔드의 실제 코드를 교재로 씁니다. 요청 한 건이 서버를 지나는 순서대로 9단계를 따라가며, 각 단계에서 먼저 한눈에 보고 필요하면 파일 단위, 원리 단위로 더 깊이 내려갑니다.</p>
+      <ol class="map-stages" id="mapStages"></ol>
+      <h3>읽는 법</h3>
+      <div class="legend">
+        <div><b>이 섹션에서 알 것</b>: 각 섹션 머리의 세 줄. 이것만 읽어도 무엇을 배우는지 알 수 있습니다. 끝의 "한 줄 정리"는 면접에서 그대로 말할 수 있는 문장입니다.</div>
+        <div><b>한 줄씩 따라가기</b>: 코드 블록 아래 "다음 줄"을 누르면 실행 순서대로 줄이 강조되고 설명이 옆에 붙습니다. 키보드 ←/→ 도 됩니다.</div>
+        <div><b>더 깊이</b>: 단계마다 "파일 따라가기", "원리 파고들기"가 접혀 있습니다. 한눈에 보기만 읽고 다음 단계로 넘어가도 전체 흐름이 이어집니다.</div>
+        <div><b>용어</b>: 점선 밑줄이 있는 용어에 마우스를 올리거나 탭하면 한 문장 정의가 뜹니다.</div>
+        <div><b>개념 체크</b>: 트랙·깊이별 퀴즈 6세트. 단계 끝의 "관련 퀴즈"에서 바로 갈 수 있습니다.</div>
+      </div>
+    </div>
+
+    <div id="view-journey" class="view">
+      <div class="stage-head" id="stageHead"></div>
+      <div id="stageBody"></div>
+      <div class="stage-foot" id="stageFoot"></div>
+    </div>
+
+    <div id="view-quiz" class="view">
+      <h2>개념 체크</h2>
+      <p class="lead-text">트랙과 깊이별로 묶인 퀴즈입니다. 틀린 문항이 하나 이하면 그 세트를 완료로 표시합니다. 진행 상황은 이 브라우저에만 저장됩니다.</p>
+      <div class="quiz-sets" id="quizSets"></div>
+      <div class="quiz-host" id="quizHost"></div>
+    </div>
+
+    <div id="view-sim" class="view">
+      <h2>요청 시뮬레이터</h2>
+      <p class="lead-text">조건을 바꾸면 api.py 와 service.py 의 분기를 그대로 따라가며 어느 줄에서 멈추는지 보여줍니다. 각 관문의 "이 단계 배우기"를 누르면 여정의 해당 단계로 갑니다.</p>
+      <div class="sim">
+        <form id="simForm" onsubmit="return false"></form>
+        <div>
+          <div class="trace" id="trace"></div>
+          <div id="resp"></div>
+          <p class="sim-note">응답 헤더 네 개는 response_headers 미들웨어가 모든 응답에 붙입니다(api.py 106~113줄). 429 응답에는 Retry-After 가 추가됩니다.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="sections-pool" hidden>
+{{FASTAPI}}
+{{LANGCHAIN}}
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+  const LS_KEY = 'lovecode-tour-v2';
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+
+  const STAGES = [
+    { key: 'start', title: '시작: 앱과 요청', gate: '프런트 fetch → uvicorn → FastAPI 앱', intro: 'FastAPI 앱이 무엇으로 이뤄져 있고 요청이 어떤 모양으로 들어오는지 봅니다. create_app 팩토리, 네 개의 엔드포인트, 설정값이 여기서 정해집니다.', sections: ['fa-1-what', 'fa-1-app', 'fa-1-routes', 'fa-1-request', 'fa-2-settings', 'fa-3-asgi', 'fa-3-openapi'], quiz: ['fastapi-1'] },
+    { key: 'middleware', title: '미들웨어', gate: 'response_headers → boundary', intro: '라우터에 닿기 전에 모든 요청이 지나는 두 겹입니다. 바깥 겹은 응답에 보안 헤더를 붙이고, 안쪽 겹은 Origin, Content-Type, 본문 40 KB, IP 버킷을 검사해 통과하지 못한 요청을 바로 돌려보냅니다.', sections: ['fa-2-middleware', 'fa-3-middleware-order', 'fa-3-body'], quiz: ['fastapi-2', 'fastapi-3'] },
+    { key: 'validation', title: '검증', gate: 'Pydantic AnalysisInput → 422', intro: '본문 JSON 이 계약(contracts.py)에 맞는지 FastAPI 가 Pydantic 으로 검사합니다. 틀리면 커스텀 핸들러가 어느 필드가 문제인지 담아 422 를 돌려줍니다.', sections: ['fa-2-contracts', 'fa-3-validation-flow', 'fa-3-strict', 'fa-3-exception'], quiz: ['fastapi-2', 'fastapi-3'] },
+    { key: 'handler', title: '핸들러', gate: 'analyse(): 준비 → 동의 → 입장 → 예산', intro: '검증을 통과한 요청이 analyse 함수에 도착합니다. 분석 준비 여부, 동의, 동시 처리 20건, 하루 20건을 차례로 확인하고, 서비스가 던지는 예외를 상태 코드로 바꿉니다.', sections: ['fa-2-handlers', 'fa-3-sync', 'fa-3-limits-map'], quiz: ['fastapi-2', 'fastapi-3'] },
+    { key: 'service', title: '서비스와 동시성', gate: 'AnalysisService.analyse(): 사주 → BERT 슬롯 → 해설 슬롯', intro: '사주를 한 번 계산해 분류용 텍스트와 해설용 텍스트를 만들고, BERT 2건·해설 5건이라는 단계별 FIFO 슬롯 안에서 순서대로 실행합니다.', sections: ['fa-2-service', 'fa-3-stagelimit'], quiz: ['fastapi-2', 'fastapi-3'] },
+    { key: 'chain', title: '해설 체인: 구조', gate: 'LangChain: 초안 → 검사 → 1회 재작성 → PublicResult', intro: 'LangChain 이 무엇이고 이 프로젝트에서 어떤 일을 맡는지, 체인이 어떤 단계로 이어지는지 봅니다. 분류기가 정한 유형을 받아 해설만 쓰는 역할 분담이 핵심입니다.', sections: ['lc-1-what', 'lc-1-role', 'lc-1-chain-overview', 'lc-1-llm', 'lc-2-steps', 'lc-2-finalize', 'lc-3-runnable', 'lc-3-sequence-invoke', 'lc-3-lambda-branch', 'lc-3-assign'], quiz: ['langchain-1', 'langchain-2', 'langchain-3'] },
+    { key: 'prompt', title: '해설 체인: 프롬프트와 출력', gate: 'ChatPromptTemplate | with_structured_output(Explanation)', intro: '모델에게 무엇을 어떻게 시키는지, 답을 어떤 스키마로 강제하는지, 규칙 검사와 재작성이 어떻게 맞물리는지, OpenAI 와 Ollama 를 어떻게 바꿔 끼우는지 봅니다.', sections: ['lc-2-prompts', 'lc-2-schema', 'lc-2-call', 'lc-2-provider', 'lc-3-structured', 'lc-3-failure-modes', 'lc-3-prompt-design', 'lc-3-repair-loop', 'lc-3-checks', 'lc-3-provider-swap', 'lc-3-ops'], quiz: ['langchain-2', 'langchain-3'] },
+    { key: 'response', title: '응답', gate: 'PublicResult → response_model 직렬화 → 보안 헤더', intro: '결과 dict 가 AnalysisResponse 로 검증되어 JSON 이 되고, 오류일 때는 항상 같은 모양의 error 객체가 나갑니다.', sections: ['fa-2-errors', 'fa-3-response-model'], quiz: ['fastapi-2', 'fastapi-3'] },
+    { key: 'tests', title: '테스트', gate: 'TestClient + 모의 HTTP', intro: '위 모든 단계를 네트워크 없이 검증하는 방법입니다. TestClient 가 앱을 직접 호출하고, 외부 API 는 모의 전송으로 격리합니다.', sections: ['fa-3-tests-client', 'fa-3-tests-contract', 'fa-3-tests-concurrency', 'lc-3-tests'], quiz: ['fastapi-3', 'langchain-3'] },
+  ];
+  const DEPTH_LABEL = { 1: '한눈에', 2: '파일 따라가기', 3: '원리 파고들기' };
+  const QUIZ_SETS = [
+    ['fastapi-1', 'FastAPI · 하'], ['fastapi-2', 'FastAPI · 중'], ['fastapi-3', 'FastAPI · 상'],
+    ['langchain-1', 'LangChain · 하'], ['langchain-2', 'LangChain · 중'], ['langchain-3', 'LangChain · 상'],
+  ];
+
+  const state = Object.assign({ track: 'map', stage: 'start', quizSet: 'fastapi-1', progress: {}, open: {}, visited: {} }, load());
+  function load() { try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch (e) { return {}; } }
+  function save() { try { localStorage.setItem(LS_KEY, JSON.stringify({ track: state.track, stage: state.stage, quizSet: state.quizSet, progress: state.progress, open: state.open, visited: state.visited })); } catch (e) {} }
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800); }
+  const stageOf = (key) => STAGES.find(s => s.key === key) || STAGES[0];
+  const stageIndex = (key) => STAGES.findIndex(s => s.key === key);
+
+  // ---------- hash routing ----------
+  function readHash() {
+    const m = location.hash.match(/^#(map|journey|quiz|sim)(?:\/([\w-]+))?(?:\/([\w-]+))?$/);
+    if (!m) return null;
+    state.track = m[1];
+    if (m[1] === 'journey' && m[2]) state.stage = m[2];
+    if (m[1] === 'quiz' && m[2]) state.quizSet = m[2];
+    return m[3] || null;
+  }
+  function writeHash(section) {
+    let h = '#' + state.track;
+    if (state.track === 'journey') h += '/' + state.stage + (section ? '/' + section : '');
+    if (state.track === 'quiz') h += '/' + state.quizSet;
+    if (location.hash !== h) history.replaceState(null, '', h);
+  }
+
+  // ---------- DOM reorganisation: sections into stages ----------
+  const pool = $('#sections-pool');
+  const sectionEl = (id) => document.getElementById(id);
+  function buildStageBodies() {
+    const body = $('#stageBody');
+    STAGES.forEach(st => {
+      const wrap = document.createElement('div'); wrap.className = 'stage'; wrap.dataset.stage = st.key;
+      [1, 2, 3].forEach(d => {
+        const ids = st.sections.filter(id => sectionEl(id) && +sectionEl(id).dataset.depth === d);
+        if (!ids.length) return;
+        const group = document.createElement('section'); group.className = 'depth-group depth-' + d; group.dataset.depth = d;
+        const head = document.createElement('div'); head.className = 'depth-group-head';
+        if (d === 1) {
+          head.innerHTML = '<h3><span class="dl">한눈에</span></h3>';
+        } else {
+          const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'disclose';
+          btn.innerHTML = '<span class="chev" aria-hidden="true"></span><span class="dl">더 깊이: ' + DEPTH_LABEL[d] + '</span><span class="cnt">' + ids.length + '개 섹션</span>';
+          btn.addEventListener('click', () => { toggleGroup(st.key, d); });
+          head.appendChild(btn);
+        }
+        group.appendChild(head);
+        const inner = document.createElement('div'); inner.className = 'depth-group-body';
+        ids.forEach(id => inner.appendChild(sectionEl(id)));
+        group.appendChild(inner);
+        wrap.appendChild(group);
+      });
+      body.appendChild(wrap);
+    });
+  }
+  function groupOpen(stageKey, d) {
+    if (d === 1) return true;
+    const k = stageKey + '-' + d;
+    if (k in state.open) return !!state.open[k];
+    const st = stageOf(stageKey);
+    const hasD1 = st.sections.some(id => sectionEl(id) && +sectionEl(id).dataset.depth === 1);
+    return d === 2 && !hasD1;
+  }
+  function toggleGroup(stageKey, d, force) {
+    const k = stageKey + '-' + d;
+    state.open[k] = force === undefined ? !state.open[k] : force;
+    save(); applyGroups();
+  }
+  function applyGroups() {
+    $$('.stage').forEach(w => {
+      const key = w.dataset.stage;
+      $$('.depth-group', w).forEach(g => {
+        const d = +g.dataset.depth; const open = groupOpen(key, d);
+        g.classList.toggle('open', open);
+        const btn = $('.disclose', g); if (btn) btn.setAttribute('aria-expanded', String(open));
+        $$('section.lesson', g).forEach(s => s.classList.toggle('show', open));
+      });
+    });
+  }
+
+  // ---------- rendering ----------
+  function render(sectionId) {
+    $$('nav.tracks button').forEach(b => b.classList.toggle('active', b.dataset.track === state.track));
+    $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + state.track));
+    const journey = state.track === 'journey';
+    $('#layout').classList.toggle('full', !journey);
+    $('#side').classList.toggle('hidden', !journey);
+    $('#stepperWrap').classList.toggle('hidden', !journey);
+    if (journey) {
+      if (sectionId && !sectionEl(sectionId)) sectionId = null;
+      if (sectionId) {
+        const owner = STAGES.find(s => s.sections.includes(sectionId));
+        if (owner) { state.stage = owner.key; const d = +sectionEl(sectionId).dataset.depth; if (d > 1) state.open[owner.key + '-' + d] = true; }
+      }
+      state.visited[state.stage] = true;
+      $$('.stage').forEach(w => w.classList.toggle('active', w.dataset.stage === state.stage));
+      applyGroups();
+      renderStepper(); renderStageHead(); renderStageFoot(); renderToc();
+    }
+    if (state.track === 'quiz') renderQuizView();
+    if (state.track === 'map') renderMap();
+    save(); writeHash(sectionId);
+    if (sectionId) {
+      const el = sectionEl(sectionId);
+      requestAnimationFrame(() => requestAnimationFrame(() => el.scrollIntoView({ block: 'start', behavior: 'instant' })));
+    } else window.scrollTo({ top: 0 });
+  }
+  function renderStepper() {
+    const ol = $('#stepper'); ol.innerHTML = '';
+    const cur = stageIndex(state.stage);
+    STAGES.forEach((st, i) => {
+      const li = document.createElement('li');
+      li.className = (i === cur ? 'current' : '') + (i < cur ? ' past' : '') + (state.visited[st.key] ? ' visited' : '');
+      const b = document.createElement('button'); b.type = 'button';
+      b.innerHTML = '<span class="n">' + (i + 1) + '</span><span class="t"></span>';
+      b.querySelector('.t').textContent = st.title;
+      b.title = st.gate;
+      b.addEventListener('click', () => { state.stage = st.key; render(null); });
+      li.appendChild(b); ol.appendChild(li);
+    });
+  }
+  function renderStageHead() {
+    const st = stageOf(state.stage); const i = stageIndex(st.key);
+    const h = $('#stageHead');
+    h.innerHTML = '<div class="stage-no"></div><h2></h2><p class="gate"></p><p class="intro"></p>';
+    h.querySelector('.stage-no').textContent = '단계 ' + (i + 1) + ' / ' + STAGES.length;
+    h.querySelector('h2').textContent = st.title;
+    h.querySelector('.gate').textContent = st.gate;
+    h.querySelector('.intro').textContent = st.intro;
+    const side = $('#sideStage'); side.innerHTML = '<span class="k">단계 ' + (i + 1) + '</span><strong></strong>';
+    side.querySelector('strong').textContent = st.title;
+  }
+  function renderStageFoot() {
+    const st = stageOf(state.stage); const i = stageIndex(st.key);
+    const f = $('#stageFoot'); f.innerHTML = '';
+    const q = document.createElement('div'); q.className = 'related-quiz';
+    q.innerHTML = '<span>관련 퀴즈</span>';
+    st.quiz.forEach(k => {
+      const a = document.createElement('a'); a.href = '#quiz/' + k; const label = QUIZ_SETS.find(x => x[0] === k)[1];
+      const p = state.progress[k]; a.textContent = label + (p && p.passed ? ' ✓' : '');
+      a.addEventListener('click', e => { e.preventDefault(); state.track = 'quiz'; state.quizSet = k; render(null); });
+      q.appendChild(a);
+    });
+    f.appendChild(q);
+    const nav = document.createElement('div'); nav.className = 'stage-nav';
+    if (i > 0) { const b = document.createElement('button'); b.className = 'btn ghost'; b.textContent = '← ' + STAGES[i - 1].title; b.addEventListener('click', () => { state.stage = STAGES[i - 1].key; render(null); }); nav.appendChild(b); }
+    const sp = document.createElement('span'); sp.style.flex = '1'; nav.appendChild(sp);
+    if (i < STAGES.length - 1) { const b = document.createElement('button'); b.className = 'btn'; b.textContent = '다음 단계: ' + STAGES[i + 1].title + ' →'; b.addEventListener('click', () => { state.stage = STAGES[i + 1].key; render(null); }); nav.appendChild(b); }
+    else { const b = document.createElement('button'); b.className = 'btn'; b.textContent = '개념 체크로 →'; b.addEventListener('click', () => { state.track = 'quiz'; render(null); }); nav.appendChild(b); }
+    f.appendChild(nav);
+  }
+  function renderToc() {
+    const toc = $('#toc'); toc.innerHTML = '';
+    const st = stageOf(state.stage);
+    [1, 2, 3].forEach(d => {
+      const ids = st.sections.filter(id => sectionEl(id) && +sectionEl(id).dataset.depth === d);
+      if (!ids.length) return;
+      const lab = document.createElement('li'); lab.className = 'toc-label'; lab.textContent = DEPTH_LABEL[d]; toc.appendChild(lab);
+      ids.forEach(id => {
+        const s = sectionEl(id); const li = document.createElement('li'); const a = document.createElement('a');
+        a.href = '#journey/' + st.key + '/' + id; a.textContent = s.querySelector('h2').textContent;
+        a.addEventListener('click', e => { e.preventDefault(); if (d > 1) toggleGroup(st.key, d, true); writeHash(id); s.scrollIntoView({ block: 'start' }); });
+        li.appendChild(a); toc.appendChild(li);
+      });
+    });
+    observeSections();
+  }
+  let observer = null;
+  function observeSections() {
+    if (observer) observer.disconnect();
+    const links = $$('#toc a');
+    observer = new IntersectionObserver(entries => {
+      entries.forEach(en => { if (en.isIntersecting) links.forEach(a => a.classList.toggle('current', a.getAttribute('href').endsWith('/' + en.target.id))); });
+    }, { rootMargin: '-120px 0px -70% 0px' });
+    $$('.stage.active section.lesson.show').forEach(s => observer.observe(s));
+  }
+  function renderMap() {
+    const ol = $('#mapStages'); ol.innerHTML = '';
+    STAGES.forEach((st, i) => {
+      const li = document.createElement('li'); li.className = state.visited[st.key] ? 'visited' : '';
+      li.innerHTML = '<span class="n"></span><div><h3></h3><p class="gate"></p><p class="intro"></p><div class="counts"></div></div>';
+      li.querySelector('.n').textContent = i + 1;
+      li.querySelector('h3').textContent = st.title;
+      li.querySelector('.gate').textContent = st.gate;
+      li.querySelector('.intro').textContent = st.intro;
+      const c = [1, 2, 3].map(d => st.sections.filter(id => sectionEl(id) && +sectionEl(id).dataset.depth === d).length);
+      li.querySelector('.counts').textContent = '한눈에 ' + c[0] + ' · 파일 ' + c[1] + ' · 원리 ' + c[2];
+      li.addEventListener('click', () => { state.track = 'journey'; state.stage = st.key; render(null); });
+      ol.appendChild(li);
+    });
+  }
+
+  // ---------- quiz ----------
+  function quizItems(key) {
+    const [track, depth] = key.split('-'); const items = [];
+    $$('script.quiz[data-track="' + track + '"][data-depth="' + depth + '"]').forEach(sc => { try { items.push(...JSON.parse(sc.textContent)); } catch (e) { console.error('quiz JSON', e); } });
+    return items;
+  }
+  function renderQuizView() {
+    const sets = $('#quizSets'); sets.innerHTML = '';
+    QUIZ_SETS.forEach(([k, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = (k === state.quizSet ? 'active' : '');
+      const p = state.progress[k];
+      b.innerHTML = '<span class="l"></span><span class="s"></span>';
+      b.querySelector('.l').textContent = label;
+      b.querySelector('.s').textContent = p ? (p.passed ? '완료 ' + p.score + '%' : '최근 ' + p.score + '%') : quizItems(k).length + '문항';
+      if (p && p.passed) b.classList.add('done');
+      b.addEventListener('click', () => { state.quizSet = k; render(null); });
+      sets.appendChild(b);
+    });
+    renderQuiz($('#quizHost'), state.quizSet);
+  }
+  function renderQuiz(host, key) {
+    const items = quizItems(key); host.innerHTML = '';
+    if (!items.length) return;
+    const label = QUIZ_SETS.find(x => x[0] === key)[1];
+    const box = document.createElement('div'); box.className = 'quiz';
+    box.innerHTML = '<h2></h2>';
+    box.querySelector('h2').textContent = label + ' · ' + items.length + '문항';
+    items.forEach((it, i) => {
+      const q = document.createElement('div'); q.className = 'q'; q.textContent = (i + 1) + '. ' + it.q; box.appendChild(q);
+      const opts = document.createElement('div'); opts.className = 'opts';
+      it.options.forEach((o, j) => { const label = document.createElement('label'); const inp = document.createElement('input'); inp.type = 'radio'; inp.name = 'q' + i; inp.value = j; label.appendChild(inp); label.appendChild(document.createTextNode(o)); opts.appendChild(label); });
+      box.appendChild(opts);
+      const ex = document.createElement('div'); ex.className = 'explain'; ex.innerHTML = '<div class="body"></div><div class="ref"></div>';
+      ex.querySelector('.body').textContent = it.explain; ex.querySelector('.ref').textContent = '확인: ' + it.ref; box.appendChild(ex);
+    });
+    const actions = document.createElement('div'); actions.className = 'actions';
+    const grade = document.createElement('button'); grade.className = 'btn'; grade.textContent = '채점';
+    const reset = document.createElement('button'); reset.className = 'btn ghost'; reset.textContent = '다시 풀기';
+    const score = document.createElement('span'); score.className = 'score'; const err = document.createElement('span'); err.className = 'err';
+    actions.append(grade, reset, score, err); box.appendChild(actions);
+    grade.addEventListener('click', () => {
+      err.textContent = '';
+      const un = items.findIndex((_, i) => !box.querySelector('input[name=q' + i + ']:checked'));
+      if (un >= 0) { err.textContent = (un + 1) + '번 문항을 아직 고르지 않았습니다.'; return; }
+      let correct = 0;
+      items.forEach((it, i) => {
+        const chosen = +box.querySelector('input[name=q' + i + ']:checked').value;
+        $$('input[name=q' + i + ']', box).map(x => x.parentElement).forEach((l, j) => { l.classList.toggle('correct', j === it.answer); l.classList.toggle('wrong', j === chosen && j !== it.answer); });
+        if (chosen === it.answer) correct++;
+        box.querySelectorAll('.explain')[i].classList.add('show');
+      });
+      const pct = Math.round(100 * correct / items.length); const passed = items.length - correct <= 1;
+      score.textContent = correct + ' / ' + items.length + ' 정답 (' + pct + '%)' + (passed ? ' · 이 세트 완료' : ' · 해설을 읽고 다시 풀어 보세요');
+      const prev = state.progress[key];
+      state.progress[key] = { score: prev && prev.passed ? Math.max(prev.score, pct) : pct, passed: passed || !!(prev && prev.passed) };
+      save(); renderQuizSetsOnly();
+    });
+    reset.addEventListener('click', () => renderQuiz(host, key));
+    host.appendChild(box);
+  }
+  function renderQuizSetsOnly() { const cur = $('#quizHost').innerHTML; renderQuizView(); $('#quizHost').innerHTML = cur; }
+
+  // ---------- summaries are injected at build; nothing to do ----------
+
+  // ---------- code walkthrough ----------
+  function wireWalkthroughs() {
+    $$('ol.notes').forEach(ol => {
+      let fig = ol.previousElementSibling;
+      while (fig && !(fig.matches && fig.matches('figure.code'))) fig = fig.previousElementSibling;
+      if (!fig) return;
+      const notes = $$('li[data-line]', ol).map(li => ({ li, line: fig.querySelector('.line[data-n="' + li.dataset.line + '"]'), n: li.dataset.line }));
+      notes.forEach((nt, i) => {
+        const tag = document.createElement('span'); tag.className = 'lnum'; tag.textContent = nt.n + '줄'; nt.li.insertBefore(tag, nt.li.firstChild);
+        if (!nt.line) { nt.li.title = '이 줄은 발췌 범위 밖입니다'; return; }
+        const mark = document.createElement('span'); mark.className = 'mark'; mark.textContent = i + 1; nt.line.querySelector('.ln').appendChild(mark); nt.line.classList.add('hit');
+        nt.line.addEventListener('click', () => go(i));
+      });
+      const walk = document.createElement('div'); walk.className = 'walk';
+      fig.parentNode.insertBefore(walk, fig); walk.appendChild(fig);
+      const bar = document.createElement('div'); bar.className = 'walk-bar';
+      bar.innerHTML = '<button type="button" class="prev" aria-label="이전 줄">←</button><span class="pos"></span><button type="button" class="next">다음 줄 →</button><button type="button" class="all">전체 설명</button>';
+      const note = document.createElement('div'); note.className = 'walk-note'; note.tabIndex = 0;
+      walk.appendChild(bar); walk.appendChild(note); walk.appendChild(ol);
+      let idx = 0, all = false;
+      const go = (i) => {
+        idx = Math.max(0, Math.min(notes.length - 1, i));
+        notes.forEach((nt, k) => { if (nt.line) nt.line.classList.toggle('hot', k === idx); nt.li.classList.toggle('active', k === idx); });
+        const cur = notes[idx];
+        note.innerHTML = '<span class="step">' + (idx + 1) + '</span><span class="ln-ref">' + cur.n + '줄</span><span class="txt"></span>';
+        note.querySelector('.txt').innerHTML = cur.li.innerHTML.replace(/<span class="lnum">[^<]*<\/span>/, '');
+        bar.querySelector('.pos').textContent = (idx + 1) + ' / ' + notes.length;
+        bar.querySelector('.prev').disabled = idx === 0; bar.querySelector('.next').disabled = idx === notes.length - 1;
+        if (cur.line) { const pre = fig.querySelector('pre'); const top = cur.line.offsetTop - pre.clientHeight / 2; pre.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }); }
+      };
+      bar.querySelector('.prev').addEventListener('click', () => go(idx - 1));
+      bar.querySelector('.next').addEventListener('click', () => go(idx + 1));
+      bar.querySelector('.all').addEventListener('click', () => { all = !all; walk.classList.toggle('all', all); bar.querySelector('.all').textContent = all ? '한 줄씩' : '전체 설명'; });
+      walk.addEventListener('keydown', e => { if (e.key === 'ArrowRight') { go(idx + 1); e.preventDefault(); } if (e.key === 'ArrowLeft') { go(idx - 1); e.preventDefault(); } });
+      notes.forEach((nt, k) => nt.li.addEventListener('click', () => go(k)));
+      go(0);
+    });
+  }
+
+  // ---------- glossary tooltips ----------
+  function wireGlossary() {
+    const el = $('#glossary'); if (!el) return;
+    let terms = []; try { terms = JSON.parse(el.textContent); } catch (e) { return; }
+    const tip = $('#tip');
+    const SKIP = new Set(['CODE', 'PRE', 'A', 'FIGURE', 'SCRIPT', 'STYLE', 'H2', 'H3', 'H4', 'BUTTON']);
+    $$('section.lesson').forEach(sec => {
+      const seen = new Set();
+      const walker = document.createTreeWalker(sec, NodeFilter.SHOW_TEXT, { acceptNode: n => {
+        for (let p = n.parentNode; p && p !== sec; p = p.parentNode) { if (SKIP.has(p.tagName) || p.classList.contains('term') || p.classList.contains('summary')) return NodeFilter.FILTER_REJECT; }
+        return n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      } });
+      const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(node => {
+        let text = node.nodeValue; let best = null;
+        terms.forEach(t => {
+          if (seen.has(t.term)) return;
+          t.match.forEach(m => {
+            const re = /^[A-Za-z]/.test(m) ? new RegExp('(^|[^A-Za-z0-9_])(' + m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?![A-Za-z0-9_])') : new RegExp('(' + m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')');
+            const mm = re.exec(text); if (!mm) return;
+            const at = mm.index + (mm.length > 2 ? mm[1].length : 0);
+            if (best === null || at < best.at) best = { at, len: (mm[2] || mm[1]).length, t };
+          });
+        });
+        if (!best) return;
+        seen.add(best.t.term);
+        const before = text.slice(0, best.at), mid = text.slice(best.at, best.at + best.len), after = text.slice(best.at + best.len);
+        const span = document.createElement('span'); span.className = 'term'; span.tabIndex = 0; span.dataset.def = best.t.def; span.textContent = mid;
+        const frag = document.createDocumentFragment(); frag.appendChild(document.createTextNode(before)); frag.appendChild(span); frag.appendChild(document.createTextNode(after));
+        node.parentNode.replaceChild(frag, node);
+      });
+    });
+    let active = null;
+    const show = (span) => { active = span; tip.textContent = span.dataset.def; tip.hidden = false; const r = span.getBoundingClientRect(); const w = Math.min(360, window.innerWidth - 24); tip.style.width = w + 'px'; let left = r.left + r.width / 2 - w / 2; left = Math.max(12, Math.min(left, window.innerWidth - w - 12)); tip.style.left = left + 'px'; tip.style.top = (r.bottom + 8 + window.scrollY) + 'px'; };
+    const hide = () => { active = null; tip.hidden = true; };
+    document.addEventListener('mouseover', e => { const s = e.target.closest('.term'); if (s) show(s); else if (active && !e.target.closest('#tip')) hide(); });
+    document.addEventListener('focusin', e => { const s = e.target.closest('.term'); if (s) show(s); });
+    document.addEventListener('focusout', e => { if (e.target.closest && e.target.closest('.term')) hide(); });
+    document.addEventListener('click', e => { const s = e.target.closest('.term'); if (s) { if (active === s && !tip.hidden) hide(); else show(s); } else if (!e.target.closest('#tip')) hide(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+    window.addEventListener('scroll', () => { if (active) hide(); }, { passive: true });
+  }
+
+  // ---------- source links ----------
+  function repoRoot() { if (location.protocol !== 'file:') return null; const p = decodeURIComponent(location.pathname); const i = p.indexOf('/docs/learn/'); return i > 0 ? p.slice(0, i) : null; }
+  function wireSourceLinks() {
+    document.addEventListener('click', e => {
+      const a = e.target.closest('a.src'); if (!a) return; e.preventDefault();
+      const ref = a.dataset.file + ':' + a.dataset.line; const root = repoRoot();
+      if (navigator.clipboard) navigator.clipboard.writeText(ref).catch(() => {});
+      if (root) { location.href = 'vscode://file' + root + '/' + a.dataset.file + ':' + a.dataset.line; toast('VS Code 로 열기 · ' + ref + ' 복사됨'); } else toast(ref + ' 복사됨');
+    });
+  }
+
+  // ---------- simulator ----------
+  const DEFAULT_MSG = '요청을 처리하지 못했어요. 다시 확인해 주세요.';
+  const FIELDS = [
+    { group: '요청', key: 'route', label: '요청', type: 'select', options: [['analyses', 'POST /api/v1/analyses (실제 분석)'], ['demo', 'POST /api/v1/demo-analysis (예시 결과)'], ['health', 'GET /api/v1/health'], ['taxonomy', 'GET /api/v1/taxonomy']] },
+    { group: '요청', key: 'origin', label: 'Origin 헤더', type: 'select', options: [['allowed', 'http://localhost:3100 (허용 목록)'], ['none', '없음 (curl 등 비브라우저)'], ['other', 'https://evil.example (다른 출처)']], help: 'LC_ALLOWED_ORIGINS 기본값은 127.0.0.1:3100 과 localhost:3100 입니다.' },
+    { group: '요청', key: 'ctype', label: 'Content-Type', type: 'select', options: [['json', 'application/json'], ['json-charset', 'application/json; charset=utf-8'], ['text', 'text/plain']] },
+    { group: '요청', key: 'sizeKB', label: '본문 크기 (KB)', type: 'range', min: 0, max: 64, step: 1, value: 2, help: '한도는 40960 바이트(40 KB)입니다.' },
+    { group: '요청', key: 'body', label: '본문 내용', type: 'select', options: [['valid', '올바른 입력 (두 사람 정보 + 동의)'], ['empty', '{} (프런트가 demo 에 보내는 빈 객체)'], ['missing', 'person_a.mbti 누락'], ['extra', '알 수 없는 필드 nickname 포함'], ['mbti', 'person_a.mbti = "ABCD"'], ['date', 'person_b.birth_date = 1930-01-01']] },
+    { group: '요청', key: 'consent', label: 'external_processing_consent', type: 'select', options: [['true', 'true (동의)'], ['false', 'false (미동의)']] },
+    { group: '같은 IP 의 최근 요청', key: 'rateEnabled', label: 'LC_RATE_LIMIT_ENABLED', type: 'select', options: [['true', 'true'], ['false', 'false (테스트 기본)']] },
+    { group: '같은 IP 의 최근 요청', key: 'recent', label: '같은 그룹 윈도 안 요청 수', type: 'range', min: 0, max: 60, step: 1, value: 0, help: '분석 그룹 5건/600초, 그 외 POST 10건/600초, GET 60건/60초. 429 로 거절된 요청은 큐에 들어가지 않고, 솔트가 600초마다 바뀔 때 모든 큐가 비워집니다.' },
+    { group: '서버 설정', key: 'configured', label: 'OpenAI 설정 완료', type: 'select', options: [['true', 'LC_REAL_ANALYSIS_ENABLED, LC_API_ENABLED, LC_PROVIDER=openai, 키, 모델 모두 있음'], ['false', '하나라도 비어 있음']], help: 'service.ready() 의 다섯 조건. LC_PROVIDER 기본값은 unconfigured 라 명시해야 합니다.' },
+    { group: '서버 설정', key: 'classifier', label: 'LC_CLASSIFIER_MODE', type: 'select', options: [['local', 'local (BERT)'], ['openai', 'openai (LLM 라벨)']], help: 'settings.py 기본값은 openai 입니다. 배포 설정(README)과 동시성 테스트는 local 로 바꾸므로 여기서는 local 을 먼저 둡니다.' },
+    { group: '서버 설정', key: 'artifact', label: '로컬 모델 아티팩트', type: 'select', options: [['ok', '모델 파일 sha256 이 report.json 과 일치, dataset.text_format = compact-v5'], ['bad', '체크섬 불일치(로드 실패) 또는 다른 text_format']] },
+    { group: '서버 설정', key: 'demoEnabled', label: 'LC_DEMO_ENABLED', type: 'select', options: [['true', 'true'], ['false', 'false']] },
+    { group: '서버 상태', key: 'inflight', label: '지금 처리 중인 분석 요청 수', type: 'range', min: 0, max: 24, step: 1, value: 0, help: '입장 세마포어 용량 LC_ANALYSIS_CAPACITY 기본 20.' },
+    { group: '서버 상태', key: 'daily', label: '오늘 처리한 분석 건수', type: 'range', min: 0, max: 24, step: 1, value: 0, help: 'LC_DAILY_ANALYSIS_LIMIT 기본 20.' },
+    { group: '서버 상태', key: 'stageWait', label: '단계 슬롯 대기 30초 초과', type: 'select', options: [['none', '없음'], ['bert', '분류 단계에서 초과'], ['explain', '해설 단계에서 초과']] },
+    { group: '처리 결과', key: 'saju', label: '사주 계산', type: 'select', options: [['ok', '정상'], ['error', 'ValueError 계열 (ManseInputError 등)']], help: '입력 검증이 생년월일을 1940년~오늘로 제한하므로 ManseInputError 는 지금은 방어적 분기입니다.' },
+    { group: '처리 결과', key: 'explain', label: 'LLM 해설 결과', type: 'select', options: [['ok', '초안이 규칙 검사를 통과'], ['repair-ok', '초안에 문제 → 재작성 후 통과'], ['repair-soft', '재작성 후에도 문장 규칙 문제만 남음'], ['provider', '네트워크·공급자 오류'], ['rejected', '스키마 거부가 재작성 후에도 남음'], ['contract', 'PublicResult 계약 검증 실패 (금지어·날짜 패턴)']] },
+  ];
+  const PRESETS = [
+    ['정상 요청', {}],
+    ['다른 출처', { origin: 'other' }],
+    ['본문 60KB', { sizeKB: 60 }],
+    ['IP 한도 초과', { recent: 5 }],
+    ['필드 누락', { body: 'missing' }],
+    ['설정 없음', { configured: 'false' }],
+    ['동의 없음', { consent: 'false' }],
+    ['동시 20건', { inflight: 20 }],
+    ['일일 한도', { daily: 20 }],
+    ['공급자 장애', { explain: 'provider' }],
+    ['계약 검증 실패', { explain: 'contract' }],
+    ['openai 분류 모드', { classifier: 'openai' }],
+    ['예시 결과', { route: 'demo', body: 'empty' }],
+  ];
+  const sim = {};
+  function buildSim() {
+    const form = $('#simForm');
+    const presets = document.createElement('div'); presets.className = 'presets';
+    PRESETS.forEach(([name, patch]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = name;
+      b.addEventListener('click', () => { FIELDS.forEach(f => sim[f.key] = String(f.value !== undefined ? f.value : f.options[0][0])); Object.entries(patch).forEach(([k, v]) => sim[k] = String(v)); syncForm(); runSim(); });
+      presets.appendChild(b);
+    });
+    form.appendChild(presets);
+    let fs = null, groupName = null;
+    FIELDS.forEach(f => {
+      sim[f.key] = String(f.value !== undefined ? f.value : f.options[0][0]);
+      if (f.group !== groupName) { fs = document.createElement('fieldset'); const lg = document.createElement('legend'); lg.textContent = f.group; fs.appendChild(lg); form.appendChild(fs); groupName = f.group; }
+      const wrap = document.createElement('div'); wrap.className = 'field';
+      const label = document.createElement('label'); label.textContent = f.label; label.htmlFor = 'f-' + f.key; wrap.appendChild(label);
+      let input;
+      if (f.type === 'select') {
+        input = document.createElement('select');
+        f.options.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; input.appendChild(o); });
+      } else {
+        input = document.createElement('input'); input.type = 'range'; input.min = f.min; input.max = f.max; input.step = f.step;
+        const val = document.createElement('span'); val.className = 'val'; val.id = 'v-' + f.key; wrap.appendChild(val);
+      }
+      input.id = 'f-' + f.key; input.dataset.key = f.key;
+      input.addEventListener('input', () => { sim[f.key] = input.value; syncForm(); runSim(); });
+      wrap.insertBefore(input, wrap.querySelector('.val'));
+      if (f.help) { const h = document.createElement('div'); h.className = 'help'; h.textContent = f.help; wrap.appendChild(h); }
+      fs.appendChild(wrap);
+    });
+    syncForm(); runSim();
+  }
+  function syncForm() {
+    FIELDS.forEach(f => {
+      const el = $('#f-' + f.key); if (!el) return;
+      el.value = sim[f.key];
+      if (f.type === 'range') $('#v-' + f.key).textContent = sim[f.key] + (f.key === 'sizeKB' ? ' KB (' + (sim[f.key] * 1024).toLocaleString() + ' 바이트)' : '건');
+    });
+  }
+  const BASE_HEADERS = { 'content-type': 'application/json', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' };
+  function errResp(code, status, message, field, extra) {
+    return { status, headers: Object.assign({}, BASE_HEADERS, extra || {}), body: { error: { code, message: message || DEFAULT_MSG, field: field || null, retryable: status >= 500 }, request_id: '7d2f1c0e-…(uuid4)' } };
+  }
+  const SAMPLE_RESULT = {
+    schema_version: '1.0', type_id: 'T14', taxonomy_version: 'love-code-v1',
+    axes: { chemistry: 'complementary', temperature: 'steady', distance: 'together', conflict: 'pause' },
+    summary: '서로 다른 리듬이 만나, 편안한 하루를 만드는 사이',
+    strengths: ['서로 다른 시선이 익숙한 하루에 작은 발견을 더해 줄 수 있어요.', '함께 보내는 평범한 시간이 두 사람에게 든든한 기억이 될 수 있어요.'],
+    adjustments: ['같이 있고 싶은 마음과 혼자 쉬고 싶은 마음을 말로 확인해 보세요.', '생각을 정리할 시간이 필요하다면, 다시 이야기할 때도 함께 약속해 보세요.'],
+    conversation_tip: '“오늘 우리 둘 다 편안했던 순간은 언제였어?”라고 물어보세요.',
+    limitations: ['missing_hour_a'], disclaimer_version: 'entertainment-v1',
+  };
+  function simulate(s) {
+    const steps = [];
+    const add = (status, title, detail, ref) => steps.push({ status, title, detail, ref });
+    const isPost = s.route === 'analyses' || s.route === 'demo';
+    const path = { analyses: '/api/v1/analyses', demo: '/api/v1/demo-analysis', health: '/api/v1/health', taxonomy: '/api/v1/taxonomy' }[s.route];
+    const method = isPost ? 'POST' : 'GET';
+    const finish = (resp) => ({ steps, resp, method, path });
+    add('info', 'uvicorn 이 ASGI 앱을 호출', '가장 바깥 사용자 미들웨어인 response_headers 가 먼저 요청을 받고 call_next 로 안쪽(boundary)에 넘깁니다. 응답이 돌아오면 보안 헤더 네 개를 붙입니다.', 'backend/lovecode/api.py:106');
+    // boundary: origin
+    if (isPost) {
+      const originOk = s.origin !== 'other';
+      add(originOk ? 'pass' : 'reject', 'boundary · Origin 검사', originOk
+        ? (s.origin === 'none' ? 'Origin 헤더가 없으면 None 이고, None 은 허용 튜플에 들어 있으므로 통과합니다. 브라우저가 아닌 클라이언트를 막지 않기 위한 선택입니다.' : '허용 목록(LC_ALLOWED_ORIGINS)에 있는 출처라 통과합니다.')
+        : '허용 목록에 없는 출처의 POST(와 DELETE)는 본문을 읽기도 전에 403 으로 끝납니다. CSRF 성격의 교차 출처 전송을 막습니다.', 'backend/lovecode/api.py:55');
+      if (!originOk) return finish(errResp('INVALID_REQUEST', 403));
+      const ctOk = s.ctype !== 'text';
+      add(ctOk ? 'pass' : 'reject', 'boundary · Content-Type 검사', ctOk
+        ? '세미콜론 앞부분만 비교하므로 charset 이 붙어도 application/json 으로 인정합니다.'
+        : 'JSON 이 아닌 본문은 415 로 거절합니다. FastAPI 의 JSON 파싱 단계에 도달하지 않습니다.', 'backend/lovecode/api.py:61');
+      if (!ctOk) return finish(errResp('INVALID_REQUEST', 415));
+      const bytes = s.sizeKB * 1024;
+      const sizeOk = bytes <= 40960;
+      add(sizeOk ? 'pass' : 'reject', 'boundary · 본문 40 KB 검사', sizeOk
+        ? '스트림 청크를 더해 가며 ' + bytes.toLocaleString() + ' 바이트를 읽었고 한도 안이라 request._body 에 넣어 둡니다. BaseHTTPMiddleware 의 _CachedRequest 가 이 바이트를 안쪽 앱에 http.request 메시지로 다시 흘려보내므로 엔드포인트의 새 Request 가 같은 본문을 받습니다. 넣지 않으면 빈 본문이 전달됩니다.'
+        : '누적 ' + bytes.toLocaleString() + ' 바이트가 40960 을 넘는 순간 나머지를 읽지 않고 413 을 돌려줍니다.', sizeOk ? 'backend/lovecode/api.py:70' : 'backend/lovecode/api.py:67');
+      if (!sizeOk) return finish(errResp('PAYLOAD_TOO_LARGE', 413));
+    } else {
+      add('skip', 'boundary · Origin, Content-Type, 크기 검사', 'GET 요청은 세 검사를 건너뜁니다. Origin 검사는 POST·DELETE 에, Content-Type·크기 검사는 POST 에만 적용됩니다.', 'backend/lovecode/api.py:55');
+    }
+    // rate limit
+    if (s.rateEnabled === 'true') {
+      const group = isPost ? 'analysis' : 'GET';
+      const [limit, window] = { analysis: [5, 600], GET: [60, 60] }[group];
+      const over = s.recent >= limit;
+      add(over ? 'reject' : 'pass', 'boundary · IP 버킷 제한 (' + group + ' 그룹 ' + limit + '건/' + window + '초)', over
+        ? '같은 솔트 해시 키의 큐 길이가 ' + Math.min(s.recent, limit) + ' 로 한도 ' + limit + ' 에 도달해 429 와 Retry-After: ' + window + ' 를 돌려줍니다. 거절된 요청은 큐에 추가되지 않으므로 큐 길이가 한도를 넘는 일은 없습니다.'
+        : '큐 길이 ' + s.recent + ' 는 한도 ' + limit + ' 미만이라 지금 시각을 큐에 추가하고 통과합니다. 경로가 analyses 나 demo-analysis 로 끝나면 analysis 그룹입니다.', 'backend/lovecode/api.py:99');
+      if (over) return finish(errResp('RATE_LIMITED', 429, '잠시 후 다시 시도해 주세요.', null, { 'retry-after': String(window) }));
+    } else {
+      add('skip', 'boundary · IP 버킷 제한', 'LC_RATE_LIMIT_ENABLED=false 라 건너뜁니다. 테스트의 client fixture 가 이 값을 끕니다.', 'backend/lovecode/api.py:71');
+    }
+    add('info', 'call_next → ExceptionMiddleware → Router', '사용자 미들웨어를 통과한 요청은 Starlette 라우터가 경로와 메서드로 핸들러를 고릅니다.', 'backend/lovecode/api.py:104');
+    if (s.route === 'health') {
+      add('pass', 'health 핸들러', 'service.ready() 를 호출해 준비 상태를 계산합니다. 동기 def 라 스레드풀에서 실행됩니다.', 'backend/lovecode/api.py:125');
+      const ready = s.configured === 'true' && (s.classifier === 'openai' || s.artifact === 'ok');
+      return finish({ status: 200, headers: BASE_HEADERS, body: { status: 'ok', analysis_ready: ready, demo_ready: s.demoEnabled === 'true', provider: 'openai', verification_mode: false, reason: ready ? 'configured_not_quality_certified' : 'configuration_required' } });
+    }
+    if (s.route === 'taxonomy') {
+      add('pass', 'taxonomy 핸들러', 'contracts.TAXONOMY dict 를 그대로 돌려줍니다. response_model 이 없어 dict 가 JSON 으로 직렬화됩니다.', 'backend/lovecode/api.py:139');
+      return finish({ status: 200, headers: BASE_HEADERS, body: { T01: { axes: { chemistry: 'similar', temperature: 'passionate', distance: 'together', conflict: 'immediate' }, label: '닮은꼴·열정형·밀착형·바로 풀기' }, '…': '16개 유형' } });
+    }
+    if (s.route === 'demo') {
+      const firstKey = { empty: null, valid: 'external_processing_consent', missing: 'external_processing_consent', mbti: 'external_processing_consent', date: 'external_processing_consent', extra: 'external_processing_consent' }[s.body];
+      add(firstKey ? 'reject' : 'pass', 'Pydantic 검증 · body: Strict', firstKey
+        ? 'Strict 는 필드가 하나도 없는 모델이고 extra="forbid" 라, 어떤 키든 들어 있으면 extra_forbidden 오류가 납니다. 커스텀 핸들러는 첫 오류의 loc 에서 field=' + firstKey + ' 를 만듭니다. 그래서 frontend/app/test/page.tsx 는 demo 에 {} 를 보냅니다.'
+        : '빈 객체 {} 라 통과합니다. 예시 결과에는 입력이 필요 없습니다.', 'backend/lovecode/api.py:194');
+      if (firstKey) return finish(errResp('INVALID_REQUEST', 422, '입력값을 다시 확인해 주세요.', firstKey));
+      const on = s.demoEnabled === 'true';
+      add(on ? 'pass' : 'reject', 'demo 핸들러 · LC_DEMO_ENABLED', on ? 'contracts.demo_result() 의 고정 결과를 analysis_response 로 감쌉니다.' : '예시 결과가 꺼져 있어 503 입니다.', 'backend/lovecode/api.py:195');
+      if (!on) return finish(errResp('ANALYSIS_UNAVAILABLE', 503));
+      add('pass', 'response_model=AnalysisResponse 직렬화', 'dict 를 AnalysisResponse 로 검증한 뒤 None 필드를 빼고 JSON 으로 만듭니다.', 'backend/lovecode/api.py:193');
+      return finish({ status: 200, headers: BASE_HEADERS, body: { analysis_id: '3f0c9a1e-…(uuid4)', result: Object.assign({}, SAMPLE_RESULT, { evidence_status: 'fixture' }) } });
+    }
+    // analyses
+    const VALID = { valid: null, empty: ['person_a', '빈 객체라 person_a 부터 missing 오류가 납니다. loc 는 ("body","person_a") 입니다.'], missing: ['person_a.mbti', '필수 필드가 없어 loc 가 ("body","person_a","mbti") 입니다.'], extra: ['nickname', 'AnalysisInput 은 extra="forbid" 라 모르는 키가 오류입니다.'], mbti: ['person_a.mbti', 'Person.valid_mbti 가 정규식에 맞지 않아 ValueError 를 올립니다.'], date: ['person_b.birth_date', 'Person.valid_date 가 1940년 이전 날짜를 거절합니다.'] }[s.body];
+    add(VALID ? 'reject' : 'pass', 'Pydantic 검증 · body: AnalysisInput', VALID
+      ? VALID[1] + ' RequestValidationError 핸들러가 loc 에서 "body" 를 빼고 점으로 이어 field 를 만듭니다.'
+      : 'FastAPI 가 request._body 의 JSON 을 AnalysisInput 으로 검증합니다. 세 validator 모두 통과했습니다.', 'backend/lovecode/api.py:147');
+    if (VALID) return finish(errResp('INVALID_REQUEST', 422, '입력값을 다시 확인해 주세요.', VALID[0]));
+    const ready = s.configured === 'true' && (s.classifier === 'openai' || s.artifact === 'ok');
+    add(ready ? 'pass' : 'reject', 'analyse · service.ready()', ready
+      ? (s.classifier === 'local' ? '설정 다섯 조건이 참이고, 로컬 분류기가 로드되어 report.json 의 dataset.text_format 이 compact-v5 입니다.' : '설정 다섯 조건이 참이고 classifier_mode 가 openai 라 바로 True 입니다.')
+      : (s.configured !== 'true' ? 'real_analysis_enabled, api_enabled, api_key, model, provider 중 하나라도 비면 False 라 503 입니다.' : '로컬 모델 로드가 실패하거나 compact-v5 가 아니면 False 입니다.'), 'backend/lovecode/service.py:23');
+    if (!ready) return finish(errResp('ANALYSIS_UNAVAILABLE', 503, '실제 분석은 아직 준비 중이에요. 예시 결과를 둘러볼 수 있어요.'));
+    const consent = s.consent === 'true';
+    add(consent ? 'pass' : 'reject', 'analyse · external_processing_consent', consent ? '동의가 true 라 OpenAI 로 파생 데이터를 보낼 수 있습니다.' : '동의 없이는 외부 전송을 하지 않습니다. 준비 검사 뒤, 입장 제한 앞에서 422 를 돌려줍니다.', 'backend/lovecode/api.py:154');
+    if (!consent) return finish(errResp('CONSENT_REQUIRED', 422, 'OpenAI 처리 동의를 확인해 주세요.'));
+    const admit = s.inflight < 20;
+    add(admit ? 'pass' : 'reject', 'analyse · 입장 세마포어 (용량 20)', admit
+      ? 'BoundedSemaphore.acquire(blocking=False) 가 True 를 돌려줍니다. 처리 중 ' + s.inflight + '건이라 자리가 있습니다.'
+      : '처리 중 ' + s.inflight + '건이라 즉시 False 가 돌아오고, 기다리지 않고 429 ANALYSIS_BUSY 와 Retry-After: 5 를 돌려줍니다.', 'backend/lovecode/api.py:164');
+    if (!admit) return finish(errResp('ANALYSIS_BUSY', 429, '분석 요청이 많아 대기 시간이 길어지고 있어요. 잠시 후 다시 시도해 주세요.', null, { 'retry-after': '5' }));
+    const budgetOk = s.daily < 20;
+    add(budgetOk ? 'pass' : 'reject', 'analyse · 일일 예산 (20건)', budgetOk
+      ? 'budget_lock 안에서 날짜를 확인하고 count 를 ' + (s.daily + 1) + ' 로 올립니다. 날짜는 UTC 기준(한국 시간 09:00 초기화)이고, 분석을 시작하기 전에 올리므로 뒤에서 502·503 으로 실패해도 되돌리지 않습니다. 인스턴스 메모리에만 있는 값입니다.'
+      : '오늘 ' + s.daily + '건을 이미 처리해 429 DAILY_LIMIT 입니다. finally 가 입장 슬롯을 돌려줍니다.', 'backend/lovecode/api.py:171');
+    if (!budgetOk) return finish(errResp('DAILY_LIMIT', 429, '오늘의 분석 한도에 도달했어요. 다음에 다시 찾아주세요.'));
+    const sajuOk = s.saju === 'ok';
+    add(sajuOk ? 'pass' : 'reject', 'service.analyse · features.analysis_inputs', sajuOk
+      ? '사주를 한 번 계산해 분류용 compact 텍스트, 해설용 서술 텍스트, 한계 목록을 만듭니다. 원본 생년월일은 여기서 멈춥니다.'
+      : 'ManseInputError 는 ValueError 의 하위 클래스라 핸들러의 except (ValueError, OSError, KeyError) 에 잡혀 503 이 됩니다.', 'backend/lovecode/service.py:51');
+    if (!sajuOk) return finish(errResp('ANALYSIS_UNAVAILABLE', 503, '분석 설정을 확인하고 있어요. 잠시 후 다시 시도해 주세요.'));
+    const bertWait = s.stageWait === 'bert';
+    if (s.classifier === 'local') {
+      add(bertWait ? 'reject' : 'pass', 'service.analyse · BERT 슬롯 (최대 2) → Classifier.predict', bertWait
+        ? 'StageLimit.acquire 가 공통 30초 기한 안에 자리를 얻지 못해 AnalysisBusy 를 올리고, 핸들러가 429 ANALYSIS_BUSY 로 바꿉니다.'
+        : 'FIFO 티켓으로 자리를 얻어 compact 텍스트를 16유형 중 하나로 분류합니다. with 블록이 끝나면 슬롯을 바로 돌려줍니다.', 'backend/lovecode/service.py:54');
+    } else {
+      const labelFail = !bertWait && s.explain === 'provider';
+      add(bertWait || labelFail ? 'reject' : 'pass', 'service.analyse · 해설 슬롯 → OpenAIProvider.label', bertWait
+        ? '해설 슬롯 대기가 30초를 넘어 AnalysisBusy 입니다.'
+        : (labelFail
+          ? 'openai 모드의 첫 외부 호출이 여기입니다. OpenAIProvider.structured 가 httpx 오류나 비정상 응답을 ProviderError(PROVIDER_REQUEST_FAILED 등)로 바꾸고, 핸들러가 502 PROVIDER_UNAVAILABLE 로 돌려줍니다. 해설 단계에는 도달하지 않습니다.'
+          : 'openai 모드에서는 LangChain 없이 provider.py 가 Responses API 로 유형 라벨을 받습니다.'), 'backend/lovecode/service.py:57');
+      if (labelFail) return finish(errResp('PROVIDER_UNAVAILABLE', 502, '분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요.'));
+    }
+    if (bertWait) return finish(errResp('ANALYSIS_BUSY', 429, '분석 요청이 많아 대기 시간이 길어지고 있어요. 잠시 후 다시 시도해 주세요.', null, { 'retry-after': '5' }));
+    const exWait = s.stageWait === 'explain';
+    add(exWait ? 'reject' : 'pass', 'service.analyse · 해설 슬롯 (최대 5)', exWait
+      ? '해설 슬롯 대기가 기한을 넘겨 AnalysisBusy 입니다. 분류 슬롯은 이미 반환된 뒤라 BERT 가 묶이지 않습니다.'
+      : '해설 슬롯을 얻어 explainer.explain(text, type_id, limitations) 을 부릅니다.', 'backend/lovecode/service.py:60');
+    if (exWait) return finish(errResp('ANALYSIS_BUSY', 429, '분석 요청이 많아 대기 시간이 길어지고 있어요. 잠시 후 다시 시도해 주세요.', null, { 'retry-after': '5' }));
+    add('info', 'LangChain · _draft_step', 'ChatPromptTemplate | llm.with_structured_output(Explanation) 체인을 invoke 합니다. tracing_context(enabled=False) 안이라 LangSmith 로 나가지 않습니다.', 'backend/lovecode/generator.py:265');
+    if (s.explain === 'provider') {
+      add('reject', 'LangChain · _call 예외', '네트워크나 공급자 오류는 PROVIDER_REQUEST_FAILED 로 기록되고, _review_step 은 재시도하지 않으며 _finalize 가 ProviderError 를 올립니다. 핸들러가 502 로 바꿉니다.', 'backend/lovecode/generator.py:318');
+      return finish(errResp('PROVIDER_UNAVAILABLE', 502, '분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요.'));
+    }
+    const needRepair = s.explain !== 'ok' && s.explain !== 'contract';
+    add(needRepair ? 'info' : 'pass', 'LangChain · _review_step → checks.find_problems', needRepair
+      ? (s.explain === 'rejected' ? '구조화 출력 파싱이 실패해 problems 에 ("schema", SCHEMA_FIX) 가 들어갑니다.' : '초안에서 문제를 찾아 (kind, 수정 지시) 목록을 만듭니다. RunnableBranch 조건이 참이 됩니다.')
+      : '초안이 모든 규칙을 통과해 problems 가 비었습니다. RunnableBranch 는 RunnablePassthrough 가지를 택합니다.', 'backend/lovecode/checks.py:38');
+    if (needRepair) {
+      add(s.explain === 'rejected' ? 'reject' : 'pass', 'LangChain · RunnableBranch → _repair_step (1회)', s.explain === 'rejected'
+        ? '재작성 뒤에도 parsed 가 None 이거나 HARD 문제(length, mbti_code, hanja, markup)가 남아 _finalize 가 OUTPUT_REJECTED 를 올립니다. 502 입니다.'
+        : (s.explain === 'repair-soft' ? '재작성 뒤 비HARD 문제(예: 단정 표현)가 남았지만 계약 수준 문제가 아니라 결과를 돌려주고 meta.remaining_problems 에만 적습니다.' : '같은 대화에 이전 초안과 수정 지시를 붙여 한 번 더 호출하고, 재검사에서 문제가 사라졌습니다.'), 'backend/lovecode/generator.py:278');
+      if (s.explain === 'rejected') return finish(errResp('PROVIDER_UNAVAILABLE', 502, '분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요.'));
+    }
+    const contractFail = s.explain === 'contract';
+    add(contractFail ? 'reject' : 'pass', 'LangChain · _finalize → PublicResult', contractFail
+      ? 'PublicResult 의 model_validator 가 checks.py 는 보지 않는 패턴(바람기 같은 금지어, 날짜·시각 패턴, 간지 한자 조합)을 잡아 ValueError 를 내고, _finalize 가 ProviderError("OUTPUT_REJECTED") 로 바꿉니다. 핸들러는 502 입니다. HARD 집합과는 별개의 마지막 관문입니다.'
+      : '파싱된 dict 에 type_id, axes, limitations, evidence_status 를 더해 PublicResult 를 만듭니다. model_validator 가 금지 패턴을 한 번 더 검사하며, 여기서 실패하면 OUTPUT_REJECTED 로 502 가 됩니다.', 'backend/lovecode/generator.py:321');
+    if (contractFail) return finish(errResp('PROVIDER_UNAVAILABLE', 502, '분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요.'));
+    add('pass', 'analyse · analysis_response → response_model 직렬화 → finally release', 'analysis_id 를 붙인 dict 를 FastAPI 가 AnalysisResponse 로 검증하고 None 을 뺀 JSON 으로 만듭니다. finally 가 입장 슬롯을 돌려주고, response_headers 가 헤더를 붙입니다.', 'backend/lovecode/api.py:177');
+    return finish({ status: 200, headers: BASE_HEADERS, body: { analysis_id: '3f0c9a1e-…(uuid4)', result: Object.assign({}, SAMPLE_RESULT, { evidence_status: 'ai_draft_unreviewed' }) } });
+  }
+  function stageForRef(ref) {
+    const [file, lineStr] = ref.split(':'); const line = +lineStr;
+    if (file.endsWith('api.py')) { if (line <= 50) return 'start'; if (line <= 113) return 'middleware'; if (line <= 123) return 'validation'; if (line >= 143 && line <= 145) return 'response'; if (line === 177) return 'response'; return 'handler'; }
+    if (file.endsWith('service.py')) return 'service';
+    if (file.endsWith('generator.py') || file.endsWith('checks.py')) return line >= 296 || file.endsWith('checks.py') ? 'prompt' : 'chain';
+    return null;
+  }
+  function runSim() {
+    const s = Object.assign({}, sim);
+    ['sizeKB', 'recent', 'inflight', 'daily'].forEach(k => s[k] = +s[k]);
+    const out = simulate(s);
+    const tr = $('#trace'); tr.innerHTML = '';
+    out.steps.forEach(st => {
+      const d = document.createElement('div'); d.className = 'step ' + st.status;
+      const chip = { pass: '통과', reject: '거절', skip: '건너뜀', info: '진행' }[st.status];
+      d.innerHTML = '<span class="chip"></span><div><div class="t"></div><div class="d"></div><div class="r"><a class="src" href="#"></a><a class="learn" href="#"></a></div></div>';
+      d.querySelector('.chip').textContent = chip; d.querySelector('.t').textContent = st.title; d.querySelector('.d').textContent = st.detail;
+      const a = d.querySelector('a.src'); const [f, l] = st.ref.split(':'); a.dataset.file = f; a.dataset.line = l; a.textContent = st.ref;
+      const sk = stageForRef(st.ref); const learn = d.querySelector('a.learn');
+      if (sk) { learn.textContent = '이 단계 배우기: ' + stageOf(sk).title; learn.addEventListener('click', e => { e.preventDefault(); state.track = 'journey'; state.stage = sk; render(null); }); } else learn.remove();
+      tr.appendChild(d);
+    });
+    const r = out.resp;
+    const box = document.createElement('div'); box.className = 'resp ' + (r.status < 400 ? 'ok' : 'fail');
+    const stt = document.createElement('div'); stt.className = 'status'; stt.textContent = out.method + ' ' + out.path + ' → HTTP ' + r.status; box.appendChild(stt);
+    const hdr = document.createElement('div'); hdr.className = 'hdr'; hdr.textContent = Object.entries(r.headers).map(([k, v]) => k + ': ' + v).join('  ·  '); box.appendChild(hdr);
+    const pre = document.createElement('pre'); pre.textContent = JSON.stringify(r.body, null, 2); box.appendChild(pre);
+    const host = $('#resp'); host.innerHTML = ''; host.appendChild(box);
+  }
+
+  // ---------- wiring ----------
+  buildStageBodies();
+  $$('nav.tracks button').forEach(b => b.addEventListener('click', () => { state.track = b.dataset.track; render(null); }));
+  window.addEventListener('hashchange', () => { const sec = readHash(); render(sec); });
+  wireWalkthroughs(); wireGlossary(); wireSourceLinks(); buildSim();
+  const initial = readHash();
+  render(initial);
+})();
+</script>
+</body>
+</html>

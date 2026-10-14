@@ -1,0 +1,227 @@
+[
+  {
+    "term": "ASGI",
+    "match": ["ASGI"],
+    "def": "파이썬 비동기 서버와 앱이 scope, receive, send 세 인자로 통신하기로 한 호출 규약이며, uvicorn 이 이 규약으로 FastAPI 앱을 부릅니다."
+  },
+  {
+    "term": "Starlette",
+    "match": ["Starlette"],
+    "def": "FastAPI 가 상속하는 경량 ASGI 프레임워크이며, 라우팅과 미들웨어, 요청·응답 객체, TestClient 를 제공합니다."
+  },
+  {
+    "term": "미들웨어",
+    "match": ["미들웨어"],
+    "def": "요청이 핸들러에 닿기 전과 응답이 나가기 전에 끼어드는 겹이며, 이 프로젝트는 boundary 와 response_headers 두 겹이 라우터를 감쌉니다."
+  },
+  {
+    "term": "이벤트 루프",
+    "match": ["이벤트 루프"],
+    "def": "비동기 코드를 한 스레드에서 번갈아 실행하는 루프이며, 이 프로젝트에서는 미들웨어가 여기서 돌고 블로킹 작업은 스레드풀로 보냅니다."
+  },
+  {
+    "term": "코루틴",
+    "match": ["코루틴"],
+    "def": "async def 로 정의해 await 지점에서 멈췄다가 이어 갈 수 있는 함수이며, ASGI 의 receive 와 send 가 코루틴입니다."
+  },
+  {
+    "term": "스레드풀",
+    "match": ["스레드풀", "스레드 풀"],
+    "def": "미리 만들어 둔 워커 스레드 묶음이며, FastAPI 는 일반 def 핸들러를 여기서 실행해 이벤트 루프가 멈추지 않게 합니다."
+  },
+  {
+    "term": "세마포어",
+    "match": ["세마포어"],
+    "def": "동시에 통과할 수 있는 수를 세는 카운터 잠금이며, 이 프로젝트는 동시 분석 요청을 20개로 묶는 입장권으로 씁니다."
+  },
+  {
+    "term": "조건 변수",
+    "match": ["조건 변수", "threading.Condition"],
+    "def": "락을 풀고 잠들었다가 notify 로 깨어나 조건을 다시 검사하는 동기화 도구이며, StageLimit 의 FIFO 대기가 이것으로 구현됩니다."
+  },
+  {
+    "term": "FIFO",
+    "match": ["FIFO"],
+    "def": "먼저 들어온 것이 먼저 나가는 선입선출 순서이며, StageLimit 은 deque 티켓 줄로 먼저 온 요청이 추월당하지 않게 보장합니다."
+  },
+  {
+    "term": "백프레셔",
+    "match": ["백프레셔"],
+    "def": "처리 능력을 넘는 요청을 줄 세우지 않고 즉시 거절해 과부하를 막는 방식이며, 입장권이 없으면 기다리지 않고 바로 429 를 돌려줍니다."
+  },
+  {
+    "term": "레이트리밋",
+    "match": ["레이트리밋", "rate limit"],
+    "def": "일정 시간 창 안에 한 클라이언트가 보낼 수 있는 요청 수의 제한이며, 이 프로젝트는 IP 해시별 deque 로 프로세스 메모리에서 셉니다."
+  },
+  {
+    "term": "Pydantic",
+    "match": ["Pydantic", "pydantic"],
+    "def": "타입 힌트로 데이터 모델을 선언하면 검증과 변환을 해 주는 라이브러리이며, FastAPI 의 요청·응답 계약과 설정 읽기에 쓰입니다."
+  },
+  {
+    "term": "직렬화",
+    "match": ["직렬화"],
+    "def": "파이썬 객체를 JSON 처럼 전송 가능한 형식으로 바꾸는 일이며, FastAPI 는 핸들러가 돌려준 dict 를 응답 모델로 검증한 뒤 직렬화합니다."
+  },
+  {
+    "term": "팩토리 함수",
+    "match": ["팩토리"],
+    "def": "호출할 때마다 새 객체를 만들어 돌려주는 함수이며, create_app() 은 매번 독립된 앱과 세마포어·버킷을 만들어 테스트 격리를 돕습니다."
+  },
+  {
+    "term": "클로저",
+    "match": ["클로저"],
+    "def": "바깥 함수의 지역 변수를 붙잡아 그 함수가 끝난 뒤에도 쓰는 내부 함수이며, 핸들러와 미들웨어가 create_app 의 변수를 이렇게 공유합니다."
+  },
+  {
+    "term": "데코레이터",
+    "match": ["데코레이터"],
+    "def": "함수를 인자로 받아 등록하거나 감싼 뒤 돌려주는 문법이며, @app.get 은 경로와 핸들러 함수를 라우터에 묶는 등록입니다."
+  },
+  {
+    "term": "엔드포인트",
+    "match": ["엔드포인트"],
+    "def": "HTTP 메서드와 경로 하나에 대응하는 핸들러 함수이며, 이 백엔드의 공개 엔드포인트는 health, taxonomy, analyses, demo-analysis 네 개입니다."
+  },
+  {
+    "term": "lru_cache",
+    "match": ["lru_cache"],
+    "def": "함수의 인자 조합별 결과를 기억해 두는 데코레이터이며, 인자 없는 settings() 에 붙여 설정 객체를 한 번만 만드는 싱글턴으로 씁니다."
+  },
+  {
+    "term": "싱글턴",
+    "match": ["싱글턴"],
+    "def": "프로세스 안에 인스턴스가 하나만 존재하도록 만든 객체이며, 캐시된 Settings 의 속성을 바꾸면 앱 전체가 즉시 새 값을 봅니다."
+  },
+  {
+    "term": "의존성 주입",
+    "match": ["의존성 주입", "Depends"],
+    "def": "객체가 필요한 협력자를 직접 만들지 않고 밖에서 넘겨받는 방식이며, 이 프로젝트는 Depends 대신 create_app 인자로 서비스를 끼워 넣습니다."
+  },
+  {
+    "term": "OpenAPI",
+    "match": ["OpenAPI"],
+    "def": "HTTP API 의 경로·파라미터·응답 모양을 기술하는 표준 문서 형식이며, FastAPI 가 라우트 선언에서 자동 생성해 JSON 으로 냅니다."
+  },
+  {
+    "term": "JSON Schema",
+    "match": ["JSON Schema", "JSON 스키마"],
+    "def": "JSON 데이터의 구조와 제약을 기술하는 표준이며, Pydantic 모델이 이 형식으로 변환되어 OpenAPI 문서와 LLM 구조화 출력에 쓰입니다."
+  },
+  {
+    "term": "TestClient",
+    "match": ["TestClient"],
+    "def": "서버를 띄우지 않고 ASGI 앱을 함수처럼 직접 호출해 HTTP 요청을 흉내 내는 테스트 클라이언트이며, 소켓 없이 미들웨어 경로를 모두 지납니다."
+  },
+  {
+    "term": "픽스처",
+    "match": ["픽스처"],
+    "def": "pytest 가 테스트 전에 준비하고 끝난 뒤 정리해 주는 객체나 설정이며, client 픽스처는 테스트마다 새 앱을 만들어 줍니다."
+  },
+  {
+    "term": "monkeypatch",
+    "match": ["monkeypatch"],
+    "def": "테스트 동안만 객체의 속성이나 함수를 바꾸고 끝나면 되돌리는 pytest 도구이며, 캐시된 settings() 의 값을 바꾸는 데 씁니다."
+  },
+  {
+    "term": "CORS",
+    "match": ["CORS"],
+    "def": "브라우저가 다른 출처로 보내는 요청을 제어하는 규칙이며, 이 프로젝트는 Next.js rewrite 로 같은 출처를 쓰므로 Origin 검사만 둡니다."
+  },
+  {
+    "term": "전송 계층",
+    "match": ["전송 계층", "MockTransport"],
+    "def": "HTTP 클라이언트에서 실제 소켓 통신을 맡는 층이며, 테스트는 MockTransport 로 이 층만 바꿔 네트워크 없이 응답을 흉내 냅니다."
+  },
+  {
+    "term": "LCEL",
+    "match": ["LCEL"],
+    "def": "LangChain 부품을 | 연산자로 이어 체인을 만드는 조합 문법이며, 이 프로젝트의 초안·검사·수리·변환 체인이 이 문법으로 조립됩니다."
+  },
+  {
+    "term": "Runnable",
+    "match": ["Runnable"],
+    "def": "invoke 로 입력 하나를 출력 하나로 바꾸는 LangChain 의 공통 인터페이스이며, 프롬프트·모델·함수·분기가 모두 이것을 구현합니다."
+  },
+  {
+    "term": "RunnableSequence",
+    "match": ["RunnableSequence"],
+    "def": "| 로 이은 단계들을 순서대로 invoke 하며 앞 단계의 반환값을 다음 입력으로 넘기는 Runnable 이며, 예외는 삼키지 않고 전파합니다."
+  },
+  {
+    "term": "RunnableBranch",
+    "match": ["RunnableBranch"],
+    "def": "(조건, 실행) 쌍과 기본 가지로 if/else 를 표현하는 Runnable 이며, problems 가 비어 있지 않을 때만 수리 단계를 한 번 실행합니다."
+  },
+  {
+    "term": "RunnableLambda",
+    "match": ["RunnableLambda"],
+    "def": "일반 파이썬 함수나 바운드 메서드를 Runnable 로 감싸는 래퍼이며, 단계 메서드 _draft_step 등이 이것으로 체인에 들어갑니다."
+  },
+  {
+    "term": "RunnablePassthrough",
+    "match": ["RunnablePassthrough"],
+    "def": "입력을 그대로 돌려주는 항등 Runnable 이며, assign 클래스메서드는 입력 dict 를 유지한 채 새 키를 덧붙입니다."
+  },
+  {
+    "term": "RunnableParallel",
+    "match": ["RunnableParallel"],
+    "def": "같은 입력을 여러 Runnable 에 보내 결과를 키별 dict 로 모으는 Runnable 이며, dict 를 | 에 넣으면 자동으로 이것이 됩니다."
+  },
+  {
+    "term": "구조화 출력",
+    "match": ["구조화 출력", "with_structured_output"],
+    "def": "LLM 응답을 자유 문장이 아니라 지정한 JSON 스키마에 맞춰 받는 기능이며, with_structured_output 이 Pydantic 모델을 보내고 파싱합니다."
+  },
+  {
+    "term": "Responses API",
+    "match": ["Responses API", "Chat Completions"],
+    "def": "OpenAI 의 응답 생성 API 로 Chat Completions 의 후속이며, 요청 키 이름이 다르고 store 로 서버 저장 여부를 정합니다."
+  },
+  {
+    "term": "프롬프트 템플릿",
+    "match": ["프롬프트 템플릿", "ChatPromptTemplate"],
+    "def": "{변수} 자리를 가진 메시지 틀이며, ChatPromptTemplate 은 (역할, 템플릿) 튜플 목록을 system, human, ai 메시지로 렌더링합니다."
+  },
+  {
+    "term": "Ollama",
+    "match": ["Ollama"],
+    "def": "로컬 PC 에서 오픈소스 LLM 을 HTTP 서버로 띄워 주는 도구이며, 팀원이 비용 없이 해설 모델을 비교할 때 ChatOllama 로 호출합니다."
+  },
+  {
+    "term": "LangSmith",
+    "match": ["LangSmith"],
+    "def": "LangChain 실행 과정을 외부 서버에 기록하는 추적 서비스이며, 이 프로젝트는 요청 본문이 나가지 않도록 tracing_context 로 끕니다."
+  },
+  {
+    "term": "contextvar",
+    "match": ["contextvar", "컨텍스트 변수"],
+    "def": "스레드와 비동기 태스크마다 독립된 값을 갖는 파이썬 컨텍스트 변수이며, 추적 on/off 판정이 환경변수보다 먼저 이 값을 봅니다."
+  },
+  {
+    "term": "프롬프트 인젝션",
+    "match": ["프롬프트 인젝션"],
+    "def": "입력 데이터 안에 숨긴 지시문으로 모델의 동작을 바꾸려는 공격이며, SYSTEM 규칙 6 과 출력 검사가 이 프로젝트의 방어선입니다."
+  },
+  {
+    "term": "바운드 메서드",
+    "match": ["바운드 메서드"],
+    "def": "인스턴스에 묶여 self 가 이미 채워진 메서드이며, RunnableLambda 가 감싸면 인자 하나짜리 함수로 보여 state 만 넘깁니다."
+  },
+  {
+    "term": "BERT",
+    "match": ["BERT"],
+    "def": "문장을 읽어 분류하는 트랜스포머 언어 모델이며, 이 프로젝트는 KLUE BERT 분류기가 16유형 중 type_id 를 정하고 LLM 은 해설만 씁니다."
+  },
+  {
+    "term": "컨텍스트 매니저",
+    "match": ["컨텍스트 매니저", "@contextmanager"],
+    "def": "with 블록의 시작과 끝에 준비·정리 코드를 실행하는 객체이며, StageLimit.acquire 는 블록을 나갈 때 슬롯을 반드시 돌려줍니다."
+  },
+  {
+    "term": "with_fallbacks",
+    "match": ["with_fallbacks"],
+    "def": "앞 Runnable 이 예외를 내면 대체 Runnable 을 실행하는 LangChain 메서드이며, include_raw=True 가 파싱 실패를 parsing_error 키로 바꾸는 데 씁니다."
+  }
+]

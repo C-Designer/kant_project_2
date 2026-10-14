@@ -1,0 +1,194 @@
+{
+  "fa-1-what": {
+    "bullets": [
+      "FastAPI 는 Starlette 을 상속한 ASGI 프레임워크다",
+      "uvicorn 이 scope, receive, send 로 앱을 호출한다",
+      "이 저장소에서 FastAPI 는 HTTP 입구만 맡고 저장이 없다"
+    ],
+    "takeaway": "FastAPI 는 Starlette 에 Pydantic 검증과 OpenAPI 를 얹은 ASGI 앱이고, uvicorn 이 호출하므로 HTTP 입구만 맡습니다."
+  },
+  "fa-1-app": {
+    "bullets": [
+      "create_app 팩토리가 세마포어·예산·버킷을 클로저로 묶는다",
+      "모듈 끝 app = create_app() 을 서버가 import 한다",
+      "redoc_url 은 기본값 /redoc 그대로 남아 있다"
+    ],
+    "takeaway": "팩토리는 호출마다 새 앱과 새 상태를 만들어 테스트가 가짜 서비스를 주입하고 격리할 수 있게 하며, 모듈 끝 app 은 uvicorn 용 이름입니다."
+  },
+  "fa-1-routes": {
+    "bullets": [
+      "공개 엔드포인트는 GET 둘, POST 둘로 네 개뿐이다",
+      "데코레이터는 APIRoute 로 등록한 뒤 원래 함수를 돌려준다",
+      "네 핸들러 모두 일반 def 라 워커 스레드에서 실행된다"
+    ],
+    "takeaway": "@app.get 은 함수를 APIRoute 로 등록만 하고 그대로 돌려주며, 블로킹 작업을 하는 핸들러는 def 로 두어 스레드풀에서 돌립니다."
+  },
+  "fa-1-request": {
+    "bullets": [
+      "프런트 api() 는 /api/v1 상대 경로와 JSON 헤더로 보낸다",
+      "요청은 바깥 겹부터 안으로, 응답은 역순으로 흐른다",
+      "모든 오류는 error() 헬퍼의 같은 모양으로 나간다"
+    ],
+    "takeaway": "오류가 어느 층에서 나든 error() 가 같은 모양을 만들기 때문에 프런트는 error.message 한 곳만 읽으면 됩니다."
+  },
+  "fa-2-settings": {
+    "bullets": [
+      "LC_ 접두 환경변수와 .env 를 읽어 타입 검증한다",
+      "우선순위는 생성자 인자, 환경변수, .env, 시크릿 파일 순이다",
+      "lru_cache 싱글턴이라 monkeypatch 로 즉시 바뀐다"
+    ],
+    "takeaway": "settings() 는 lru_cache 로 같은 인스턴스를 돌려주므로 속성 하나만 바꿔도 앱 전체에 반영되고, import 시점에 환경변수가 고정됩니다."
+  },
+  "fa-2-contracts": {
+    "bullets": [
+      "extra=forbid 가 모르는 키를 422 로 거절한다",
+      "세 validator 가 날짜 범위, 시각 형식, MBTI 를 본다",
+      "after 검증기가 출력 텍스트의 입력 에코를 막는다"
+    ],
+    "takeaway": "입력·출력 모델이 같은 Strict 를 상속하고 한 파일에 있는 것은 출력 금지 정규식이 입력 검증의 거울이라 함께 고쳐야 안전하기 때문입니다."
+  },
+  "fa-2-middleware": {
+    "bullets": [
+      "boundary 는 Origin, 타입, 크기, IP 버킷을 검사한다",
+      "레이트리밋은 솔트 해시 키의 deque 슬라이딩 윈도다",
+      "response_headers 는 모든 응답에 보안 헤더 네 개를 붙인다"
+    ],
+    "takeaway": "나중에 등록한 response_headers 가 바깥 겹이 되므로 boundary 의 조기 응답에도 보안 헤더가 붙습니다."
+  },
+  "fa-2-handlers": {
+    "bullets": [
+      "analyse 는 준비, 동의, 입장권, 예산 순으로 거절 조건을 본다",
+      "try/finally 가 어떤 경로든 입장권을 반드시 돌려준다",
+      "대기 만료 429, 호출 실패 502, 설정 오류 503 이다"
+    ],
+    "takeaway": "값싼 조건부터 보고 입장권을 예산보다 먼저 잡아 자리를 못 얻은 요청은 예산을 쓰지 않으며, HTTPException 대신 error() 를 return 합니다."
+  },
+  "fa-2-service": {
+    "bullets": [
+      "ready() 는 다섯 설정 조건과 분류기 보고서 형식을 확인한다",
+      "사주를 한 번 계산한 뒤 BERT·해설 슬롯을 차례로 쓴다",
+      "StageLimit 은 FIFO 티켓과 절대 기한을 가진 단계 제한이다"
+    ],
+    "takeaway": "LLM 을 기다리는 동안 BERT 슬롯을 쥐지 않도록 단계를 둘로 나누고, 표준 세마포어가 못 주는 FIFO 와 공통 기한을 StageLimit 으로 보장합니다."
+  },
+  "fa-2-errors": {
+    "bullets": [
+      "검증 오류는 app.exception_handler 로 잡는다",
+      "기본 핸들러는 detail 에 입력값 input 까지 그대로 실어 보낸다",
+      "loc 의 body 접두는 FastAPI 가 붙이고 핸들러가 다시 뺀다"
+    ],
+    "takeaway": "기본 422 는 틀린 입력값을 응답에 되돌려 주므로, 커스텀 핸들러가 필드 경로만 남겨 응답 모양 통일과 입력값 비노출을 함께 얻습니다."
+  },
+  "fa-3-asgi": {
+    "bullets": [
+      "uvicorn 이 요청마다 scope 를 만들어 app 을 부른다",
+      "FastAPI.__call__ 은 Starlette 로 위임한다",
+      "미들웨어 스택은 첫 요청 때 한 번만 조립된다"
+    ],
+    "takeaway": "ASGI 는 app(scope, receive, send) 호출 규약이며, 모듈 수준 app 이 import 때 설정을 캐시하므로 환경변수를 먼저 두어야 합니다."
+  },
+  "fa-3-middleware-order": {
+    "bullets": [
+      "나중에 등록한 미들웨어가 insert(0) 으로 바깥 겹이 된다",
+      "FastAPI 가 관측용과 ExitStack 겹을 더 끼운다",
+      "핸들러 없는 예외의 500 에는 보안 헤더가 붙지 않는다"
+    ],
+    "takeaway": "response_headers 가 나중에 등록돼 바깥 겹이 되므로 boundary 의 403 조기 응답도 call_next 의 결과로 받아 보안 헤더가 붙습니다."
+  },
+  "fa-3-body": {
+    "bullets": [
+      "stream() 으로 세다 40 KiB 를 넘으면 즉시 413 이다",
+      "미들웨어의 request 와 엔드포인트의 request 는 다른 객체다",
+      "_body 를 채워야 본문이 하류로 재전송된다"
+    ],
+    "takeaway": "ASGI receive 는 한 번만 흐르므로 미들웨어가 소비한 본문은 request._body 에 손수 넣어야 엔드포인트가 빈 본문 대신 받습니다."
+  },
+  "fa-3-exception": {
+    "bullets": [
+      "검증 오류는 엔드포인트 호출 전에 발생한다",
+      "핸들러는 라우트 래퍼에서 돌아 응답이 바깥 미들웨어를 지난다",
+      "ProviderError 는 핸들러 안 try/except 로 잡는다"
+    ],
+    "takeaway": "엔드포인트 호출 전 예외는 앱 핸들러만 잡을 수 있고, 안에서 난 예외는 세마포어 반환과 상태코드를 한곳에 두려고 지역 try/except 로 처리합니다."
+  },
+  "fa-3-sync": {
+    "bullets": [
+      "def 엔드포인트는 anyio 워커 스레드에서 돈다",
+      "기본 CapacityLimiter 는 40 토큰이다",
+      "미들웨어 dispatch 는 이벤트 루프에서 await 된다"
+    ],
+    "takeaway": "BERT 추론, 동기 OpenAI 호출, Condition.wait 가 모두 블로킹이라 analyse 를 def 로 두어 스레드에서 돌리고 루프를 지킵니다."
+  },
+  "fa-3-stagelimit": {
+    "bullets": [
+      "deque 티켓의 머리만 슬롯을 받아 FIFO 가 보장된다",
+      "절대 기한이 지나면 AnalysisBusy 를 던지고 티켓을 제거한다",
+      "notify_all 로 모두 깨워 while 조건을 재검사하게 한다"
+    ],
+    "takeaway": "조건 변수와 티켓 큐로 FIFO, 공통 기한, 예외 시 슬롯 반환을 보장하며, 만료된 티켓을 빼지 않으면 뒤의 요청이 영원히 막히기 때문입니다."
+  },
+  "fa-3-limits-map": {
+    "bullets": [
+      "IP 버킷, 입장 20, 단계 슬롯 2/5, 일일 20 네 겹의 제한이다",
+      "예산은 분석 전에 증가해 실패한 분석도 한 칸을 쓴다",
+      "모든 제한은 프로세스 메모리라 인스턴스 간 공유되지 않는다"
+    ],
+    "takeaway": "네 겹이 각각 네트워크 남용, 스레드, CPU 와 외부 API, 비용을 겨냥하며, DB 가 없어 인스턴스 수만큼 상한이 곱해진다는 점을 문서에 적었습니다."
+  },
+  "fa-3-validation-flow": {
+    "bullets": [
+      "본문은 boundary, json 파싱, 모델 검증 순으로 바뀐다",
+      "Content-Type 이 없으면 JSON 으로 해석하지 않는다",
+      "loc 의 body 는 FastAPI 가, 뒤는 pydantic 몫이다"
+    ],
+    "takeaway": "본문 파라미터가 하나면 FastAPI 가 loc 앞에 body 를 붙이고, invalid 핸들러는 이를 빼 필드 경로만 돌려주어 입력값이 새지 않게 합니다."
+  },
+  "fa-3-strict": {
+    "bullets": [
+      "extra=forbid 는 오타 필드를 422 로 즉시 드러낸다",
+      "field_validator 는 cls 를 받고 반환값이 최종 값이다",
+      "after 검증기는 완성된 self 로 필드 관계를 검사한다"
+    ],
+    "takeaway": "필드 검증이 먼저 끝난 뒤 after 검증기가 돌므로 정규화는 field_validator, 필드 간 일관성은 model_validator 가 맡습니다."
+  },
+  "fa-3-response-model": {
+    "bullets": [
+      "dict 반환은 AnalysisResponse 로 재검증 후 직렬화된다",
+      "Response 반환은 serialize_response 를 건너뛴다",
+      "동기 엔드포인트의 응답 검증도 스레드풀에서 돈다"
+    ],
+    "takeaway": "반환값이 Response 인스턴스면 검증·직렬화를 건너뛰므로 error() 의 JSONResponse 는 response_model 모양이 아니어도 됩니다."
+  },
+  "fa-3-openapi": {
+    "bullets": [
+      "문서 URL 두 인자는 setup() 이 라우트로 등록한다",
+      "모델 JSON Schema 가 components 정의로 들어간다",
+      "docs/api/openapi.json 은 생성 결과의 스냅샷이다"
+    ],
+    "takeaway": "OpenAPI 는 라우트 선언과 pydantic 모델에서 생성되어 코드와 어긋날 수 없고, 문서 경로도 /api 아래여야 프런트 rewrite 를 통과합니다."
+  },
+  "fa-3-tests-client": {
+    "bullets": [
+      "TestClient 는 소켓 없이 portal 로 app 을 직접 부른다",
+      "with 블록이 포털을 열고 lifespan 을 실행한다",
+      "httpx 패치는 httpx2 기반 TestClient 에 닿지 않는다"
+    ],
+    "takeaway": "ASGI 는 함수 호출 규약이라 TestClient 가 앱을 직접 부르며, conftest 의 httpx 패치는 httpx2 의 다른 클래스라 충돌하지 않습니다."
+  },
+  "fa-3-tests-contract": {
+    "bullets": [
+      "카나리 문자열로 422 응답과 로그에 입력값이 없음을 고정한다",
+      "조기 415 응답에도 보안 헤더가 붙는지 검사한다",
+      "경로 집합과 응답 키 집합을 정확히 비교한다"
+    ],
+    "takeaway": "계약 테스트는 상태 코드, 헤더, 응답 키 집합처럼 밖에서 관찰되는 약속을 고정해 리팩터링 중 보안 규칙이 조용히 풀리는 것을 막습니다."
+  },
+  "fa-3-tests-concurrency": {
+    "bullets": [
+      "가짜 분류기·해설기가 Lock 으로 peak 를 기록한다",
+      "Event 로 해설을 붙잡아 BERT 슬롯 반환을 증명한다",
+      "21번째 요청이 세마포어에 막혀 429 ANALYSIS_BUSY 다"
+    ],
+    "takeaway": "Event, Lock, Future.result() 로 타이밍을 통제하고 peak 를 숫자로 단언하므로 sleep 과 달리 결정적이고 깨진 한도가 드러납니다."
+  }
+}
