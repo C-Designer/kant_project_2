@@ -44,6 +44,24 @@ jobs:
       - run: uv sync --frozen --only-group dev
       - run: uv run --no-sync ruff check backend tests scripts
 
+  backend-test:
+    name: backend-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      # 테스트는 torch를 import하지 않는다(BERT 코드는 함수 안에서만 import).
+      # torch·triton·CUDA 패키지(수 GB)만 빼고 uv.lock 그대로 설치한다.
+      - name: Install without torch/CUDA
+        run: |
+          exclude=$(grep -oP '^name = "\K(torch|triton|nvidia-[^"]+|cuda-[^"]+)(?=")' uv.lock \
+            | sort -u | sed 's/^/--no-install-package /')
+          uv sync --frozen $exclude
+      # tests/conftest.py가 실제 HTTP를 막으므로 유료 API 호출은 없다.
+      - run: uv run --no-sync pytest -q
+
   frontend:
     name: frontend
     runs-on: ubuntu-latest
