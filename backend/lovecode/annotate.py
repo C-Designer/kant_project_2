@@ -30,7 +30,7 @@ def annotate(a, *, provider=None):
     validate(dest)
     if not 1 <= a.max_calls <= 600:
         fail("--max-calls must be 1..600")
-    with (dest / "couples.csv").open(newline="") as f:
+    with (dest / "couples.csv").open(newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     pending = [r for r in rows if not r["label"]][: a.max_calls]
     if a.dry_run:
@@ -58,7 +58,7 @@ def annotate(a, *, provider=None):
         r["review_status"] = "pending"
         # Persist successful row before moving on. No automatic paid retry on any failure.
         write_csv(dest / "couples.csv", rows)
-        with (dest / "annotation_records.jsonl").open("a") as f:
+        with (dest / "annotation_records.jsonl").open("a", encoding="utf-8") as f:
             f.write(
                 json.dumps(
                     {

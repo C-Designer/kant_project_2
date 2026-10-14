@@ -73,19 +73,19 @@ def test_annotation_checkpoint_resume(dataset, monkeypatch):
     args = SimpleNamespace(dir=dataset, max_calls=3, dry_run=False, allow_paid=True)
     with pytest.raises(SystemExit):
         annotate(args, provider=OpenAIProvider(httpx.MockTransport(handle)))
-    rows = list(csv.DictReader((dataset / "couples.csv").open()))
+    rows = list(csv.DictReader((dataset / "couples.csv").open(encoding="utf-8")))
     assert sum(bool(r["label"]) for r in rows) == 1
     assert rows[0]["review_status"] == "pending"
     args.max_calls = 1
     annotate(args, provider=OpenAIProvider(httpx.MockTransport(handle)))
-    rows = list(csv.DictReader((dataset / "couples.csv").open()))
+    rows = list(csv.DictReader((dataset / "couples.csv").open(encoding="utf-8")))
     assert sum(bool(r["label"]) for r in rows) == 2
     assert all(r["review_status"] == "pending" for r in rows)
     assert len(calls) == 3  # successful checkpoint is not paid again
 
 
 def test_real_estimators_fixture_data_and_artifact_guards(dataset, tmp_path):
-    rows = list(csv.DictReader((dataset / "couples.csv").open()))
+    rows = list(csv.DictReader((dataset / "couples.csv").open(encoding="utf-8")))
     labels = [v["label"] for v in TAXONOMY.values()]
     counters = {}
     for r in rows:
@@ -117,7 +117,7 @@ def test_real_estimators_fixture_data_and_artifact_guards(dataset, tmp_path):
     assert (
         report["csv_sha256"] == hashlib.sha256((dataset / "couples.csv").read_bytes()).hexdigest()
     )
-    with open("data/synthetic-v1/couples.csv") as f:
+    with open("data/synthetic-v1/couples.csv", encoding="utf-8") as f:
         assert not any(r["label"] for r in csv.DictReader(f))
 
 
@@ -157,9 +157,9 @@ def test_timeout_and_malformed_envelope(monkeypatch):
 
 def test_training_rejects_unsupported_birthday_before_fit(dataset, tmp_path):
     source = dataset / "synthetic_people.json"
-    people = json.loads(source.read_text())
+    people = json.loads(source.read_text(encoding="utf-8"))
     people[0]["birth_date"] = "1939-12-31"
-    source.write_text(json.dumps(people))
+    source.write_text(json.dumps(people), encoding="utf-8")
     args = SimpleNamespace(dir=dataset, output=tmp_path / "models")
     with pytest.raises(ValueError, match="1940"):
         train(args)

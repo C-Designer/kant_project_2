@@ -69,7 +69,9 @@ def generate(dest):
         rows.append(dict(zip(HEADERS, [cid, gid, input_text(*ps), "", "", "pending", splits[i]])))
     write_csv(dest / "couples.csv", rows)
     for name, values in [("synthetic_people", people), ("synthetic_pairs", pairs)]:
-        (dest / f"{name}.json").write_text(json.dumps(values, ensure_ascii=False, indent=2) + "\n")
+        (dest / f"{name}.json").write_text(
+            json.dumps(values, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
     manifest = {
         "dataset_version": "synthetic-v1",
         "source": "synthetic",
@@ -84,7 +86,7 @@ def generate(dest):
         "input_sha256": hashlib.sha256("".join(r["input_text"] for r in rows).encode()).hexdigest(),
     }
     (dest / "dataset_manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     (dest / "annotation_records.jsonl").touch()
     return validate(dest)

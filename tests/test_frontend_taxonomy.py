@@ -8,7 +8,7 @@ from lovecode.contracts import AXIS_KEYS, TAXONOMY
 
 def test_frontend_guide_covers_backend_types_without_changing_axes():
     root = Path(__file__).resolve().parents[1]
-    guide = json.loads((root / "frontend/data/relationship-types.json").read_text())
+    guide = json.loads((root / "frontend/data/relationship-types.json").read_text(encoding="utf-8"))
     assert len(guide) == len(TAXONOMY)
     assert {item["id"] for item in guide} == set(TAXONOMY)
     assert len({item["slug"] for item in guide}) == len(guide)

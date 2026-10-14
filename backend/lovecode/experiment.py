@@ -27,7 +27,7 @@ def experiment(a):
         raise ValueError(message)
 
     validate(a.dir)
-    with (Path(a.dir) / "couples.csv").open(newline="") as f:
+    with (Path(a.dir) / "couples.csv").open(newline="", encoding="utf-8") as f:
         row = next((r for r in csv.DictReader(f) if r["couple_id"] == a.couple_id), None)
     if row is None:
         fail("가상 manifest에 존재하는 couple-id 필요")
@@ -53,7 +53,7 @@ def experiment(a):
         fail("기존 결과 보호: 새 --output 지정")
     import hashlib
 
-    report = json.loads(report_path.read_text())
+    report = json.loads(report_path.read_text(encoding="utf-8"))
     if (
         report["csv_sha256"]
         != hashlib.sha256((Path(a.dir) / "couples.csv").read_bytes()).hexdigest()
@@ -84,7 +84,8 @@ def experiment(a):
             ensure_ascii=False,
             indent=2,
         )
-        + "\n"
+        + "\n",
+        encoding="utf-8",
     )
     print("가상 해설 저장:", dest)
 
