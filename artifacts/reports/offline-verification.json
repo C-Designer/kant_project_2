@@ -1,5 +1,5 @@
 {
-  "executed_at": "2026-10-14T00:57:24.401213+00:00",
+  "executed_at": "2026-10-14T01:15:35.642835+00:00",
   "paid_api_calls": 0,
   "production_training_executed": false,
   "fixture_training_executed": true,
@@ -7,67 +7,67 @@
     {
       "command": "uv run ruff check backend tests scripts",
       "exit_code": 0,
-      "seconds": 0.028,
+      "seconds": 0.026,
       "output": "All checks passed!"
     },
     {
       "command": "uv run pytest -q",
       "exit_code": 0,
-      "seconds": 4.949,
-      "output": "........................................................................ [ 78%]\n....................                                                     [100%]\n92 passed in 4.00s"
+      "seconds": 3.855,
+      "output": "........................................................................ [ 66%]\n....................................                                     [100%]\n108 passed in 3.06s"
     },
     {
       "command": "npm --prefix frontend run typecheck",
       "exit_code": 0,
-      "seconds": 0.615,
+      "seconds": 0.541,
       "output": "> lovecode-web@0.1.0 typecheck\n> tsc --noEmit"
     },
     {
       "command": "npm --prefix frontend test",
       "exit_code": 0,
-      "seconds": 0.19,
-      "output": "> lovecode-web@0.1.0 test\n> node --test tests/*.test.mjs\n\n✔ result axes keep their labels even when API property order changes (0.578125ms)\n✔ missing or future axis values do not render as blank or undefined (0.084ms)\nℹ tests 2\nℹ suites 0\nℹ pass 2\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 64.155959"
+      "seconds": 0.173,
+      "output": "> lovecode-web@0.1.0 test\n> node --test tests/*.test.mjs\n\n✔ result axes keep their labels even when API property order changes (0.563333ms)\n✔ missing or future axis values do not render as blank or undefined (0.070333ms)\nℹ tests 2\nℹ suites 0\nℹ pass 2\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 60.606209"
     },
     {
       "command": "npm --prefix frontend run format:check",
       "exit_code": 0,
-      "seconds": 0.343,
+      "seconds": 0.311,
       "output": "> lovecode-web@0.1.0 format:check\n> prettier --check app components lib tests\n\nChecking formatting...\nAll matched files use Prettier code style!"
     },
     {
       "command": "npm --prefix frontend run build",
       "exit_code": 0,
-      "seconds": 2.371,
-      "output": "> lovecode-web@0.1.0 build\n> next build\n\n▲ Next.js 16.4.0 (Turbopack)\n✓ Running next.config.ts took 12ms\n\n  Creating an optimized production build ...\n✓ Compiled successfully in 184ms\n  Running TypeScript ...\n  Finished TypeScript in 546ms ...\n  Collecting page data using 8 workers ...\n  Generating static pages using 8 workers (0/22) ...\n  Generating static pages using 8 workers (5/22) \n  Generating static pages using 8 workers (10/22) \n  Generating static pages using 8 workers (16/22) \n✓ Generating static pages using 8 workers (22/22) in 384ms\n  Finalizing page optimization ...\n\nRoute (app)\n┌ ○ /\n├ ○ /_not-found\n├ ○ /icon.svg\n├ ○ /test\n├ ○ /types\n└   /types/[slug]\n  ├ ● /types/t03\n  ├ ● /types/t01\n  ├ ● /types/t11\n  └ ● [+13 more paths]\n\n\n○  (Static)  prerendered as static content\n●  (SSG)     prerendered as static HTML (uses generateStaticParams)"
+      "seconds": 2.115,
+      "output": "> lovecode-web@0.1.0 build\n> next build\n\n▲ Next.js 16.4.0 (Turbopack)\n✓ Running next.config.ts took 12ms\n\n  Creating an optimized production build ...\n✓ Compiled successfully in 97ms\n  Running TypeScript ...\n  Finished TypeScript in 521ms ...\n  Collecting page data using 8 workers ...\n  Generating static pages using 8 workers (0/22) ...\n  Generating static pages using 8 workers (5/22) \n  Generating static pages using 8 workers (10/22) \n  Generating static pages using 8 workers (16/22) \n✓ Generating static pages using 8 workers (22/22) in 308ms\n  Finalizing page optimization ...\n\nRoute (app)\n┌ ○ /\n├ ○ /_not-found\n├ ○ /icon.svg\n├ ○ /test\n├ ○ /types\n└   /types/[slug]\n  ├ ● /types/t03\n  ├ ● /types/t01\n  ├ ● /types/t11\n  └ ● [+13 more paths]\n\n\n○  (Static)  prerendered as static content\n●  (SSG)     prerendered as static HTML (uses generateStaticParams)"
     },
     {
       "command": "uv run python -m lovecode.dataset validate",
       "exit_code": 0,
-      "seconds": 0.128,
+      "seconds": 0.113,
       "output": "{\n  \"rows\": 600,\n  \"splits\": {\n    \"train\": 360,\n    \"test\": 120,\n    \"validation\": 120\n  },\n  \"labeled\": 0,\n  \"approved\": 0,\n  \"cross_split_people\": 0,\n  \"human_review\": \"incomplete\"\n}"
     },
     {
       "command": "uv run python -m lovecode.annotate --dry-run",
       "exit_code": 0,
-      "seconds": 0.209,
+      "seconds": 0.153,
       "output": "{\"would_call\": 1, \"paid_calls\": 0, \"provider\": \"openai\", \"human_review\": \"incomplete\"}"
     },
     {
       "command": "uv run python -m lovecode.train --allow-ai-drafts --dry-run",
       "exit_code": 0,
-      "seconds": 0.122,
+      "seconds": 0.101,
       "output": "{\n  \"ready\": false,\n  \"eligible_rows\": 0,\n  \"ineligible_rows\": 600,\n  \"classes_per_split\": {\n    \"train\": 0,\n    \"validation\": 0,\n    \"test\": 0\n  },\n  \"training_executed\": false,\n  \"human_review\": \"incomplete\"\n}"
     },
     {
       "command": "uv run python -m lovecode.experiment --dry-run",
       "exit_code": 0,
-      "seconds": 0.21,
+      "seconds": 0.149,
       "output": "{\"synthetic\": true, \"couple_id\": \"C0001\", \"model_artifact_ready\": false, \"api_enabled\": true, \"configured\": true, \"paid_calls\": 0}"
     },
     {
       "command": "uv run python -m lovecode.pipeline --dry-run",
       "exit_code": 0,
-      "seconds": 0.18,
+      "seconds": 0.147,
       "output": "{\"dataset\": {\"rows\": 600, \"splits\": {\"train\": 360, \"test\": 120, \"validation\": 120}, \"labeled\": 0, \"approved\": 0, \"cross_split_people\": 0, \"human_review\": \"incomplete\"}, \"paid_calls\": 0, \"max_requested_calls\": 2, \"stages\": [\"label pending rows\", \"train two candidates if coverage ready\", \"explain one synthetic pair\"], \"human_review\": \"incomplete\"}"
     }
   ]
