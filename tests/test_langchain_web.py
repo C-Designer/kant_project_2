@@ -106,3 +106,5 @@ def test_prompt_shows_only_own_poles(type_id):
     for text in rendered:
         assert all(pole in text for pole in poles(type_id))
         assert not [pole for pole in opposite_poles(type_id) if pole in text]
+        # The first draft is told the rule the opposite_pole check enforces, not only the repair.
+        assert "반대쪽 극의 이름은 비교하거나 대조할 때도 쓰지 않는다" in text

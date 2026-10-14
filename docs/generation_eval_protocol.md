@@ -19,7 +19,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 프롬프트 | `explain-lc-v2` (`backend/lovecode/generator.py`). 지금까지의 비교 결과는 모두 v2로 실행했다. 서비스는 2026-10-14부터 `explain-lc-v3`(축 설명에 이 커플의 극만 표시)을 쓴다 |
+| 프롬프트 | `explain-lc-v2` (`backend/lovecode/generator.py`). 지금까지의 비교 결과는 모두 v2로 실행했다. 서비스는 2026-10-14부터 `explain-lc-v4`를 쓴다: v3에서 축 설명에 이 커플의 극만 표시하고, v4에서 첫 프롬프트에 반대쪽 극 이름 금지 규칙을 명시했다(이전에는 `checks.py`와 재작성 지시에만 있었다) |
 | 로컬 (Ollama) | temperature 0.3, seed 42, num_ctx 4096, thinking 끄기 |
 | 클라우드 (OpenAI) | 추론 강도 low |
 
