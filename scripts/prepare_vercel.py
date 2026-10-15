@@ -7,7 +7,7 @@ STAGE = ROOT / ".runtime/vercel-app"
 API_MODULES = (
     "__init__", "api", "settings", "contracts", "concurrency", "checks", "service",
     "provider", "generator", "inference", "bert", "axes", "features", "share",
-    "spicy",
+    "spicy", "issues",
 )
 
 

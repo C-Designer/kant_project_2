@@ -18,6 +18,7 @@ from .contracts import (
     Strict,
     demo_result,
 )
+from .issues import issue, new_request_id, request_id_var
 from .provider import ProviderError
 from .service import AnalysisService
 from .settings import settings
@@ -28,7 +29,8 @@ def error(code, status, message="요청을 처리하지 못했어요. 다시 확
     return JSONResponse(
         {
             "error": {"code": code, "message": message, "field": field, "retryable": status >= 500},
-            "request_id": str(uuid.uuid4()),
+            # Same id as the X-Request-ID header and the issue log line.
+            "request_id": request_id_var.get() or str(uuid.uuid4()),
         },
         status_code=status,
     )
@@ -108,7 +110,14 @@ def create_app(analysis_service=None, share_codec=None):
 
     @app.middleware("http")
     async def response_headers(request, call_next):
-        response = await call_next(request)
+        # Outermost: fixes the request id before anything else can log or answer.
+        request_id_var.set(new_request_id(request.headers.get("x-vercel-id")))
+        try:
+            response = await call_next(request)
+        except Exception as e:  # noqa: BLE001 - last line: log it, answer with the request id
+            issue("error", "request.unhandled", "INTERNAL", request.url.path, exception=type(e).__name__)
+            response = error("INTERNAL", 500, "잠시 문제가 생겼어요. 다시 시도해 주세요.")
+        response.headers["X-Request-ID"] = request_id_var.get()
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -154,6 +163,7 @@ def create_app(analysis_service=None, share_codec=None):
 
     @app.post("/api/v1/analyses", response_model=AnalysisResponse, response_model_exclude_none=True)
     def analyse(body: AnalysisInput):
+        route = "/api/v1/analyses"
         if not service.ready():
             return error(
                 "ANALYSIS_UNAVAILABLE",
@@ -162,7 +172,8 @@ def create_app(analysis_service=None, share_codec=None):
             )
         if not body.external_processing_consent:
             return error("CONSENT_REQUIRED", 422, "OpenAI 처리 동의를 확인해 주세요.")
-        def busy():
+        def busy(stage):
+            issue("warning", "analysis.busy", "ANALYSIS_BUSY", route, stage=stage)
             response = error(
                 "ANALYSIS_BUSY", 429,
                 "분석 요청이 많아 대기 시간이 길어지고 있어요. 잠시 후 다시 시도해 주세요.",
@@ -171,26 +182,37 @@ def create_app(analysis_service=None, share_codec=None):
             return response
 
         if not analysis_admission.acquire(blocking=False):
-            return busy()
+            return busy("admission")
         try:
             with budget_lock:
                 day = datetime.now(UTC).date().isoformat()
                 if budget["day"] != day:
                     budget.update(day=day, count=0)
                 if budget["count"] >= settings().daily_analysis_limit:
+                    issue("warning", "analysis.daily_limit", "DAILY_LIMIT", route)
                     return error(
                         "DAILY_LIMIT", 429, "오늘의 분석 한도에 도달했어요. 다음에 다시 찾아주세요."
                     )
                 budget["count"] += 1
+            started = time.monotonic()
             result, meta = service.analyse(body)
+            issue(
+                "info", "analysis.completed", "OK", route,
+                duration_ms=round((time.monotonic() - started) * 1000),
+            )
             return analysis_response(result, shareable=True, answer=meta.get("answer"))
         except AnalysisBusy:
-            return busy()
-        except ProviderError:
+            return busy("slots")
+        except ProviderError as e:
+            issue(
+                "error", "analysis.provider_failed", getattr(e, "code", str(e)), route,
+                **getattr(e, "detail", {}),
+            )
             return error(
                 "PROVIDER_UNAVAILABLE", 502, "분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요."
             )
-        except (ValueError, OSError, KeyError):
+        except (ValueError, OSError, KeyError) as e:
+            issue("error", "analysis.config_failed", "ANALYSIS_UNAVAILABLE", route, exception=type(e).__name__)
             return error(
                 "ANALYSIS_UNAVAILABLE",
                 503,
