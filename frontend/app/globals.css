@@ -882,6 +882,117 @@ dialog p {
   font-size: 0.8125rem;
   margin-bottom: 28px;
 }
+.type-detail-reading blockquote p + p {
+  margin-top: 10px;
+  font-size: 1.125rem;
+  color: var(--muted);
+}
+.type-detail-list,
+.type-detail-steps,
+.type-detail-chips,
+.type-detail-nearby {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.type-detail-list li,
+.type-detail-steps li {
+  position: relative;
+  font-size: 1.0625rem;
+  line-height: 1.85;
+  padding-left: 22px;
+}
+.type-detail-list li + li,
+.type-detail-steps li + li {
+  margin-top: 14px;
+}
+.type-detail-list li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.8em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+.type-detail-steps {
+  counter-reset: step;
+}
+.type-detail-steps li {
+  counter-increment: step;
+  padding-left: 40px;
+}
+.type-detail-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--brand);
+  color: var(--brand);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 24px;
+  text-align: center;
+}
+.type-detail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.type-detail-chips li {
+  background: var(--soft);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.9375rem;
+}
+.type-detail-meanings {
+  margin: 0;
+  display: grid;
+  gap: 18px;
+}
+.type-detail-meanings dt {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.type-detail-meanings dt b {
+  margin-left: 6px;
+  color: var(--text);
+  font-size: 1rem;
+}
+.type-detail-meanings dd {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.type-detail-nearby {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.type-detail-nearby a {
+  display: block;
+  height: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.type-detail-nearby a:hover {
+  border-color: var(--text);
+}
+.type-detail-nearby small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.type-detail-nearby span {
+  display: block;
+  margin: 2px 0;
+  font-weight: 600;
+}
 .type-neighbours {
   margin-top: 64px;
   padding-top: 24px;
@@ -967,6 +1078,16 @@ dialog p {
   }
   .type-detail-reading blockquote p {
     font-size: 1.1875rem;
+  }
+  .type-detail-reading blockquote p + p {
+    font-size: 1rem;
+  }
+  .type-detail-list li,
+  .type-detail-steps li {
+    font-size: 1rem;
+  }
+  .type-detail-nearby {
+    grid-template-columns: 1fr;
   }
   .type-neighbours {
     gap: 12px;

@@ -3,7 +3,7 @@ import TypeIllustration from '@/components/TypeIllustration';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import types from '@/data/relationship-types.json';
-import { AXES } from '@/lib/relationship';
+import { AXES, AXIS_MEANINGS, oneAxisApart } from '@/lib/relationship';
 
 type Props = { params: Promise<{ slug: string }> };
 export const dynamicParams = false;
@@ -25,6 +25,7 @@ export default async function TypeDetail({ params }: Props) {
   const type = types[index];
   const previous = types[(index + 15) % 16],
     next = types[(index + 1) % 16];
+  const nearby = oneAxisApart(type.axes, types);
   return (
     <main id="main" className="type-detail-main">
       <Link href="/types" className="text-button type-back">
@@ -51,19 +52,81 @@ export default async function TypeDetail({ params }: Props) {
       </section>
       <div className="type-detail-reading">
         <section>
+          <p className="eyebrow">이런 하루를 보내요</p>
+          <h2>둘의 어느 하루</h2>
+          <p>{type.day}</p>
+        </section>
+        <section>
           <p className="eyebrow">함께라서 좋은 점</p>
           <h2>우리의 좋은 호흡</h2>
-          <p>{type.strength}</p>
+          <ul className="type-detail-list">
+            {type.strengths.map((text) => (
+              <li key={text}>{text}</li>
+            ))}
+          </ul>
         </section>
         <section>
           <p className="eyebrow">서로 맞춰갈 점</p>
           <h2>서로에게 한 걸음</h2>
-          <p>{type.care}</p>
+          <ul className="type-detail-list">
+            {type.cares.map((text) => (
+              <li key={text}>{text}</li>
+            ))}
+          </ul>
+        </section>
+        <section>
+          <p className="eyebrow">마음이 엇갈릴 때</p>
+          <h2>다툼을 푸는 순서</h2>
+          <ol className="type-detail-steps">
+            {type.conflict.map((text) => (
+              <li key={text}>{text}</li>
+            ))}
+          </ol>
+        </section>
+        <section>
+          <p className="eyebrow">둘에게 어울리는 시간</p>
+          <h2>이런 데이트는 어때요</h2>
+          <ul className="type-detail-chips">
+            {type.dates.map((text) => (
+              <li key={text}>{text}</li>
+            ))}
+          </ul>
         </section>
         <blockquote>
           <span>오늘, 이렇게 말을 건네보세요.</span>
-          <p>“{type.tip}”</p>
+          {type.tips.map((text) => (
+            <p key={text}>“{text}”</p>
+          ))}
         </blockquote>
+        <section>
+          <p className="eyebrow">네 가지 기준으로 읽기</p>
+          <h2>이 조합을 이루는 것들</h2>
+          <dl className="type-detail-meanings">
+            {AXES.map(({ label }, i) => (
+              <div key={label}>
+                <dt>
+                  {label} <b>{type.labels[i]}</b>
+                </dt>
+                <dd>{AXIS_MEANINGS[type.axes[i]]}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+        <section>
+          <p className="eyebrow">한 가지만 다르다면</p>
+          <h2>가까운 유형</h2>
+          <ul className="type-detail-nearby">
+            {nearby.map(({ axis, type: other }) => (
+              <li key={other.slug}>
+                <Link href={`/types/${other.slug}`}>
+                  <small>{axis}만 다른</small>
+                  <span>{other.name}</span>
+                  <small>{other.labels.join(' · ')}</small>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
         <p className="type-editorial-note">
           네 가지 기준을 이해하기 위한 유형 안내예요. 개인 분석 결과나 검증된 심리 진단이 아니며,
           실제 관계는 두 사람이 함께 만들어 가요.

@@ -4,7 +4,6 @@ import { useRef, useState } from 'react';
 const GENDERS = [
   ['male', '남성'],
   ['female', '여성'],
-  ['unspecified', '선택 안 함'],
 ] as const;
 
 // One pair per MBTI letter; the submitted value joins the four choices (e.g. INTJ).

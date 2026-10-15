@@ -192,7 +192,7 @@ MBTI                     MBTI
 | `PersonForm` | 인물 제목 + 4개 필드 | fieldset/legend. 각 필드 고유 id, 모름 nullable 처리 |
 | `DateInput` | 연/월/일 또는 접근 가능한 native date | 실제 날짜 검사, 입력 중 무리한 자동 변형 없음, 연도 범위 도움말 |
 | `TimeInput` | 시:분 + 생시 모름 | 모름이면 time 비활성·null, 필드 상태 설명 연결 |
-| `GenderSelect` | 남성 / 여성 / 선택 안 함 | native select, 강제 기본 선택 없음 |
+| `GenderSelect` | 남성 / 여성 | native select, 강제 기본 선택 없음 |
 | `MbtiSelect` | 16개 유형 | native select, 자유 텍스트·조합 버튼 복잡성 제외 |
 | `FieldMessage` | help / error | error는 아이콘·문장, aria-describedby와 invalid 연결 |
 | `AnalysisStatus` | 정적 선 그래픽 + 진행 설명 | 작은 live region 1개, 취소/입력으로 돌아가기 가능 |
