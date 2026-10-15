@@ -11,12 +11,13 @@ export type Result = {
 export type Analysis = {
   analysis_id: string;
   result: Result;
+  share_code?: string;
 };
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(),
-    path === 'analyses' ? 110000 : path === 'health' ? 30000 : 8000,
+    path === 'analyses' ? 110000 : path === 'health' || path === 'shared' ? 30000 : 8000,
   );
   try {
     const r = await fetch('/api/v1/' + path, {
@@ -38,3 +39,4 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     clearTimeout(timer);
   }
 }
+export type Shared = { result: Result; created_at: string };

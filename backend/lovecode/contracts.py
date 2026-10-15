@@ -124,3 +124,10 @@ def demo_result():
 class AnalysisResponse(Strict):
     analysis_id: str
     result: PublicResult
+    # Signed, compressed copy of the result for a share link; absent when sharing is off.
+    share_code: str | None = None
+
+
+class SharedResult(Strict):
+    result: PublicResult
+    created_at: datetime

@@ -1,8 +1,8 @@
 # 러브코드
 
 따뜻한 관계 도감과 3단계 입력, Release BERT의 16유형 분류, LangChain/OpenAI 해설을 제공합니다.
-현재 UI에서는 공유·삭제를 제외했습니다. 결과는 브라우저의 현재 화면에만 유지하며 새로고침하면 사라집니다.
-저장·공유·삭제 백엔드와 DB 의존성을 제거했습니다. 분석 결과는 응답으로만 반환합니다.
+결과는 브라우저의 현재 화면에만 유지하며 새로고침하면 사라집니다. 서버는 결과를 저장하지 않고 DB도 쓰지 않습니다.
+공유 링크는 결과를 압축·서명해 링크 안에 그대로 담는 방식입니다(`LC_SHARE_SECRET`, 비우면 꺼짐). 링크는 회수·만료되지 않습니다.
 OpenAI 해설에는 별도의 API 사용료가 발생합니다.
 
 ## 실행
@@ -16,6 +16,7 @@ cp .env.example .env  # 기존 .env가 없을 때만
 ```
 
 현재 앱 실행에는 DB가 필요하지 않습니다. `.env`의 OpenAI 설정과 BERT 경로를 아래 안내대로 설정하세요.
+공유 링크를 쓰려면 `LC_SHARE_SECRET`에 32자 이상 무작위 값을 넣습니다. `scripts/serve_mock_analysis.py`는 실행할 때마다 임시 값을 씁니다.
 
 터미널 1:
 
@@ -41,7 +42,7 @@ npm --prefix frontend run start
 - 화면: https://kant-lovecode.vercel.app
 - API: https://kant-lovecode-api.vercel.app
 - 두 프로젝트 모두 Hobby, API는 CPU BERT를 포함한 Large Functions 베타를 사용합니다.
-- 공유·삭제와 DB는 사용하지 않습니다. 배포 진입점은 `deploy/vercel/main.py`입니다.
+- DB와 저장소는 사용하지 않습니다. 공유 링크는 서명된 결과를 링크에 담고, 열 때 API가 서명과 내용 규칙을 다시 확인합니다(`GET /api/v1/shared`). 배포 진입점은 `deploy/vercel/main.py`입니다.
 - OpenAI 키는 **API 프로젝트의 서버 환경변수**에만 설정합니다. 프런트엔드에는 넣지 않습니다.
 - 인스턴스당 최대 20건을 수용합니다(`LC_ANALYSIS_CAPACITY`). BERT는 2건(`LC_BERT_CONCURRENCY`), 해설은 5건(`LC_EXPLANATION_CONCURRENCY`)씩 별도 실행합니다. BERT 슬롯은 해설 대기 전에 반환합니다. 각 단계는 FIFO 대기하며 분석 시작 후 30초를 공통 대기 기한으로 사용합니다(`LC_ANALYSIS_WAIT_SECONDS`). 실행 중 호출을 중단하는 기한은 아니며, 해설 API 타임아웃은 별도 45초입니다. 초과·대기 만료 시 429와 `Retry-After: 5`를 반환합니다. 전역·영속 큐가 아니므로 재시작 시 대기 요청을 복구하지 않습니다.
 - 같은 IP의 분석 5회/10분 제한은 유지합니다. 같은 사무실 NAT에서 20명이 접속하는 경우 이 제한이 먼저 걸릴 수 있습니다. 해설 5건 동시 호출은 OpenAI 계정의 RPM/TPM 한도에 따라 실패할 수 있으며 재시도하지 않습니다. 로컬 20건 성공은 운영 환경의 성능 보장이 아닙니다.
@@ -68,7 +69,13 @@ Vercel API 키나 OpenAI 키를 GitHub 저장소에 커밋하지 않습니다.
 API 서버 환경변수: `LC_API_KEY`, `LC_MODEL`, `LC_PROVIDER=openai`, `LC_API_ENABLED=true`,
 `LC_REAL_ANALYSIS_ENABLED=true`, `LC_CLASSIFIER_MODE=local`,
 `LC_ALLOWED_ORIGINS=https://kant-lovecode.vercel.app`, `LC_DAILY_ANALYSIS_LIMIT=20`,
-`VERCEL_SUPPORT_LARGE_FUNCTIONS=1`.
+`VERCEL_SUPPORT_LARGE_FUNCTIONS=1`, `LC_SHARE_SECRET`(32자 이상 무작위 값, 아래 명령으로 생성).
+`LC_SHARE_SECRET`을 바꾸면 이미 보낸 공유 링크가 모두 열리지 않습니다.
+
+```sh
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
 화면의 빌드 환경변수: `API_INTERNAL_ORIGIN=https://kant-lovecode-api.vercel.app`.
 모델은 빌드 시 고정 Release에서 다운로드하고 ZIP·가중치 체크섬을 검증합니다.
 

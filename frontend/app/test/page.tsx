@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import ResultView from '@/components/ResultView';
+import SharePanel from '@/components/SharePanel';
 import ResultLoading from '@/components/ResultLoading';
 import PersonFields from '@/components/PersonFields';
 import PersonReview from '@/components/PersonReview';
@@ -138,6 +139,7 @@ export default function Test() {
           <div tabIndex={-1} ref={resultTop}>
             <ResultView result={analysis.result} />
           </div>
+          <SharePanel analysis={analysis} />
           <button
             className="text-button"
             onClick={() => {

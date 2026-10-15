@@ -467,6 +467,9 @@ input[type='checkbox'] {
   color: var(--success);
   min-height: 26px;
 }
+.status.error {
+  color: var(--error);
+}
 .manage-main {
   max-width: 740px;
   margin: auto;

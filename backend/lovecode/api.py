@@ -5,7 +5,7 @@ import uuid
 from collections import defaultdict, deque
 from datetime import UTC, datetime
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -14,12 +14,14 @@ from .contracts import (
     TAXONOMY,
     AnalysisInput,
     AnalysisResponse,
+    SharedResult,
     Strict,
     demo_result,
 )
 from .provider import ProviderError
 from .service import AnalysisService
 from .settings import settings
+from .share import MAX_CODE_CHARS, ShareCodec, ShareError
 
 
 def error(code, status, message="요청을 처리하지 못했어요. 다시 확인해 주세요.", field=None):
@@ -32,8 +34,9 @@ def error(code, status, message="요청을 처리하지 못했어요. 다시 확
     )
 
 
-def create_app(analysis_service=None):
+def create_app(analysis_service=None, share_codec=None):
     service = analysis_service or AnalysisService()
+    shares = share_codec or ShareCodec.from_settings()
     # Bound total in-flight work; the service independently limits each expensive stage.
     analysis_admission = threading.BoundedSemaphore(settings().analysis_capacity)
     budget_lock = threading.Lock()
@@ -131,6 +134,7 @@ def create_app(analysis_service=None):
             "demo_ready": settings().demo_enabled,
             "provider": "openai",
             "verification_mode": service.provider.transport is not None,
+            "share_ready": shares.ready,
             "reason": "configured_not_quality_certified"
             if ready
             else "configuration_required",
@@ -140,8 +144,11 @@ def create_app(analysis_service=None):
     def taxonomy():
         return TAXONOMY
 
-    def analysis_response(result):
-        return {"analysis_id": str(uuid.uuid4()), "result": result.model_dump()}
+    def analysis_response(result, shareable=False):
+        body = {"analysis_id": str(uuid.uuid4()), "result": result.model_dump()}
+        if shareable and shares.ready and (code := shares.encode(result)):
+            body["share_code"] = code
+        return body
 
     @app.post("/api/v1/analyses", response_model=AnalysisResponse, response_model_exclude_none=True)
     def analyse(body: AnalysisInput):
@@ -174,7 +181,7 @@ def create_app(analysis_service=None):
                     )
                 budget["count"] += 1
             result, _ = service.analyse(body)
-            return analysis_response(result)
+            return analysis_response(result, shareable=True)
         except AnalysisBusy:
             return busy()
         except ProviderError:
@@ -195,6 +202,21 @@ def create_app(analysis_service=None):
         if not settings().demo_enabled:
             return error("ANALYSIS_UNAVAILABLE", 503)
         return analysis_response(demo_result())
+
+    # The code arrives in a header, not the URL, so access logs never hold shared results.
+    @app.get(
+        "/api/v1/shared",
+        response_model=SharedResult,
+        responses={
+            400: {"description": "INVALID_SHARE_LINK: 변조·잘림·다른 키로 서명된 링크"},
+            503: {"description": "SHARE_UNAVAILABLE: LC_SHARE_SECRET 미설정"},
+        },
+    )
+    def shared(x_share_code: str = Header(default="", max_length=MAX_CODE_CHARS)):
+        try:
+            return shares.decode(x_share_code)
+        except ShareError as e:
+            return error(e.code, e.status, e.message)
 
     return app
 

@@ -1,7 +1,7 @@
 # 코드 구조와 읽는 순서
 
 현재 웹은 입력 → 사주 계산 → Release BERT 분류 → LangChain/OpenAI 해설 → 결과 화면으로 동작한다.
-저장·공유·삭제 백엔드와 DB 의존성은 제거했다. 결과는 현재 화면에만 남는다.
+저장형 공유·삭제 백엔드와 DB 의존성은 제거했다. 결과는 현재 화면에만 남고, 공유는 서명된 결과를 링크에 담는 방식이라 서버에 저장하지 않는다.
 실행 명령은 [README](../README.md), 협업 규칙은 [CONTRIBUTING](../CONTRIBUTING.md)을 따른다.
 
 ## 요청 한 건 따라가기
@@ -17,6 +17,7 @@
 | 7 | `inference.py`, `bert.py`, `axes.py` | 체크섬 검증·모델 로딩·축별 예측을 16유형으로 변환 |
 | 8 | `generator.py`, `checks.py`, `contracts.py` | 해설 초안·검증·필요 시 1회 재작성·공개 결과 검증 |
 | 9 | `frontend/components/ResultLoading.tsx`, `ResultView.tsx` | 대기 상태·유형 이미지·해설 표시 |
+| 10 | `share.py`, `frontend/components/SharePanel.tsx`, `frontend/app/r/page.tsx` | 공유 링크: 결과 압축·HMAC 서명(`share_code`), `/r#코드` 조회 시 서명 검증 후 계약 재검증 |
 
 백엔드 파일 경로는 별도 표기가 없으면 `backend/lovecode/` 기준이다.
 `contracts.py`의 유형 ID와 축이 기준이며 프런트의 `data/relationship-types.json`은 이름·설명·이미지를 연결한다.
@@ -63,6 +64,7 @@ CatBoost, 옛 `calendar.py`)은 Git 이력에서 찾는다. 학습의 규칙 라
 ## 테스트를 읽는 순서
 
 1. `tests/test_api.py`: 잘못된 입력·본문 크기·Origin·IP 제한·보안 헤더.
+   `tests/test_share.py`: 공유 링크 왕복, 변조·잘림·다른 키 거부, 압축 폭탄 제한, 서명돼도 금지 표현 거부.
 2. `tests/test_stateless.py`, `tests/test_analysis.py`: 무저장 계약·16유형·동의·분류 입력·일일 제한.
 3. `tests/test_analysis_concurrency.py`: 단계 분리·FIFO·수용 한도·실패 후 슬롯 반환.
 4. `tests/test_langchain_web.py`: 실제 SDK + 모의 HTTP로 해설 연결·재작성·실패 검증.

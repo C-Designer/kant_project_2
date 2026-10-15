@@ -446,7 +446,7 @@ def analysis_chain(classifier, explainer, *, limitations=()):
   <p>차이는 자원 관리입니다. <code>analysis_chain</code> 은 분류와 해설을 한 번의 <code>invoke</code> 로 묶기 때문에 두 단계 사이에서 BERT 슬롯을 놓거나 단계별 FIFO 기한을 적용할 자리가 없습니다. <code>concurrency.py</code> 의 첫 줄 "never hold a BERT slot while waiting for an LLM" 이 그 요구이고, <code>StageLimit.acquire</code>(21-43)가 그것을 구현합니다. <code>RunnableConfig</code> 의 <code>max_concurrency</code>(config.py:103-107)는 한 번의 실행 안에서 스레드 풀 크기를 정할 뿐, 여러 HTTP 요청 사이에 단계별 슬롯을 나누는 장치가 아닙니다.</p>
   <aside class="principle"><h4>원리 노트: assign 과 RunnableParallel 의 차이</h4><p>dict 를 <code>|</code> 에 넣으면 <code>RunnableParallel</code> 이 되어 출력이 "그 키들만 있는 새 dict" 로 바뀝니다. 반면 <code>RunnablePassthrough.assign(**kwargs)</code> 는 <code>{**입력, **병렬결과}</code> 라 원래 키가 살아남습니다. 뒤 단계가 앞 입력(여기서는 <code>text</code>)을 계속 읽어야 하면 <code>assign</code>, 입력을 완전히 새 모양으로 바꾸려면 <code>RunnableParallel</code> 을 씁니다. langchain-core 1.6.9 기준입니다.</p></aside>
   <p>왜 이렇게 했는가: 분류기와 해설기를 LCEL 로 이어 두면 전체 파이프라인을 가짜 LLM 으로 오프라인에서 한 번에 검증할 수 있고(<code>test_pipeline.py:194-204</code>), 모듈 docstring 이 말하는 "BERT 분류기를 그 체인 앞에 둔다"는 그림을 코드로 보여 줄 수 있습니다. 하지만 서비스에서 중요한 것은 비싼 두 단계를 따로 제한하는 일이고, 그것은 LCEL 바깥의 <code>StageLimit</code> 이 맡습니다. 그래서 같은 단계 함수(<code>explain</code>)를 두 경로가 공유하되 묶는 방식은 다르며, 문서는 둘을 섞어 설명하지 말라고 요구합니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="358">backend/lovecode/generator.py:358</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_core/runnables/passthrough.py" data-line="495">langchain_core/runnables/passthrough.py:495</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="54">backend/lovecode/service.py:54</a>, <a class="src" data-file="docs/CODE_GUIDE.md" data-line="51">docs/CODE_GUIDE.md:51</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="358">backend/lovecode/generator.py:358</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_core/runnables/passthrough.py" data-line="495">langchain_core/runnables/passthrough.py:495</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="54">backend/lovecode/service.py:54</a>, <a class="src" data-file="docs/CODE_GUIDE.md" data-line="52">docs/CODE_GUIDE.md:52</a></p>
 </section>
 
 <section class="lesson" id="lc-3-structured" data-track="langchain" data-depth="3">
@@ -761,9 +761,9 @@ def _oai_structured_outputs_parser(
   </ol>
   <p>왜 이렇게 했는가: 요청당 비용과 지연에 상한을 두기 위해서입니다. 기본값대로라면 <code>_call</code> 한 번이 최대 세 번의 HTTP 시도와 시도당 600초까지 걸릴 수 있지만, 지금은 한 번에 45초가 상한입니다. 서비스는 그동안 해설 슬롯을 쥐고 있으므로(<code>service.py:60-63</code>) SDK 안의 보이지 않는 재시도는 슬롯 점유 시간을 늘릴 뿐이고, 모듈 docstring(7-9)과 <code>provider.py</code> 첫 줄이 "재시도 없음"을 명시합니다. 재시도 여부는 SDK 가 아니라 바깥에서 결정하며, 현재 서비스는 502 와 <code>retryable: true</code>(api.py:28)로 클라이언트에게 그 판단을 넘깁니다.</p>
   <p>마지막으로 세 실패가 HTTP 응답으로 어떻게 나뉘는지입니다. <code>ProviderError</code> 는 종류와 무관하게 <code>api.py</code> 에서 502 가 됩니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="176-183">
+  <code-block file="backend/lovecode/api.py" lines="183-190">
             result, _ = service.analyse(body)
-            return analysis_response(result)
+            return analysis_response(result, shareable=True)
         except AnalysisBusy:
             return busy()
         except ProviderError:
@@ -772,9 +772,9 @@ def _oai_structured_outputs_parser(
             )
 </code-block>
   <ol class="notes">
-    <li data-line="176"><code>service.analyse</code> 안에서 <code>explain()</code> 이 <code>ProviderError</code> 를 던지면 이 <code>try</code> 를 빠져나옵니다.</li>
-    <li data-line="180"><code>PROVIDER_REQUEST_FAILED</code> 든 <code>OUTPUT_REJECTED</code> 든 502 <code>PROVIDER_UNAVAILABLE</code> 입니다. <code>error()</code> 가 <code>retryable: status &gt;= 500</code> 을 붙이므로(28) 클라이언트가 재시도를 결정합니다.</li>
-    <li data-line="182">사용자 메시지는 고정 문구이고 내부 코드나 응답 본문은 노출되지 않습니다. 테스트가 "private error" 미노출을 단언합니다(tests/test_langchain_web.py:79).</li>
+    <li data-line="183"><code>service.analyse</code> 안에서 <code>explain()</code> 이 <code>ProviderError</code> 를 던지면 이 <code>try</code> 를 빠져나옵니다.</li>
+    <li data-line="187"><code>PROVIDER_REQUEST_FAILED</code> 든 <code>OUTPUT_REJECTED</code> 든 502 <code>PROVIDER_UNAVAILABLE</code> 입니다. <code>error()</code> 가 <code>retryable: status &gt;= 500</code> 을 붙이므로(28) 클라이언트가 재시도를 결정합니다.</li>
+    <li data-line="189">사용자 메시지는 고정 문구이고 내부 코드나 응답 본문은 노출되지 않습니다. 테스트가 "private error" 미노출을 단언합니다(tests/test_langchain_web.py:79).</li>
   </ol>
   <ul>
     <li>502 로 끝나는 경우: 첫 호출 또는 수리 호출이 <code>PROVIDER_REQUEST_FAILED</code>(317-318); 수리 뒤에도 <code>parsed</code> 가 None 이거나 <code>HARD</code>(length, mbti_code, hanja, markup) 문제가 남음(319-320); <code>PublicResult</code> 검증 실패(321-330).</li>
@@ -783,7 +783,7 @@ def _oai_structured_outputs_parser(
   </ul>
   <p>테스트 <code>tests/test_langchain_web.py:16-86</code> 이 이 표를 그대로 검증합니다. 200·429·500 은 HTTP 호출 1회, incomplete·refusal·invalid(요약에 MBTI 코드)는 2회이며(78), 200 을 제외한 모든 경우가 502 로 끝납니다(84).</p>
   <aside class="principle"><h4>원리 노트: 실패를 예외가 아니라 데이터로 넘기기</h4><p>LCEL 시퀀스는 예외를 삼키지 않으므로, 중간 단계가 판단해야 하는 실패는 반환값으로 바꿔야 다음 단계가 볼 수 있습니다. <code>include_raw=True</code> 가 그 패턴의 라이브러리 구현(<code>parsing_error</code> 키)이고, <code>_call</code> 의 <code>meta["error"]</code> 와 <code>_review_step</code> 의 <code>problems</code> 가 프로젝트 쪽 구현입니다. 반대로 더 이상 어떤 단계도 복구할 수 없는 실패(<code>_finalize</code> 의 <code>ProviderError</code>)는 예외로 던져 시퀀스를 빠져나가고, HTTP 계층이 상태 코드로 번역합니다.</p></aside>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="249">backend/lovecode/generator.py:249</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_openai/chat_models/base.py" data-line="5175">langchain_openai/chat_models/base.py:5175</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_core/runnables/fallbacks.py" data-line="189">langchain_core/runnables/fallbacks.py:189</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="180">backend/lovecode/api.py:180</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="249">backend/lovecode/generator.py:249</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_openai/chat_models/base.py" data-line="5175">langchain_openai/chat_models/base.py:5175</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_core/runnables/fallbacks.py" data-line="189">langchain_core/runnables/fallbacks.py:189</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="187">backend/lovecode/api.py:187</a></p>
 </section>
 
 <script type="application/json" class="quiz" data-track="langchain" data-depth="3" data-part="a">
