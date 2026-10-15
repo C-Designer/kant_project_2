@@ -8,8 +8,8 @@
 
 | 순서 | 코드 | 책임 |
 | --- | --- | --- |
-| 1 | `frontend/app/test/page.tsx` | 입력 단계·동의·중복 제출 방지·결과 전환 |
-| 2 | `frontend/components/PersonFields.tsx`, `PersonReview.tsx` | 입력과 최종 확인 |
+| 1 | `frontend/app/test/page.tsx` | 한 화면 입력·단일 동의·중복 제출 방지·결과 전환 |
+| 2 | `frontend/components/PersonFields.tsx` | 한 사람의 입력(성별 버튼, 생년월일·시각, MBTI 네 축 버튼) |
 | 3 | `frontend/lib/api.ts`, `frontend/next.config.ts` | 요청·타임아웃·오류 및 API 프록시 |
 | 4 | `backend/lovecode/api.py` | 요청 검증·IP/일일 제한·20건 입장 제한·오류 응답 |
 | 5 | `backend/lovecode/service.py` | 사주 입력 준비·분류·해설의 순서와 단계별 실행 제한 |
