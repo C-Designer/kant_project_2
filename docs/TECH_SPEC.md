@@ -1,6 +1,8 @@
 # 러브코드 테크스펙
 
-> 2026-10-13 정리: 저장·공유·삭제 백엔드, PostgreSQL 및 서명 티켓을 완전히 제거했습니다. 아래의 해당 기능 설명은 과거 설계 이력이며 현재 구현 범위가 아닙니다. 현재 실행과 코드 탐색은 [README](../README.md)와 [CODE_GUIDE](./CODE_GUIDE.md), HTTP 스키마는 [OpenAPI](./api/openapi.json)를 따릅니다.
+> 2026-10-13 정리: 저장·공유·삭제 백엔드, PostgreSQL 및 서명 티켓을 완전히 제거했습니다. 아래의 해당 기능 설명은 과거 설계 이력이며 현재 구현 범위가 아닙니다.
+>
+> 2026-10-15 무저장 공유 링크: 실제 분석 응답에 `share_code`(공개 결과를 raw deflate로 압축하고 `LC_SHARE_SECRET`으로 HMAC-SHA256 서명, 128비트)를 담습니다. 링크는 `/r#코드`이며, 화면은 코드를 `X-Share-Code` 헤더로 `GET /api/v1/shared`에 보내 서명 검증·압축 해제(16 KB 상한)·PublicResult 재검증을 받습니다. 서버·DB에 아무것도 저장하지 않으므로 회수·만료·삭제가 없고, 비밀값을 바꾸면 기존 링크가 모두 무효가 됩니다. 아래 저장형 공유 설계는 여전히 이력입니다. 현재 실행과 코드 탐색은 [README](../README.md)와 [CODE_GUIDE](./CODE_GUIDE.md), HTTP 스키마는 [OpenAPI](./api/openapi.json)를 따릅니다.
 
 > **2026-10-11 최신 범위:** 사용자가 배포 사이트의 실제 사용자 요청을 서버 OpenAI 키로 처리하도록 확정했다. 동의한 요청의 파생 사주 정보·MBTI만 전송하며 원문 생년월일시와 성별은 서버에 남긴다. 입력의 DB·로그·학습 저장은 금지한다. 키·모델·두 활성화 플래그가 없으면 비활성이다. 현행 실행 계약은 [API 연결 인계](./API_HANDOFF.md)와 TECH_SPEC §12이며, 이전의 “가상 CLI만/실제 입력 영구 차단” 규칙을 대체한다. AI 초안은 미검수이며 실제 유료 호출·품질 평가는 아직 하지 않았다.
 | 항목 | 값 |
@@ -312,7 +314,7 @@ Release verdict: Not assessed
 - 기본 `LC_CLASSIFIER_MODE=openai`: 16개 전체 유형 중 하나를 OpenAI가 고른 후 해설 생성, 최대2회. 훈련된 모델이 없는 첫 연결에서도 동작한다. `local`: 검증한 로컬 classifier로 유형 선택 후 해설1회. 선택 모드가 실패하면 다른 방식으로 자동 대체하지 않는다.
 - 원문 생일/시각/성별은 메모리 내 만세력 계산에 사용하고 외부에는 파생 사주·MBTI만 전달한다. 사용자 입력을 학습 데이터나 DB에 저장하지 않는다. AI 결과는 `ai_draft_unreviewed`로 티켓·공유까지 보존한다.
 - Responses `store=false`, strict JSON schema, 최대 출력2000토큰, 각 요청45초, 자동 재시도 없음. 브라우저 분석 timeout110초. 공급자 보관 전체를 없앤다는 뜻은 아니다.
-- health의 `analysis_ready`는 설정/로컬 artifact 준비 상태다. 실제 키 권한·quota·출력 품질의 성공 보장은 아니다. `verification_mode`는 주입된 모의 transport 상태이며 검증 서버 외에는 false.
+- health의 `analysis_ready`는 설정/로컬 artifact 준비 상태다. 실제 키 권한·quota·출력 품질의 성공 보장은 아니다. `verification_mode`는 주입된 모의 transport 상태이며 검증 서버 외에는 false. `share_ready`는 `LC_SHARE_SECRET`(32자 이상)이 있어 공유 링크를 만들고 열 수 있는지를 뜻한다.
 - 서버 origin은 `LC_ALLOWED_ORIGINS`, Next API upstream은 서버용 `API_INTERNAL_ORIGIN`. 기본 익명 rate limit + 동시분석2건 + UTC일별20시도. 현재 단일 process 메모리 한도이며 재시작 초기화. 공개 확장 시 영속/공유 한도와 proxy client IP 정책이 필요하다.
 - 모의 transport는 자동 테스트 및 `scripts/serve_mock_analysis.py`에만 존재한다. 배포 진입점은 `lovecode.api:app`, 기본 off. 실키를 임의로 사용하지 않았고 실API 품질·운영 배포를 검증 완료라고 표시하지 않는다.
 - 학습 fixture artifact는 runtime loader가 거부한다. 모델 로드 전 digest/16클래스 검사, encoder는 로컬 캐시만 사용한다. pickle 파일은 운영자가 직접 생성한 신뢰하는 artifact만 지정한다.

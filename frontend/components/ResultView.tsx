@@ -4,12 +4,14 @@ import TypeIllustration from './TypeIllustration';
 import types from '@/data/relationship-types.json';
 import { Result } from '@/lib/api';
 import { axisEntries } from '@/lib/relationship';
-export default function ResultView({ result }: { result: Result }) {
+import { formatDate } from '@/lib/share';
+export default function ResultView({ result, sharedAt }: { result: Result; sharedAt?: string }) {
   const relationshipType = types.find((type) => type.id === result.type_id);
   return (
     <div className="result-wrap">
       <div className="notice">
         <strong>
+          {sharedAt ? '공유받은 결과 · ' : ''}
           {result.evidence_status === 'fixture'
             ? '예시 결과 · 실제 분석 아님'
             : 'AI 초안 · 사람 검수 미완료'}
@@ -89,7 +91,9 @@ export default function ResultView({ result }: { result: Result }) {
         </p>
       </article>
       <p className="small-note center">
-        결과는 이 화면에만 표시돼요. 새로고침하거나 닫으면 사라져요.
+        {sharedAt
+          ? `${formatDate(sharedAt)}에 만든 결과를 링크로 받았어요. 서버에는 저장되어 있지 않아요.`
+          : '결과는 이 화면에만 표시돼요. 새로고침하거나 닫으면 사라져요.'}
       </p>
     </div>
   );

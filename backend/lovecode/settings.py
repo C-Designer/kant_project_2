@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     explanation_concurrency: int = Field(default=5, ge=1, le=10)
     demo_enabled: bool = True
     rate_limit_enabled: bool = True
+    # Signs stateless share links (32+ random characters). Empty turns sharing off.
+    # Every instance must use the same value; changing it invalidates links already sent.
+    share_secret: str = ""
 
 
 @lru_cache

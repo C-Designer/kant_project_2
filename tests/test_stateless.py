@@ -29,8 +29,10 @@ def test_stateless_real_analysis_without_database(monkeypatch):
 def test_openapi_has_only_current_routes_and_response_fields():
     schema = create_app().openapi()
     assert set(schema['paths']) == {
-        '/api/v1/health', '/api/v1/taxonomy', '/api/v1/analyses', '/api/v1/demo-analysis'
+        '/api/v1/health', '/api/v1/taxonomy', '/api/v1/analyses', '/api/v1/demo-analysis',
+        '/api/v1/shared',
     }
+    assert set(schema['paths']['/api/v1/shared']) == {'get'}  # sharing never writes anything
     assert set(schema['components']['schemas']['AnalysisResponse']['properties']) == {
-        'analysis_id', 'result'
+        'analysis_id', 'result', 'share_code'
     }

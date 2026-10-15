@@ -112,6 +112,53 @@
           }
         }
       }
+    },
+    "/api/v1/shared": {
+      "get": {
+        "summary": "Shared",
+        "operationId": "shared_api_v1_shared_get",
+        "parameters": [
+          {
+            "name": "x-share-code",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4023,
+              "default": "",
+              "title": "X-Share-Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_SHARE_LINK: 변조·잘림·다른 키로 서명된 링크"
+          },
+          "503": {
+            "description": "SHARE_UNAVAILABLE: LC_SHARE_SECRET 미설정"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -146,6 +193,17 @@
           },
           "result": {
             "$ref": "#/components/schemas/PublicResult"
+          },
+          "share_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Code"
           }
         },
         "additionalProperties": false,
@@ -307,6 +365,25 @@
           "evidence_status"
         ],
         "title": "PublicResult"
+      },
+      "SharedResult": {
+        "properties": {
+          "result": {
+            "$ref": "#/components/schemas/PublicResult"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "result",
+          "created_at"
+        ],
+        "title": "SharedResult"
       },
       "Strict": {
         "properties": {},

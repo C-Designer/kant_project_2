@@ -12,7 +12,15 @@
 python3 -I docs/learn/src/build.py
 ```
 
-백엔드 코드를 바꾼 뒤에는 이 명령을 돌려 `PROBLEM: verbatim mismatch` 가 난 블록의 발췌와 설명을 갱신한다. 설치 라이브러리 발췌(`.venv/...`)는 uv.lock 에 고정된 버전 기준이다.
+백엔드 코드를 바꾼 뒤에는 먼저 줄 참조를 옮기고, 그다음 조립한다.
+
+```bash
+python3 -I docs/learn/src/remap_lines.py main
+python3 -I docs/learn/src/build.py
+```
+
+`remap_lines.py` 는 기준 리비전과 현재 파일의 diff 로 발췌 범위, 줄 설명, 소스 링크, 퀴즈·시뮬레이터의 `파일:줄` 참조를 옮기고, 내용이 바뀐 줄을 `CHECK` 로 알려 준다. 그 줄을 설명하는 문장은 손으로 고친다. 시뮬레이터의 `stageForRef` 줄 범위도 함께 확인한다. 같은 기준으로 두 번 돌리면 두 번 옮겨지므로, 소스가 기준 리비전 상태일 때 한 번만 실행한다.
+조립 후 `PROBLEM: verbatim mismatch` 가 남은 블록은 발췌와 설명을 갱신한다. 설치 라이브러리 발췌(`.venv/...`)는 uv.lock 에 고정된 버전 기준이다.
 
 ## 디자인 방향 (2026-10-14 확정)
 

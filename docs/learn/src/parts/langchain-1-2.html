@@ -708,19 +708,19 @@ def find_problems(parsed, type_id, input_text):
   <p><code>HARD = {"length", "mbti_code", "hanja", "markup"}</code>(checks.py:18) 는 "수리 뒤에도 남으면 거절"하는 계약 수준 문제입니다. 반면 <code>opposite_pole</code>, <code>assertive</code>, <code>superiority</code>, <code>fabricated_relations</code> 같은 표현 문제는 결과를 돌려주되 meta 에 적어 둡니다(331-332). 품질 문제를 전부 502 로 바꾸면 사용자는 결과를 아예 못 받으므로, 공개 계약(contracts.PublicResult)을 깨는 것만 막는 선에서 타협한 것입니다.</p>
   <p>마지막 방어선은 <code>PublicResult</code> 생성입니다. contracts.py 의 모델 검증은 길이 상한, URL·꺾쇠·MBTI 코드·날짜·시각·간지 한자·금칙어를 정규식으로 다시 검사하고(contracts.py:95-101), 유형과 축의 일치도 확인합니다(91-92). 여기서 ValueError 가 나면 역시 <code>OUTPUT_REJECTED</code> 로 바꿉니다. 즉 LLM 이 쓴 텍스트가 프런트에 닿기까지 "스키마 → 규칙 검사 → 공개 계약" 세 관문을 지납니다.</p>
   <p>이 예외는 체인 밖으로 그대로 전파됩니다. RunnableSequence 는 단계에서 예외가 나면 콜백에 <code>on_chain_error</code> 를 알린 뒤 다시 던지므로(base.py:3462-3464) <code>explain()</code> 을 부른 service.py 를 거쳐 api.py 의 핸들러까지 올라가고, 거기서 <code>ProviderError</code> 는 502 <code>PROVIDER_UNAVAILABLE</code> 로 바뀝니다. 응답의 <code>retryable</code> 은 상태 코드가 500 이상이면 True 라(api.py:28) 프런트가 재시도 안내를 띄울 수 있습니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="180-183">
+  <code-block file="backend/lovecode/api.py" lines="187-190">
         except ProviderError:
             return error(
                 "PROVIDER_UNAVAILABLE", 502, "분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요."
             )
   </code-block>
   <ol class="notes">
-    <li data-line="180"><code>ProviderError</code> 는 원인(PROVIDER_REQUEST_FAILED, OUTPUT_REJECTED 등)과 무관하게 한 곳에서 잡힙니다. 서비스 호출(176)을 감싼 try 블록의 두 번째 except 입니다.</li>
-    <li data-line="181">502 와 고정 문구만 나갑니다. 내부 오류 코드도, 모델 응답도 사용자에게 보이지 않습니다. 같은 try 의 <code>finally</code>(190-191)가 입장 슬롯을 돌려줍니다.</li>
+    <li data-line="187"><code>ProviderError</code> 는 원인(PROVIDER_REQUEST_FAILED, OUTPUT_REJECTED 등)과 무관하게 한 곳에서 잡힙니다. 서비스 호출(176)을 감싼 try 블록의 두 번째 except 입니다.</li>
+    <li data-line="188">502 와 고정 문구만 나갑니다. 내부 오류 코드도, 모델 응답도 사용자에게 보이지 않습니다. 같은 try 의 <code>finally</code>(190-191)가 입장 슬롯을 돌려줍니다.</li>
   </ol>
   <aside class="principle"><h4>원리 노트: 예외는 체인을 그대로 통과합니다</h4><p>LCEL 의 컨테이너 Runnable(Sequence, Branch, Lambda)은 예외를 삼키지 않습니다. langchain-core 1.6.9 의 <code>_call_with_config</code>(base.py:2315)와 <code>RunnableSequence.invoke</code>(3462-3464)는 <code>except BaseException</code> 에서 <code>on_chain_error</code> 를 부르고 <code>raise</code> 합니다. 예외를 데이터로 바꾸고 싶으면 <code>with_fallbacks</code> 나 <code>with_retry</code> 를 명시적으로 붙여야 하며, <code>include_raw=True</code> 가 바로 그 예입니다. 그래서 러브코드는 "LLM 호출 실패는 데이터(meta)로, 계약 위반은 예외로" 두 층을 나눠 씁니다.</p></aside>
   <p>왜 502 일까요? 503 <code>ANALYSIS_UNAVAILABLE</code> 은 설정·모델 로딩 문제(ValueError/OSError/KeyError)에, 502 <code>PROVIDER_UNAVAILABLE</code> 은 "우리 서버는 정상인데 업스트림 생성이 실패"한 경우에 씁니다. 흔한 대안인 500 하나로 뭉뚱그리기와 달리 운영자는 상태 코드만으로 어느 쪽을 봐야 할지 알 수 있고, 사용자에게는 두 경우 모두 내부 정보를 담지 않은 고정 문구만 나갑니다. 테스트는 실패 시 502 와 함께 응답에 내부 문자열이 없음을 확인합니다(tests/test_langchain_web.py:84-85).</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="314">backend/lovecode/generator.py:314</a>, <a class="src" data-file="backend/lovecode/checks.py" data-line="18">backend/lovecode/checks.py:18</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="180">backend/lovecode/api.py:180</a>, <a class="src" data-file="backend/lovecode/contracts.py" data-line="95">backend/lovecode/contracts.py:95</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="314">backend/lovecode/generator.py:314</a>, <a class="src" data-file="backend/lovecode/checks.py" data-line="18">backend/lovecode/checks.py:18</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="187">backend/lovecode/api.py:187</a>, <a class="src" data-file="backend/lovecode/contracts.py" data-line="95">backend/lovecode/contracts.py:95</a></p>
 </section>
 
 <section class="lesson" id="lc-2-provider" data-track="langchain" data-depth="2">
@@ -835,7 +835,7 @@ def type_to_text_format_param(type_: type) -> ResponseFormatTextConfigParam:
   <p>왜 둘 다 남겨 두었을까요? CODE_GUIDE.md 44 줄은 provider.py 를 "직접 OpenAI 호출 어댑터(<code>LC_CLASSIFIER_MODE=openai</code> 분류와 테스트)"로 설명합니다. 현재 웹 경로에서는 분류 모드가 <code>local</code> 이 아닐 때 <code>provider.label()</code> 로 유형을 고르는 데 쓰이고(service.py:57-59), <code>transport</code> 를 주입해 오프라인으로 검증하는 테스트와 health 응답의 <code>verification_mode</code>(api.py:133)에도 쓰입니다. 해설 생성은 LangChain 쪽 <code>LangChainExplainer</code> 가 기본값이며 테스트가 이를 고정합니다(tests/test_langchain_web.py:88-89).</p>
   <aside class="principle"><h4>원리 노트: 채팅 모델 통합 패키지가 맡는 네 층</h4><p>langchain-openai 같은 통합 패키지는 (1) 생성자 인자와 메시지 리스트를 제공자별 요청 본문으로 바꾸고, (2) 구조화 출력 스키마를 제공자 형식으로 변환해 붙이고, (3) 응답을 공통 <code>AIMessage</code>(content, usage_metadata, response_metadata)로 되돌리고, (4) 그 위에서 파서와 fallback 을 Runnable 로 조합합니다. 이 네 층 덕분에 호출하는 코드는 제공자를 몰라도 되지만, 그 대가로 요청이 정확히 어떻게 생겼는지는 라이브러리 소스나 테스트의 요청 본문 단언으로 확인해야 합니다. 예를 들어 <code>max_tokens</code> 가 <code>max_output_tokens</code> 로 바뀌는 것은 소스를 열어야 보입니다(base.py:3816-3817, 4622-4624).</p></aside>
   <p>트레이드오프를 면접용으로 정리하면 이렇습니다. 직접 호출은 의존성이 httpx 하나뿐이고 요청이 눈에 다 보이지만, 백엔드를 바꾸거나 여러 턴의 대화(수리 프롬프트의 <code>("ai", "{previous}")</code>)를 다루려면 직렬화 코드를 직접 늘려야 합니다. LangChain 은 그 작업을 맡는 대신 버전마다 내부 경로가 바뀔 수 있으므로, 이 프로젝트처럼 "SDK 는 진짜, 네트워크만 가짜"인 테스트(tests/test_langchain_web.py:61-62)로 요청 본문을 고정해 두는 것이 안전합니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/provider.py" data-line="43">backend/lovecode/provider.py:43</a>, <a class="src" data-file="backend/lovecode/generator.py" data-line="168">backend/lovecode/generator.py:168</a>, <a class="src" data-file="docs/CODE_GUIDE.md" data-line="44">docs/CODE_GUIDE.md:44</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/openai/lib/_parsing/_responses.py" data-line="47">.venv/lib/python3.12/site-packages/openai/lib/_parsing/_responses.py:47</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/provider.py" data-line="43">backend/lovecode/provider.py:43</a>, <a class="src" data-file="backend/lovecode/generator.py" data-line="168">backend/lovecode/generator.py:168</a>, <a class="src" data-file="docs/CODE_GUIDE.md" data-line="45">docs/CODE_GUIDE.md:45</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/openai/lib/_parsing/_responses.py" data-line="47">.venv/lib/python3.12/site-packages/openai/lib/_parsing/_responses.py:47</a></p>
 </section>
 
 <script type="application/json" class="quiz" data-track="langchain" data-depth="2">

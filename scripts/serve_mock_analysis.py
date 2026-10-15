@@ -1,7 +1,11 @@
-"""Disposable browser rehearsal. Mock network only, no database, never a deploy entrypoint."""
+"""Disposable browser rehearsal. Mock network only, no database, never a deploy entrypoint.
+
+Share links are signed with a random per-process secret, so they stop opening after a restart.
+"""
 
 import json
 import os
+import secrets
 
 import httpx
 import uvicorn
@@ -16,6 +20,8 @@ os.environ.update(
     LC_CLASSIFIER_MODE="openai",
     LC_DAILY_ANALYSIS_LIMIT="20",
 )
+# Always a throwaway key, so mock results can never be signed with a real deployment secret.
+os.environ["LC_SHARE_SECRET"] = secrets.token_urlsafe(48)
 from lovecode.api import create_app
 from lovecode.contracts import demo_result
 from lovecode.provider import OpenAIProvider
