@@ -23,9 +23,9 @@ from .settings import settings
 
 VERSION = 1
 SIGNATURE_BYTES = 16  # 128-bit truncated HMAC-SHA256
-MAX_BODY_CHARS = 4000
+MAX_BODY_CHARS = 6000  # worst case with the 1.1 spicy section is about 5.5K
 MAX_CODE_CHARS = MAX_BODY_CHARS + 1 + 22  # body, ".", 16-byte signature in base64url
-MAX_PAYLOAD_BYTES = 16384  # a full-length result is about 3.3 KB of JSON
+MAX_PAYLOAD_BYTES = 16384  # a full-length 1.1 result is about 5.5 KB of JSON
 CODE = re.compile(rf"[A-Za-z0-9_-]{{1,{MAX_BODY_CHARS}}}\.[A-Za-z0-9_-]{{22}}")
 DAY = 86400
 KST = 9 * 3600  # dates are shown in Korea time, so round to the Korean calendar day
@@ -88,7 +88,7 @@ class ShareCodec:
 
     def encode(self, result: PublicResult):
         """Signed code for a share link, or None if it would not fit the link limit."""
-        fields = result.model_dump(mode="json", exclude=DERIVED)
+        fields = result.model_dump(mode="json", exclude=DERIVED, exclude_none=True)
         # Day precision: the payload is readable by anyone holding the link.
         issued = (int(self._clock()) + KST) // DAY * DAY - KST
         payload = {"v": VERSION, "iat": issued, "r": fields}
@@ -120,7 +120,8 @@ class ShareCodec:
             type_id = fields["type_id"]
             # PublicResult re-runs every output rule, so even a signed link that predates a
             # newly banned phrase is refused rather than shown.
-            result = PublicResult(**fields, axes=TAXONOMY[type_id]["axes"])
+            version = "1.1" if fields.get("spicy") is not None else "1.0"
+            result = PublicResult(**fields, axes=TAXONOMY[type_id]["axes"], schema_version=version)
             created_at = datetime.fromtimestamp(payload["iat"], UTC)
         except (ValueError, KeyError, TypeError, OverflowError, OSError, zlib.error):
             raise ShareError(*INVALID) from None

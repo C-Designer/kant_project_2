@@ -6,8 +6,6 @@
 import re
 from itertools import product
 
-from .contracts import TAXONOMY
-
 TOPICS = ("skinship", "temptation", "jealousy", "reunion")
 SIGNALS = ("doha", "hongyeom", "day_bond", "day_clash")
 
@@ -60,6 +58,8 @@ RULES = {
 
 
 def _flags(signals, type_id):
+    from .contracts import TAXONOMY  # contracts imports this module for its checks
+
     axes = TAXONOMY[type_id]["axes"]
     return {
         **{k: bool(signals[k]) for k in SIGNALS},
@@ -102,7 +102,11 @@ COMMON_RE = re.compile(
 )
 
 
-def spicy_text_ok(text, max_len=140):
+NOTE_MAX = 140
+TITLE_MAX = 40
+
+
+def spicy_text_ok(text, max_len=NOTE_MAX):
     return 1 <= len(text) <= max_len and not any(
         r.search(text) for r in (EXPLICIT_RE, PROFANITY_RE, CERTAINTY_RE, COMMON_RE)
     )

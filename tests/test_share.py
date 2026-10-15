@@ -10,10 +10,11 @@ import zlib
 import pytest
 from fastapi.testclient import TestClient
 from lovecode.api import create_app
-from lovecode.contracts import TAXONOMY, demo_result
+from lovecode.contracts import TAXONOMY, SpicyResult, SpicyTitle, demo_result
 from lovecode.service import AnalysisService
 from lovecode.settings import settings
 from lovecode.share import MAX_CODE_CHARS, ShareCodec, ShareError
+from lovecode.spicy import NOTE_MAX, TITLE_MAX, TOPICS
 from test_analysis import mock_provider, request_body
 
 SECRET = "s" * 40
@@ -101,6 +102,11 @@ def test_worst_case_result_fits_the_code_limit():
             "conversation_tip": random_hangul(180, rng),
             "limitations": ["missing_hour_a", "missing_hour_b", "boundary_time_unknown_a",
                             "boundary_time_unknown_b"],
+            "spicy": SpicyResult(
+                titles={t: SpicyTitle(id=i, text=random_hangul(TITLE_MAX, rng))
+                        for t, i in zip(TOPICS, ("S1", "C1", "J1", "R1"))},
+                notes={t: random_hangul(NOTE_MAX, rng) for t in TOPICS},
+            ),
         }
     )
     codec = ShareCodec(SECRET)
@@ -204,3 +210,37 @@ def test_rotating_the_secret_invalidates_old_links():
     with pytest.raises(ShareError) as e:
         ShareCodec("n" * 40).decode(code)
     assert e.value.code == "INVALID_SHARE_LINK"
+
+
+def test_links_without_the_spicy_section_still_open_as_1_0(client):
+    fields = demo_fields()
+    del fields["spicy"]
+    r = open_link(client, payload_code({"v": 1, "iat": NOW, "r": fields}))
+    assert r.status_code == 200
+    assert r.json()["result"]["schema_version"] == "1.0"
+    assert "spicy" not in r.json()["result"]
+
+
+def test_spicy_section_round_trips_as_1_1_and_keeps_its_wording(client):
+    fields = demo_fields()
+    fields["spicy"]["titles"]["skinship"]["text"] = "링크를 만들 때의 예전 칭호 문구"
+    r = open_link(client, payload_code({"v": 1, "iat": NOW, "r": fields}))
+    assert r.status_code == 200
+    result = r.json()["result"]
+    assert result["schema_version"] == "1.1"
+    assert result["spicy"]["titles"]["skinship"] == {"id": "S3", "text": "링크를 만들 때의 예전 칭호 문구"}
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda s: s["titles"]["skinship"].update(id="X9"),           # unknown title
+        lambda s: s["titles"]["skinship"].update(id="C1"),           # title from another topic
+        lambda s: s["notes"].update(skinship="잠자리 얘기는 따로"),    # explicit wording
+        lambda s: s["notes"].pop("reunion"),                         # missing topic
+    ],
+)
+def test_signed_but_invalid_spicy_content_is_refused(client, change):
+    fields = demo_fields()
+    change(fields["spicy"])
+    assert open_link(client, payload_code({"v": 1, "iat": NOW, "r": fields})).status_code == 400

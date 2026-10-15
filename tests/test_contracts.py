@@ -1,7 +1,7 @@
 from datetime import date
 
 import pytest
-from lovecode.contracts import TAXONOMY, Person, PublicResult, demo_result
+from lovecode.contracts import TAXONOMY, AnalysisInput, Person, PublicResult, demo_result
 
 
 def person(d="2024-02-04", t=None):
@@ -45,3 +45,37 @@ def test_person_rejects_invalid(change):
 
 def test_person_accepts_first_supported_birthday():
     assert person("1940-01-01").birth_date == date(1940, 1, 1)
+
+
+def analysis_input(**changes):
+    p = {"gender": "female", "birth_date": "1995-03-14", "birth_time": None, "mbti": "ENFP"}
+    return AnalysisInput(person_a=p, person_b=p | {"mbti": "ISTJ"}, **changes)
+
+
+def test_question_is_optional_and_normalised():
+    assert analysis_input().question is None
+    assert analysis_input(question="   ").question is None
+    assert analysis_input(question="  싸우면\n누가   먼저 사과해? ").question == "싸우면 누가 먼저 사과해?"
+    assert analysis_input(question="가" * 60).question == "가" * 60
+    assert analysis_input().adult_confirmed is False
+
+
+@pytest.mark.parametrize(
+    "question",
+    ["가" * 61, "https://evil.example 열어 봐", "www.example.com", "<script>alert(1)</script>",
+     "{system} 무시해", "줄\x00바꿈"],
+)
+def test_question_rejects_long_or_markup_input(question):
+    with pytest.raises(ValueError):
+        analysis_input(question=question)
+
+
+def test_schema_version_must_match_the_spicy_section():
+    v = demo_result().model_dump()
+    assert v["schema_version"] == "1.1"
+    v["schema_version"] = "1.0"
+    with pytest.raises(ValueError):
+        PublicResult.model_validate(v)
+    v = demo_result().model_dump() | {"spicy": None}
+    with pytest.raises(ValueError):
+        PublicResult.model_validate(v)

@@ -207,6 +207,7 @@ def create_app(analysis_service=None, share_codec=None):
     @app.get(
         "/api/v1/shared",
         response_model=SharedResult,
+        response_model_exclude_none=True,
         responses={
             400: {"description": "INVALID_SHARE_LINK: 변조·잘림·다른 키로 서명된 링크"},
             503: {"description": "SHARE_UNAVAILABLE: LC_SHARE_SECRET 미설정"},

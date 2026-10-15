@@ -6,6 +6,8 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .spicy import TITLE_MAX, TITLES, TOPICS, spicy_text_ok
+
 AXIS_KEYS = ("chemistry", "temperature", "distance", "conflict")
 AXIS_VALUES = [
     ("similar", "complementary"),
@@ -62,14 +64,62 @@ class Person(Strict):
         return v
 
 
+QUESTION_MAX = 60
+
+
 class AnalysisInput(Strict):
     external_processing_consent: bool = False
     person_a: Person
     person_b: Person
+    # One optional line for the explainer to answer. Sent to the LLM as data; never stored,
+    # logged or put in a share link (docs/SPICY_SPEC.md §3).
+    question: str | None = Field(default=None, max_length=200)
+    adult_confirmed: bool = False
+
+    @field_validator("question")
+    @classmethod
+    def valid_question(cls, v):
+        if v is None:
+            return None
+        v = " ".join(v.split())
+        if not v:
+            return None
+        if len(v) > QUESTION_MAX or re.search(r"https?://|www\.|[<>{}]|[\x00-\x1f\x7f]", v):
+            raise ValueError(f"궁금한 점은 {QUESTION_MAX}자 이하의 한 줄 문장으로 적어 주세요.")
+        return v
+
+
+class SpicyTitle(Strict):
+    id: str
+    text: str
+
+
+class SpicyResult(Strict):
+    """Rule-picked title + LLM note per topic. Topic words are allowed here, explicit,
+    profane, numeric-odds and certainty wording is not (lovecode.spicy.spicy_text_ok)."""
+
+    titles: dict[str, SpicyTitle]
+    notes: dict[str, str]
+
+    @model_validator(mode="after")
+    def consistent(self):
+        if set(self.titles) != set(TOPICS) or set(self.notes) != set(TOPICS):
+            raise ValueError("매운맛 주제 불일치")
+        for topic, title in self.titles.items():
+            # A link keeps the wording it was made with, so only the id must still exist.
+            if title.id not in TITLES or title.id[0] != TITLES_PREFIX[topic]:
+                raise ValueError("알 수 없는 칭호")
+            if not spicy_text_ok(title.text, TITLE_MAX) or not spicy_text_ok(self.notes[topic]):
+                raise ValueError("허용되지 않는 매운맛 텍스트")
+        return self
+
+
+TITLES_PREFIX = dict(zip(TOPICS, "SCJR"))
 
 
 class PublicResult(Strict):
-    schema_version: Literal["1.0"] = "1.0"
+    # 1.1 adds the spicy section; 1.0 results (and links) stay valid without it.
+    schema_version: Literal["1.0", "1.1"] = "1.0"
     type_id: str
     taxonomy_version: Literal["love-code-v1"] = "love-code-v1"
     axes: dict[str, str]
@@ -85,9 +135,12 @@ class PublicResult(Strict):
     disclaimer_version: Literal["entertainment-v1"] = "entertainment-v1"
     # Public results must never imply human approval.
     evidence_status: Literal["fixture", "ai_draft_unreviewed"]
+    spicy: SpicyResult | None = None
 
     @model_validator(mode="after")
     def consistent(self):
+        if (self.schema_version == "1.1") != (self.spicy is not None):
+            raise ValueError("스키마 버전과 매운맛 불일치")
         if self.type_id not in TAXONOMY or self.axes != TAXONOMY[self.type_id]["axes"]:
             raise ValueError("유형과 축 불일치")
         if len(set(self.limitations)) != len(self.limitations):
@@ -118,12 +171,31 @@ def demo_result():
         conversation_tip="“오늘 우리 둘 다 편안했던 순간은 언제였어?”라고 물어보세요.",
         limitations=["missing_hour_a"],
         evidence_status="fixture",
+        schema_version="1.1",
+        spicy=SpicyResult(
+            titles={t: SpicyTitle(id=i, text=TITLES[i]) for t, i in zip(TOPICS, ("S3", "C3", "J3", "R4"))},
+            notes={
+                "skinship": "겉으론 무덤덤한데 둘만 있으면 온도 올라가는 타입. 속도는 말로 맞추는 게 국룰이야.",
+                "temptation": "각자 공간이 중요해서 한눈팔 에너지도 아까운 편. 대신 연락 텀은 미리 정해 둬.",
+                "jealousy": "쿨한 척 참다가 한꺼번에 터질 수 있어. 서운한 건 그날 한 줄이라도 말해 봐.",
+                "reunion": "정리할 땐 깔끔한 스타일. 그러니까 싸웠을 때 '시간 좀 줘'를 이별로 오해하지 말기.",
+            },
+        ),
     )
+
+
+class Answer(Strict):
+    """Reply to AnalysisInput.question. Lives outside PublicResult so it never enters a link."""
+
+    question: str = Field(min_length=1, max_length=QUESTION_MAX)
+    status: Literal["answered", "declined_offtopic", "declined_adult"]
+    text: str = Field(min_length=1, max_length=200)
 
 
 class AnalysisResponse(Strict):
     analysis_id: str
     result: PublicResult
+    answer: Answer | None = None
     # Signed, compressed copy of the result for a share link; absent when sharing is off.
     share_code: str | None = None
 
