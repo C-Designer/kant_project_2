@@ -1,10 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 
-const GENDERS = [
-  ['male', '남성'],
-  ['female', '여성'],
-] as const;
+export const GENDER_LABEL = { male: '남성', female: '여성' } as const;
 
 // One pair per MBTI letter; the submitted value joins the four choices (e.g. INTJ).
 export const MBTI_AXES = [
@@ -18,7 +15,14 @@ export function mbtiFrom(form: FormData, id: string): string {
   return MBTI_AXES.map((_, i) => String(form.get(`${id}mbti-${i}`) ?? '')).join('');
 }
 
-export default function PersonFields({ id, title }: { id: string; title: string }) {
+// Gender is fixed per slot (a = male, b = female) so a pair is always opposite-sex.
+export default function PersonFields({
+  id,
+  gender,
+}: {
+  id: string;
+  gender: keyof typeof GENDER_LABEL;
+}) {
   const [unknown, setUnknown] = useState(false);
   const [mbti, setMbti] = useState(['', '', '', '']);
   const time = useRef<HTMLInputElement>(null);
@@ -26,20 +30,9 @@ export default function PersonFields({ id, title }: { id: string; title: string 
     <fieldset className="person">
       <legend>
         <span aria-hidden="true">{id === 'a' ? '01' : '02'}</span>
-        {title}
+        {GENDER_LABEL[gender]}
       </legend>
-
-      <fieldset className="choice">
-        <legend>성별</legend>
-        <div className="segmented">
-          {GENDERS.map(([value, label], i) => (
-            <label key={value}>
-              <input type="radio" name={id + 'gender'} value={value} required={i === 0} />
-              <span>{label}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <input type="hidden" name={id + 'gender'} value={gender} />
 
       <label htmlFor={id + 'date'}>
         생년월일 <small>양력</small>

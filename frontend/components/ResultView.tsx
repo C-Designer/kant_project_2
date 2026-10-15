@@ -1,5 +1,4 @@
 'use client';
-import Link from 'next/link';
 import SpicyCards from './SpicyCards';
 import SpicyGate from './SpicyGate';
 import TypeIllustration from './TypeIllustration';
@@ -11,13 +10,10 @@ export default function ResultView({
   result,
   sharedAt,
   answer,
-  adultConfirmed = false,
 }: {
   result: Result;
   sharedAt?: string;
   answer?: Answer;
-  /** The requester ticked the adult check on the input form; the gate starts ticked. */
-  adultConfirmed?: boolean;
 }) {
   const relationshipType = types.find((type) => type.id === result.type_id);
   const fixture = result.evidence_status === 'fixture';
@@ -38,13 +34,7 @@ export default function ResultView({
       )}
       <article className="result-card">
         {relationshipType && (
-          <Link
-            href={`/types/${relationshipType.slug}`}
-            className="result-type-link"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`${relationshipType.name} 유형 자세히 보기 (새 탭)`}
-          >
+          <div className="result-type">
             <div className="result-type-art">
               <TypeIllustration type={relationshipType} />
             </div>
@@ -52,11 +42,8 @@ export default function ResultView({
               <p>두 사람의 관계유형</p>
               <h1>{relationshipType.name}</h1>
               <p>{relationshipType.title}</p>
-              <span>
-                유형 자세히 보기 · 새 탭 <span aria-hidden="true">↗</span>
-              </span>
             </div>
-          </Link>
+          </div>
         )}
         <div className="result-cover">
           <div className="result-intro">
@@ -102,25 +89,26 @@ export default function ResultView({
           </section>
         )}
         {result.spicy && (
-          <SpicyGate title="매운맛 궁합" preconfirmed={adultConfirmed && !sharedAt}>
+          <SpicyGate title="매운맛 궁합">
             <SpicyCards spicy={result.spicy} />
           </SpicyGate>
         )}
-        {result.limitations.length > 0 && (
-          <p className="small-note">
-            태어난 시각을 모르는 사람이 있어요. 시주를 제외한 해석이며, 경계일에는 일부 기둥이
-            달라질 수 있어요.
-          </p>
-        )}
-        <p className="small-note">
+        {/* Short caveats read as one block, one line each. */}
+        <p className="small-note result-notes">
+          {result.limitations.length > 0 && (
+            <>
+              태어난 시각을 모르는 사람이 있어요. 시주를 제외한 해석이며, 경계일에는 일부 기둥이
+              달라질 수 있어요.
+              <br />
+            </>
+          )}
           사주와 MBTI를 바탕으로 한 참고·오락용 해석이에요. 실제 관계와 미래를 단정하지 않아요.
+          <br />
+          {sharedAt
+            ? `${formatDate(sharedAt)}에 만든 결과를 링크로 받았어요. 서버에는 저장되어 있지 않아요.`
+            : '결과는 이 화면에만 표시돼요. 새로고침하거나 닫으면 사라져요.'}
         </p>
       </article>
-      <p className="small-note center">
-        {sharedAt
-          ? `${formatDate(sharedAt)}에 만든 결과를 링크로 받았어요. 서버에는 저장되어 있지 않아요.`
-          : '결과는 이 화면에만 표시돼요. 새로고침하거나 닫으면 사라져요.'}
-      </p>
     </div>
   );
 }

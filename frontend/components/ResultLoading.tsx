@@ -22,7 +22,7 @@ export default function ResultLoading({ demo }: { demo: boolean }) {
       </div>
       <div className="result-card" aria-label="관계 결과" aria-busy="true">
         <div aria-hidden="true" className="result-skeleton">
-          <div className="result-type-link">
+          <div className="result-type">
             <div className="skeleton-shape skeleton-art" />
             <div className="skeleton-copy">
               <div className="skeleton-shape skeleton-short" />
