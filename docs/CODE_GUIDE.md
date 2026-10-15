@@ -2,7 +2,7 @@
 
 현재 웹은 입력 → 사주 계산 → Release BERT 분류 → LangChain/OpenAI 해설 → 결과 화면으로 동작한다.
 저장형 공유·삭제 백엔드와 DB 의존성은 제거했다. 결과는 현재 화면에만 남고, 공유는 서명된 결과를 링크에 담는 방식이라 서버에 저장하지 않는다.
-실행 명령은 [README](../README.md), 협업 규칙은 [CONTRIBUTING](../CONTRIBUTING.md)을 따른다.
+실행 명령은 [README](../README.md), 협업 규칙은 [CONTRIBUTING](../CONTRIBUTING.md)을 따른다. 이 중 백엔드 경로를 코드 발췌·퀴즈·시뮬레이터로 따라가는 학습 페이지는 [learn/fastapi-langchain.html](./learn/fastapi-langchain.html)(배포 사이트 `/learn`)이며, 원고는 [learn/src](./learn/src/README.md)에서 고친다.
 
 ## 요청 한 건 따라가기
 

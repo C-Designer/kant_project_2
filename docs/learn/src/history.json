@@ -1,0 +1,353 @@
+{
+  "mvp": {
+    "commit": "f67bd37",
+    "date": "2026-10-11",
+    "summary": "사주(lunar_python 계산)와 MBTI로 두 사람을 16가지 관계유형(4축 × 2극) 중 하나로 고르고 해설을 붙이는 서비스의 첫 버전입니다. 유형은 기본적으로 OpenAI 라벨링 호출로 정하고 해설은 httpx로 OpenAI Responses API를 직접 불러 만들었습니다. LangChain은 의존성 목록에만 있고 코드에서 쓰지 않았으며, 외부 API는 기본값으로 꺼져 있었습니다. FastAPI 백엔드는 공유 결과를 PostgreSQL에 7일 보관했고, Next.js 16 프런트엔드가 예시 결과와 입력 폼을 제공했습니다.",
+    "then": [
+      "유형 판정: 기본은 OpenAI 라벨링 호출(classifier_mode=openai), local로 바꾸면 TF-IDF 또는 문장 인코더 + 로지스틱 회귀(라벨이 없어 아직 학습 전)",
+      "해설: provider.py가 httpx로 OpenAI Responses API를 직접 호출(JSON 스키마 strict, 재시도 없음), LangChain은 의존성 목록에만 있고 코드에서 쓰지 않음",
+      "사주: calendar.py(lunar_python) 하나로 계산해 JSON 형태의 사실 텍스트로 전달",
+      "저장: PostgreSQL(SQLAlchemy) shared_results 테이블에 공유 결과를 7일 보관, 읽기·삭제 토큰은 해시만 저장",
+      "동시성: 분석 슬롯 2개(BoundedSemaphore), 빈 슬롯이 없으면 기다리지 않고 바로 429, 인스턴스당 하루 20건",
+      "화면·실행: Next.js 16 매거진형 홈과 두 사람을 한 화면에 넣는 입력 폼, 로컬 uvicorn + Docker PostgreSQL로 실행"
+    ],
+    "now": [
+      "유형 판정: 배포 설정(LC_CLASSIFIER_MODE=local)에서 규칙 라벨 데이터로 학습한 klue/bert-base 축별 분류기(compact-v5 입력, test macro-F1 0.831) 사용, 모델은 GitHub Release에서 받음. 코드 기본값인 openai 라벨링 경로도 남아 있음",
+      "해설: LangChain LCEL 체인(초안 → checks.py 점검 → 위반 시 1회 재작성 → PublicResult), 프롬프트 explain-lc-v4, GPT-6 Luna 사용. 같은 체인을 Ollama로도 돌릴 수 있지만 웹 서비스는 OpenAI로 고정",
+      "사주: saju/ 패키지로 한 번 계산해 BERT 입력(compact)·해설 입력(narrative)·limitations를 함께 만듦",
+      "저장: DB 없음. 공유는 HMAC-SHA256으로 서명한 결과를 URL에 담는 share.py(LC_SHARE_SECRET)",
+      "동시성: 입장 20건 + StageLimit으로 BERT 2건·해설 5건을 FIFO로 따로 제한, 공통 30초 기한, 하루 20건 유지",
+      "화면·배포: 한 화면 입력과 단일 동의, 로딩 스켈레톤, /r 공유 화면, /learn 학습 페이지, main 병합 시 Vercel 자동 배포와 CI 필수 체크 4개"
+    ]
+  },
+  "eras": [
+    {
+      "key": "mvp-polish",
+      "title": "MVP 다듬기",
+      "dates": "10-11 ~ 10-12",
+      "summary": "첫 커밋 직후 화면 구성과 프런트엔드 코드 구조를 정리하고, main에는 PR로만 반영하는 협업 규칙을 세운 시기입니다.",
+      "items": [
+        {
+          "pr": null,
+          "commit": "6c67c60",
+          "date": "2026-10-11",
+          "title": "관계 도감형 홈과 3단계 입력 화면",
+          "added": "홈을 관계유형 일러스트 중심의 '관계 도감'으로 바꾸고, 한 화면이던 입력 폼을 첫 번째 사람 → 두 번째 사람 → 확인하기 3단계로 나눴습니다. 백엔드 코드는 바뀌지 않았습니다.",
+          "files": ["frontend/app/page.tsx", "frontend/app/test/page.tsx", "frontend/app/globals.css"],
+          "stages": [],
+          "kind": "frontend"
+        },
+        {
+          "pr": null,
+          "commit": "7020999",
+          "date": "2026-10-11",
+          "title": "프런트엔드 책임 분리와 회귀 테스트",
+          "added": "입력 페이지의 사람 입력·확인 화면을 PersonFields·PersonReview로, 결과 화면의 공유 기능을 SharePanel로 나누고, components/client.ts를 lib/api.ts·lib/relationship.ts로 옮겼습니다. 쓰지 않던 PairArt·TypeExplorer와 미사용 의존성(langchain-core, pyyaml)을 지웠고, 프런트의 16유형 데이터가 백엔드 TAXONOMY와 일치하는지 보는 pytest와 축 표시 Node 테스트를 추가했습니다.",
+          "files": ["frontend/components/PersonFields.tsx", "frontend/components/SharePanel.tsx", "frontend/lib/api.ts", "tests/test_frontend_taxonomy.py"],
+          "stages": [],
+          "kind": "frontend"
+        },
+        {
+          "pr": 1,
+          "commit": "36d121d",
+          "date": "2026-10-12",
+          "title": "PR 전용 워크플로와 CI 필수 체크",
+          "added": "main 직접 push를 막는 ruleset과 CI 필수 체크 3개(branch-name, ruff를 돌리는 backend-lint, typecheck·test·format·build를 돌리는 frontend)를 추가했습니다. pytest는 DB·ML 의존성 때문에 이때 CI에서 빠졌습니다.",
+          "files": [".github/workflows/ci.yml", ".github/rulesets/main-protection.json", "CONTRIBUTING.md", ".github/pull_request_template.md"],
+          "stages": [],
+          "kind": "infra"
+        }
+      ]
+    },
+    {
+      "key": "data-classifier",
+      "title": "데이터와 분류기",
+      "dates": "10-12 ~ 10-13",
+      "summary": "만세력 모듈과 라벨 데이터, klue/bert 분류기를 들여와 학습했고, 라벨을 규칙 계산으로 바꿔 데이터를 다시 설계해 test macro-F1을 0.079에서 0.831로 올린 시기입니다.",
+      "items": [
+        {
+          "pr": 3,
+          "commit": "f2441f9",
+          "date": "2026-10-12",
+          "title": "만세력 모듈·600쌍 데이터·LangChain 해설기",
+          "added": "saju/ 만세력 패키지, 600쌍 데이터(lovecode-v2, 358쌍 AI 검수·242쌍 1차 라벨), klue/bert-base 파인튜닝(bert.py), LangChainExplainer(generator.py)를 추가했습니다. 해설기는 Ollama와 OpenAI를 같은 프롬프트·스키마로 바꿔 쓸 수 있지만, 이때는 api.py·service.py에 연결하지 않았습니다.",
+          "files": ["backend/lovecode/generator.py", "backend/lovecode/bert.py", "backend/lovecode/features.py", "backend/lovecode/saju/manse.py"],
+          "stages": ["chain", "prompt"],
+          "kind": "ml"
+        },
+        {
+          "pr": 4,
+          "commit": "fec4f94",
+          "date": "2026-10-12",
+          "title": "라벨 검수 완료와 validation 기준 모델 선정",
+          "added": "남은 242쌍을 검수해 600쌍 모두 ai_reviewed 상태로 만들고, TF-IDF+LR과 klue/bert-base를 학습해 validation으로 BERT를 골랐습니다. validation macro-F1은 0.080 대 0.102로 둘 다 무작위 수준(약 0.06)에 가까웠습니다.",
+          "files": ["backend/lovecode/train.py", "docs/labeling/review_v12_notes.md", "artifacts/reports/classifier-selection-lovecode-v2.json"],
+          "stages": [],
+          "kind": "ml"
+        },
+        {
+          "pr": 5,
+          "commit": "82b4e33",
+          "date": "2026-10-12",
+          "title": "선정한 BERT를 test로 1회 평가",
+          "added": "scripts/evaluate_test.py로 선정 모델을 test split에서 한 번만 평가했습니다. 학습 때와 couples.csv의 sha256이 다르거나 test 결과가 이미 있으면 실행을 거부하며, 결과는 test macro-F1 0.079였습니다.",
+          "files": ["scripts/evaluate_test.py", "artifacts/reports/classifier-selection-lovecode-v2.json"],
+          "stages": [],
+          "kind": "eval"
+        },
+        {
+          "pr": 6,
+          "commit": "d6beed1",
+          "date": "2026-10-13",
+          "title": "규칙 라벨 데이터 재설계와 축별 BERT",
+          "added": "판단 기준을 코드로 옮긴 labeler.py로 라벨을 계산하고, 4개 축을 각각 2지선다로 맞히는 축별 klue/bert와 compact-v5 입력 텍스트를 만들었습니다. test macro-F1이 0.079에서 0.831로 올랐고, 모델 파일은 GitHub Release로 배포했습니다. 해설기 make_llm에는 Ollama thinking 끄기(지원하는 모델이면), num_ctx 4096, OpenAI 추론 강도 low를 넣었습니다.",
+          "files": ["backend/lovecode/labeler.py", "backend/lovecode/axes.py", "backend/lovecode/bert.py", "scripts/build_rule_dataset.py", "backend/lovecode/generator.py"],
+          "stages": ["chain", "prompt"],
+          "kind": "ml"
+        }
+      ]
+    },
+    {
+      "key": "explainer-selection",
+      "title": "해설 모델 선정",
+      "dates": "10-13",
+      "summary": "팀 공통 채점 기준(품질 > 비용 > 시간 > 개인정보)을 고정하고, 로컬 Ollama 모델들과 GPT-6 Luna를 같은 세트로 비교해 서비스 해설 모델을 정한 시기입니다.",
+      "items": [
+        {
+          "pr": 7,
+          "commit": "71f3ed8",
+          "date": "2026-10-13",
+          "title": "해설 비교 공통 기준과 rank 명령",
+          "added": "개발 15건·최종 24건 고정 세트와 채점표를 docs/generation_eval_protocol.md에 정하고, compare_generators.py에 반대 극 점검과 rank 명령을 추가했습니다. 팀원 PC 간 결과를 맞추려고 make_llm의 Ollama seed를 42로 고정했습니다.",
+          "files": ["scripts/compare_generators.py", "docs/generation_eval_protocol.md", "backend/lovecode/generator.py", "data/lovecode-rule5/generation_eval.jsonl"],
+          "stages": ["chain", "prompt"],
+          "kind": "eval"
+        },
+        {
+          "pr": 8,
+          "commit": "44e5f46",
+          "date": "2026-10-13",
+          "title": "gemma4:e4b와 GPT-6 Luna 최종 세트 비교",
+          "added": "최종 세트 24건 결과 파일 2개를 추가했습니다. 위반은 gemma4:e4b 10/24, GPT-6 Luna 3/24로 모두 '반대 극 언급'이었고, 프롬프트가 축마다 두 극을 모두 설명하는 것이 원인으로 추정됐습니다.",
+          "files": ["artifacts/reports/generation/rule5/eval__ollama__gemma4_e4b__v2.jsonl", "artifacts/reports/generation/rule5/eval__openai__gpt-6-luna__v2.jsonl"],
+          "stages": [],
+          "kind": "eval"
+        },
+        {
+          "pr": 11,
+          "commit": "b4b16a3",
+          "date": "2026-10-13",
+          "title": "로컬 6종과 클라우드의 개발 세트 비교",
+          "added": "Ollama 모델 6개와 gpt-6-luna의 개발 세트 15건 결과와 순위표, 개발 세트 1위 qwen2.5:7b의 최종 세트 24건 결과(위반 4/24)를 추가했습니다. 코드 변경은 없고, 채점기가 Markdown 노출을 잡지 못한다는 점은 PR 설명에 적었습니다(이후 selection_summary.md에 반영).",
+          "files": ["artifacts/reports/generation/rule5/ranking_development.md", "artifacts/reports/generation/rule5/development__ollama__qwen2.5_7b__v2.jsonl", "artifacts/reports/generation/rule5/eval__ollama__qwen2.5_7b__v2.jsonl"],
+          "stages": [],
+          "kind": "eval"
+        },
+        {
+          "pr": 9,
+          "commit": "dc555a2",
+          "date": "2026-10-13",
+          "title": "gemma3:12b 최종 세트 결과 추가",
+          "added": "로컬 gemma3:12b-it-qat의 최종 세트 24건 결과 파일을 추가했습니다. 자동 채점 위반은 3/24로 Luna와 같았지만 응답 시간 중앙값이 32.4초였습니다.",
+          "files": ["artifacts/reports/generation/rule5/eval__ollama__gemma3_12b-it-qat__v2.jsonl"],
+          "stages": [],
+          "kind": "eval"
+        },
+        {
+          "pr": 18,
+          "commit": "75de852",
+          "date": "2026-10-13",
+          "title": "서비스 해설 모델로 GPT-6 Luna 선정",
+          "added": "팀원 결과를 selection_summary.md 하나로 모아 서비스 모델을 gpt-6-luna(최종 세트 위반 3/24), 로컬 대표를 qwen2.5:7b(4/24)로 정했습니다. 코드 변경은 없습니다.",
+          "files": ["artifacts/reports/generation/rule5/selection_summary.md"],
+          "stages": [],
+          "kind": "eval"
+        },
+        {
+          "pr": 17,
+          "commit": "82a3d8f",
+          "date": "2026-10-13",
+          "title": "qwen3:4b 최종 세트 결과 추가",
+          "added": "qwen3:4b-instruct-2507의 최종 세트 24건 결과 파일 하나를 추가했습니다(선정 요약 기준 위반 6/24). 제목의 'share panel'과 달리 공유 기능 코드는 들어 있지 않습니다.",
+          "files": ["artifacts/reports/generation/rule5/eval__ollama__qwen3_4b-instruct-2507-q4_K_M__v2.jsonl"],
+          "stages": [],
+          "kind": "eval"
+        }
+      ]
+    },
+    {
+      "key": "service-concurrency",
+      "title": "서비스화와 동시성",
+      "dates": "10-13",
+      "summary": "BERT 분류와 LangChain 해설을 실제 API에 연결해 Vercel로 배포하고, 단계별 대기열과 대기 화면을 더한 뒤 DB 없는 구조로 정리한 시기입니다.",
+      "items": [
+        {
+          "pr": 12,
+          "commit": "e4ed914",
+          "date": "2026-10-13",
+          "title": "Vercel 배포와 BERT·LangChain 서비스 연결",
+          "added": "service.py가 Release BERT(compact-v5 입력)로 유형을 고르고 LangChainExplainer로 해설하도록 연결했고, deploy/vercel로 main 병합 시 자동 배포되게 했습니다. 해설 호출에는 strict JSON 스키마와 출력 2000토큰 상한을 걸고 LangSmith 추적을 껐습니다. 이미 있던 share_save_enabled를 기본 꺼짐으로 바꿔 꺼져 있으면 DB 연결과 저장·공유·삭제 API를 만들지 않게 하고 공유·관리 화면을 지웠으며, 분석은 실행 2건·입장 6건·30초 대기로 제한했습니다.",
+          "files": ["backend/lovecode/service.py", "backend/lovecode/api.py", "deploy/vercel/main.py", "tests/test_langchain_web.py"],
+          "stages": ["start", "handler", "service", "chain", "prompt", "response", "tests"],
+          "kind": "backend"
+        },
+        {
+          "pr": 13,
+          "commit": "eeae6a1",
+          "date": "2026-10-13",
+          "title": "생년월일 지원 범위를 1940년부터로",
+          "added": "만세력이 지원하는 범위에 맞춰 Person.birth_date 검증 하한을 1900-01-01에서 1940-01-01로 바꾸고, 입력 화면에 같은 범위 안내와 오류 문구를 넣었습니다. 학습 데이터 검증에도 같은 기준을 적용했습니다.",
+          "files": ["backend/lovecode/contracts.py", "backend/lovecode/dataset.py", "frontend/components/PersonFields.tsx", "tests/test_training.py"],
+          "stages": ["validation", "tests"],
+          "kind": "backend"
+        },
+        {
+          "pr": 14,
+          "commit": "21a2a25",
+          "date": "2026-10-13",
+          "title": "BERT·해설 단계별 대기열 분리",
+          "added": "concurrency.py의 StageLimit(FIFO, 공통 30초 기한)으로 BERT 2건·해설 5건을 따로 제한해, 해설을 기다리는 요청이 BERT 슬롯을 붙잡지 않게 했습니다. 인스턴스당 입장 한도는 6건에서 20건(analysis_capacity)으로 늘었고, 초과·만료는 429와 Retry-After로 돌려줍니다.",
+          "files": ["backend/lovecode/concurrency.py", "backend/lovecode/service.py", "backend/lovecode/api.py", "tests/test_analysis_concurrency.py"],
+          "stages": ["start", "handler", "service", "tests"],
+          "kind": "backend"
+        },
+        {
+          "pr": 15,
+          "commit": "61dc232",
+          "date": "2026-10-13",
+          "title": "분석 대기 로딩 원과 결과 스켈레톤",
+          "added": "분석 요청 중 ResultLoading 컴포넌트가 로딩 원과 결과 모양의 스켈레톤을 보여 주고, 15초가 넘으면 안내 문구를 바꿉니다. 입력 폼은 숨겨서 값을 보존하며 API 계약은 바뀌지 않았습니다.",
+          "files": ["frontend/components/ResultLoading.tsx", "frontend/app/test/page.tsx", "frontend/app/globals.css"],
+          "stages": [],
+          "kind": "frontend"
+        },
+        {
+          "pr": 20,
+          "commit": "f2a5876",
+          "date": "2026-10-13",
+          "title": "저장·공유 백엔드 제거와 무저장 정리",
+          "added": "db.py(PostgreSQL)·security.py(서명 티켓)와 저장·공유·삭제 API, SQLAlchemy·psycopg 의존성을 지워 API를 health·taxonomy·analyses·demo-analysis 4개로 줄였습니다. create_app의 engine 인자와 만료 정리용 lifespan이 사라졌고, boundary 미들웨어가 response_headers와 겹쳐 붙이던 보안 헤더 4개를 지웠으며, 테스트는 DB 없이 돕니다.",
+          "files": ["backend/lovecode/api.py", "backend/lovecode/contracts.py", "tests/conftest.py", "tests/test_stateless.py"],
+          "stages": ["start", "middleware", "response", "tests"],
+          "kind": "backend"
+        }
+      ]
+    },
+    {
+      "key": "explanation-quality",
+      "title": "해설 품질",
+      "dates": "10-13 ~ 10-14",
+      "summary": "해설 체인에 규칙 점검과 1회 재작성을 넣고, 사주 계산을 하나로 합치고, 프롬프트에서 반대 극 단서를 없애 재작성 없이 위반 0건에 이른 시기입니다.",
+      "items": [
+        {
+          "pr": 19,
+          "commit": "674233a",
+          "date": "2026-10-13",
+          "title": "해설 점검 후 1회 다시 쓰기 체인",
+          "added": "checks.py로 규칙 점검을 모으고, 해설을 LCEL 체인(초안 → 점검 → 위반 시 고칠 점을 알려 1회 재작성 → PublicResult)으로 바꿨습니다. GPT-6 Luna 최종 세트 위반이 3/24에서 0/24가 됐고, BERT → 해설을 잇는 analysis_chain은 추가만 하고 서비스에 연결하지 않았습니다.",
+          "files": ["backend/lovecode/checks.py", "backend/lovecode/generator.py", "tests/test_lovecode_v2.py", "docs/generation_eval_protocol.md"],
+          "stages": ["chain", "prompt", "tests"],
+          "kind": "backend"
+        },
+        {
+          "pr": 21,
+          "commit": "9982e97",
+          "date": "2026-10-14",
+          "title": "분류기와 해설기가 같은 사주 계산 사용",
+          "added": "features.analysis_inputs()가 사주를 한 번 계산해 BERT 입력(compact), 해설 입력(narrative), limitations를 함께 돌려주고 service.py가 이를 씁니다. 이전에는 해설기가 옛 calendar.py 결과를 받아, 23시대·서머타임 시기 출생이면 BERT와 다른 팔자를 볼 수 있었습니다.",
+          "files": ["backend/lovecode/features.py", "backend/lovecode/service.py", "tests/test_analysis.py"],
+          "stages": ["service", "tests"],
+          "kind": "backend"
+        },
+        {
+          "pr": 22,
+          "commit": "f9eeb21",
+          "date": "2026-10-14",
+          "title": "프롬프트에 이 커플의 극만 표시 (v3)",
+          "added": "프롬프트 explain-lc-v3는 축 설명에 이 커플의 극만 보여 주는 POLE_GUIDE를 쓰고, 출력 지시의 '축 이름(예: 보완형, 안정형)' 예시를 '위 축 설명에 나온 극 이름만'으로 바꿨습니다. 두 극을 모두 보여 주던 축 설명과 이 예시가 반대 극 언급과 재작성을 부르던 원인이었습니다.",
+          "files": ["backend/lovecode/generator.py", "tests/test_langchain_web.py", "docs/generation_eval_protocol.md"],
+          "stages": ["prompt", "tests"],
+          "kind": "backend"
+        },
+        {
+          "pr": 23,
+          "commit": "63c381b",
+          "date": "2026-10-14",
+          "title": "첫 프롬프트에 반대 극 금지 규칙 (v4)",
+          "added": "explain-lc-v4는 시스템 프롬프트 규칙 1에 '그 반대쪽 극의 이름은 비교하거나 대조할 때도 쓰지 않는다'를 넣어 첫 초안부터 이 규칙을 알리고, 두 극을 나란히 쓰게 만들던 규칙 4 '각 축의 두 극은 우열이 없다'를 '이 커플의 성향이 더 좋다거나 나쁘다고 평가하지 않는다'로 바꿨습니다. 이 금지 규칙은 그전까지 점검과 재작성 지시에만 있었습니다.",
+          "files": ["backend/lovecode/generator.py", "tests/test_langchain_web.py", "docs/generation_eval_protocol.md"],
+          "stages": ["prompt", "tests"],
+          "kind": "backend"
+        },
+        {
+          "pr": 25,
+          "commit": "c404b5f",
+          "date": "2026-10-14",
+          "title": "프롬프트 v4 재평가 (GPT-6 Luna)",
+          "added": "v4 프롬프트를 GPT-6 Luna로 다시 평가한 결과 파일과 순위표를 추가했습니다. 최종 세트에서 첫 초안 위반은 3/24 → 0/24, 재작성을 포함한 서비스 경로는 재작성 4건 → 0건·세트 비용 0.0094 → 0.0074 USD였고, 극 이름을 직접 쓰는 빈도는 줄었습니다.",
+          "files": ["artifacts/reports/generation/rule5/selection_summary.md", "artifacts/reports/generation/rule5/ranking_eval_v4r.md", "artifacts/reports/generation/rule5/eval__openai__gpt-6-luna__v4r.jsonl"],
+          "stages": [],
+          "kind": "eval"
+        }
+      ]
+    },
+    {
+      "key": "cleanup-learn-share",
+      "title": "정리·학습·공유·입력",
+      "dates": "10-14 ~ 10-15",
+      "summary": "쓰지 않는 실험 코드를 걷어내고 CI에 백엔드 테스트를 넣은 뒤, 학습 페이지와 DB 없는 서명 공유 링크, 한 화면 입력을 더한 시기입니다.",
+      "items": [
+        {
+          "pr": 24,
+          "commit": "eb67b40",
+          "date": "2026-10-14",
+          "title": "쓰지 않는 실험 코드·데이터 제거",
+          "added": "Jev·LLM 분류 실험, 옛 calendar.py, 첫날 MVP의 synthetic-v1 학습 체인(annotate·experiment·pipeline), lovecode-v2 데이터, CatBoost·인코더 후보 등 69개 파일을 지웠습니다(변경 100개, 약 5.1만 줄 삭제). service.ready()는 compact-v5 모델만 준비됨으로 보고, 사주 대조 테스트는 실제 서비스가 쓰는 saju.calc_saju 기준으로 옮겼습니다. settings.py의 models_dir 기본값은 Release 모델 경로(lovecode-rule5-v5-train4800h-axes-reg)로 바꿨습니다.",
+          "files": ["backend/lovecode/service.py", "backend/lovecode/dataset.py", "tests/test_saju.py", "tests/conftest.py"],
+          "stages": ["start", "service", "tests"],
+          "kind": "backend"
+        },
+        {
+          "pr": 26,
+          "commit": "ed8c2e2",
+          "date": "2026-10-14",
+          "title": "CI에 backend-test 추가",
+          "added": "torch·CUDA 패키지만 빼고 설치해 pytest를 돌리는 backend-test job을 추가하고, ruleset 필수 체크를 4개로 늘렸습니다. Windows cp949 오류는 테스트 파일 4개에 encoding='utf-8'을 명시해 고쳤습니다.",
+          "files": [".github/workflows/ci.yml", ".github/rulesets/main-protection.json", "tests/conftest.py", "CONTRIBUTING.md"],
+          "stages": [],
+          "kind": "infra"
+        },
+        {
+          "pr": 27,
+          "commit": "79b9dab",
+          "date": "2026-10-14",
+          "title": "FastAPI·LangChain 학습 페이지 (/learn)",
+          "added": "백엔드 코드를 요청 흐름 순서로 따라가는 학습 페이지를 docs/learn/src에서 build.py로 생성하고, 같은 파일을 frontend/public/learn/index.html로 배포했습니다. build.py는 코드 발췌를 저장소 파일과 uv.lock에 고정된 라이브러리 소스에 글자 단위로 대조합니다.",
+          "files": ["docs/learn/src/build.py", "docs/learn/src/shell.html", "docs/learn/fastapi-langchain.html", "frontend/public/learn/index.html"],
+          "stages": [],
+          "kind": "docs"
+        },
+        {
+          "pr": 28,
+          "commit": "144bcd0",
+          "date": "2026-10-15",
+          "title": "서명된 무저장 공유 링크",
+          "added": "share.py가 공개 결과를 raw deflate로 압축하고 LC_SHARE_SECRET으로 HMAC-SHA256(128비트) 서명해 share_code를 만들고, GET /api/v1/shared는 X-Share-Code 헤더의 서명을 확인한 뒤에만 풀어 PublicResult로 재검증합니다. 서버에는 아무것도 남지 않고, 비밀값이 비었거나 32자 미만이면 공유가 꺼지며 예시 결과에는 share_code를 붙이지 않습니다.",
+          "files": ["backend/lovecode/share.py", "backend/lovecode/api.py", "tests/test_share.py", "frontend/app/r/page.tsx"],
+          "stages": ["start", "response", "share", "tests"],
+          "kind": "backend"
+        },
+        {
+          "pr": 29,
+          "commit": "5e307bf",
+          "date": "2026-10-15",
+          "title": "두 사람 한 화면 입력과 단일 동의",
+          "added": "6c67c60에서 나눈 3단계 입력을 한 화면으로 합쳐 두 사람을 동시에 입력하고, 입력 동의와 OpenAI 처리 동의를 체크 하나로 묶었습니다. 성별과 MBTI는 버튼으로 고르며, API 요청 형식은 그대로입니다.",
+          "files": ["frontend/app/test/page.tsx", "frontend/components/PersonFields.tsx", "frontend/app/globals.css"],
+          "stages": [],
+          "kind": "frontend"
+        }
+      ]
+    }
+  ]
+}

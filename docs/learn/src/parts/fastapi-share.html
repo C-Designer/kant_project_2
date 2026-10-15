@@ -1,0 +1,246 @@
+<section class="lesson" id="fa-1-share" data-track="fastapi" data-depth="1">
+  <h2>저장소 없이 결과를 공유하는 법</h2>
+  <p class="lead">DB 도 Redis 도 없는 서버가 어떻게 "이 결과 보기" 링크를 만들고, 나중에 그 링크를 다시 열어 줄까요?</p>
+  <p>보통의 공유 기능은 결과를 DB 에 저장하고 짧은 ID 를 링크에 넣습니다. 러브코드는 무저장 구조라 저장할 곳이 없습니다. 그래서 2026-10-15 의 PR #28 은 반대로 했습니다. <b>결과 자체를 압축해 링크에 담고</b>, 서버만 아는 비밀 키로 서명해 위조를 막습니다. 서버는 링크를 받을 때 서명만 확인하면 되므로 기억할 것이 없습니다.</p>
+  <div class="flow">
+    <div class="fa"><b>1 · 분석 응답</b><code>POST /analyses</code> 성공 응답에 <code>share_code</code> 가 붙습니다.</div>
+    <div><b>2 · 링크 만들기</b>프런트가 <code>/r#&lt;share_code&gt;</code> 를 만듭니다. <code>#</code> 뒤는 브라우저가 서버로 보내지 않습니다.</div>
+    <div><b>3 · 링크 열기</b><code>/r</code> 페이지가 코드를 <code>X-Share-Code</code> 헤더에 담아 <code>GET /shared</code> 를 부릅니다.</div>
+    <div class="fa"><b>4 · 검증과 복원</b>서명을 확인하고 압축을 풀어 <code>SharedResult</code> 로 돌려줍니다. 저장은 없습니다.</div>
+  </div>
+  <p>첫 단계는 응답을 만드는 작은 헬퍼 하나에 들어 있습니다.</p>
+  <code-block file="backend/lovecode/api.py" lines="147-151">
+    def analysis_response(result, shareable=False):
+        body = {"analysis_id": str(uuid.uuid4()), "result": result.model_dump()}
+        if shareable and shares.ready and (code := shares.encode(result)):
+            body["share_code"] = code
+        return body
+</code-block>
+  <ol class="notes">
+    <li data-line="147"><code>analyse</code> 와 <code>demo</code> 두 핸들러가 함께 쓰는 헬퍼입니다. <code>shareable</code> 기본값이 <code>False</code> 라 예시 결과에는 공유 코드가 붙지 않습니다.</li>
+    <li data-line="148">기본 응답은 그대로입니다. 공유가 꺼져 있어도 분석 결과는 정상으로 나갑니다.</li>
+    <li data-line="149">세 조건이 모두 참일 때만 붙입니다. 실제 분석이고, 비밀 키가 32자 이상이고, 인코딩한 코드가 길이 한도 안에 들어올 때입니다. <code>:=</code> 는 값을 대입하면서 동시에 조건으로 쓰는 할당 표현식입니다.</li>
+    <li data-line="150">붙지 않는 경우에는 키 자체가 없습니다. <code>AnalysisResponse.share_code</code> 의 기본값이 <code>None</code> 이고 <code>response_model_exclude_none=True</code> 라 응답 JSON 에서 빠집니다.</li>
+  </ol>
+  <p>이 방식의 대가도 분명합니다. 링크는 보통 0.7~2 KB(압축이 거의 안 되는 최악의 경우 약 3.3 KB)로 길고, 보낸 링크 하나만 골라 취소할 방법이 없으며(만료 검사도 지금은 두지 않았습니다), 비밀 키 <code>LC_SHARE_SECRET</code> 을 바꾸면 이미 보낸 링크가 모두 열리지 않습니다. 저장소를 두지 않는다는 결정을 지키려고 이 대가를 받아들였습니다.</p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="147">backend/lovecode/api.py:147</a>, <a class="src" data-file="backend/lovecode/share.py" data-line="1">backend/lovecode/share.py:1</a>, <a class="src" data-file="frontend/lib/share.ts" data-line="1">frontend/lib/share.ts:1</a>, <a class="src" data-file="frontend/app/r/page.tsx" data-line="48">frontend/app/r/page.tsx:48</a></p>
+</section>
+
+<section class="lesson" id="fa-2-share" data-track="fastapi" data-depth="2">
+  <h2>share.py: 압축하고 서명하고, 거꾸로 확인하기</h2>
+  <p class="lead">share_code 는 어떤 바이트로 이뤄지고, GET /api/v1/shared 는 그것을 어떤 순서로 검사합니까?</p>
+  <p>코드는 <code>본문.서명</code> 두 조각입니다. 본문은 버전·발행일·결과를 담은 JSON 을 raw deflate 로 압축한 바이트, 서명은 그 바이트에 고정 접두를 붙여 계산한 HMAC-SHA256 의 앞 16바이트이고, 둘 다 URL 에 그대로 쓸 수 있는 base64url 로 적습니다.</p>
+  <code-block file="backend/lovecode/share.py" lines="85-97">
+    def _sign(self, body):
+        mac = hmac.new(self._secret, b"lovecode-share.v1." + body, hashlib.sha256)
+        return mac.digest()[:SIGNATURE_BYTES]
+
+    def encode(self, result: PublicResult):
+        """Signed code for a share link, or None if it would not fit the link limit."""
+        fields = result.model_dump(mode="json", exclude=DERIVED)
+        # Day precision: the payload is readable by anyone holding the link.
+        issued = (int(self._clock()) + KST) // DAY * DAY - KST
+        payload = {"v": VERSION, "iat": issued, "r": fields}
+        body = _deflate(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode())
+        code = _b64(body) + "." + _b64(self._sign(body))
+        return code if len(code) <= MAX_CODE_CHARS else None
+</code-block>
+  <ol class="notes">
+    <li data-line="86">서명할 바이트 앞에 <code>lovecode-share.v1.</code> 이라는 고정 접두를 붙입니다. 같은 키를 다른 용도에 쓰더라도 서로의 서명이 섞이지 않게 하는 도메인 분리입니다.</li>
+    <li data-line="87">SHA-256 의 32바이트 중 앞 16바이트(128비트)만 씁니다. 위조하려면 여전히 2<sup>128</sup> 번 가까이 맞혀야 하고, 서명 글자는 43자에서 22자로 줄어듭니다. RFC 2104 도 HMAC 을 해시 출력의 절반 이상, 80비트 이상으로 잘라 쓰도록 권합니다.</li>
+    <li data-line="91"><code>DERIVED</code> 에 든 <code>axes</code> 와 세 버전 문자열은 빼고 담습니다. <code>type_id</code> 에서 다시 만들 수 있거나 고정값이라 링크만 길게 할 뿐입니다.</li>
+    <li data-line="93">발행 시각을 한국 날짜의 자정으로 내립니다. 링크를 가진 사람은 누구나 본문을 풀어 볼 수 있으므로 분 단위 시각을 남기지 않습니다.</li>
+    <li data-line="95">공백 없는 구분자와 <code>ensure_ascii=False</code> 로 JSON 을 최대한 짧게 만든 뒤 압축합니다. 한글을 <code>\uXXXX</code>(6바이트)로 바꾸지 않고 UTF-8(3바이트)로 두면 압축한 뒤에도 더 짧습니다.</li>
+    <li data-line="97">길이 한도를 넘으면 <code>None</code> 을 돌려줍니다. 공유는 부가 기능이라 실패해도 분석 응답을 망치지 않고 <code>share_code</code> 만 빠집니다.</li>
+  </ol>
+  <p>링크를 여는 쪽은 엔드포인트 하나입니다. 코드가 URL 이 아니라 헤더로 들어온다는 점이 핵심입니다.</p>
+  <code-block file="backend/lovecode/api.py" lines="206-219">
+    # The code arrives in a header, not the URL, so access logs never hold shared results.
+    @app.get(
+        "/api/v1/shared",
+        response_model=SharedResult,
+        responses={
+            400: {"description": "INVALID_SHARE_LINK: 변조·잘림·다른 키로 서명된 링크"},
+            503: {"description": "SHARE_UNAVAILABLE: LC_SHARE_SECRET 미설정"},
+        },
+    )
+    def shared(x_share_code: str = Header(default="", max_length=MAX_CODE_CHARS)):
+        try:
+            return shares.decode(x_share_code)
+        except ShareError as e:
+            return error(e.code, e.status, e.message)
+</code-block>
+  <ol class="notes">
+    <li data-line="206">쿼리스트링(<code>?code=…</code>)으로 받았다면 결과를 풀 수 있는 코드 전체가 웹 서버와 프록시의 접근 로그에 남습니다. 헤더는 보통 로그에 남지 않습니다.</li>
+    <li data-line="209"><code>SharedResult</code> 는 <code>result</code> 와 <code>created_at</code> 두 필드뿐인 응답 모델입니다. <code>Strict</code> 를 상속해 모르는 키가 섞이지 않습니다.</li>
+    <li data-line="210"><code>responses</code> 는 실행에 영향을 주지 않고 OpenAPI 문서에만 400·503 응답을 적어 둡니다.</li>
+    <li data-line="215">매개변수 이름 <code>x_share_code</code> 의 밑줄을 FastAPI 가 하이픈으로 바꿔 <code>x-share-code</code> 헤더를 찾습니다. <code>max_length</code> 를 넘는 헤더는 디코딩 전에 검증 단계에서 422 로 끊깁니다.</li>
+    <li data-line="217">검사와 복원은 모두 <code>ShareCodec.decode</code> 가 맡고, 핸들러는 <code>ShareError</code> 를 공통 <code>error()</code> 모양으로 바꾸기만 합니다.</li>
+  </ol>
+  <p><code>decode</code> 는 값싼 검사부터 비싼 작업 순으로 관문을 세웁니다.</p>
+  <code-block file="backend/lovecode/share.py" lines="99-127">
+    def decode(self, code) -> SharedResult:
+        if not self.ready:
+            raise ShareError(*UNAVAILABLE)
+        if len(code) > MAX_CODE_CHARS or not CODE.fullmatch(code):
+            raise ShareError(*INVALID)
+        body_text, signature_text = code.split(".")
+        try:
+            body, signature = _unb64(body_text), _unb64(signature_text)
+        except ValueError:
+            raise ShareError(*INVALID) from None
+        # One spelling per link: the decoder ignores stray low bits in the last character.
+        if _b64(body) != body_text or _b64(signature) != signature_text:
+            raise ShareError(*INVALID)
+        # Authenticate before inflating, so an unsigned blob is never decompressed.
+        if not hmac.compare_digest(self._sign(body), signature):
+            raise ShareError(*INVALID)
+        try:
+            payload = json.loads(_inflate(body))
+            if payload["v"] != VERSION or not isinstance(payload["iat"], int):
+                raise ValueError("unknown version")
+            fields = payload["r"]
+            type_id = fields["type_id"]
+            # PublicResult re-runs every output rule, so even a signed link that predates a
+            # newly banned phrase is refused rather than shown.
+            result = PublicResult(**fields, axes=TAXONOMY[type_id]["axes"])
+            created_at = datetime.fromtimestamp(payload["iat"], UTC)
+        except (ValueError, KeyError, TypeError, OverflowError, OSError, zlib.error):
+            raise ShareError(*INVALID) from None
+        return SharedResult(result=result, created_at=created_at)
+</code-block>
+  <ol class="notes">
+    <li data-line="100">비밀 키가 없거나 32자보다 짧으면 어떤 코드가 와도 503 <code>SHARE_UNAVAILABLE</code> 입니다. 링크가 틀린 것이 아니라 서버가 준비되지 않은 것이므로 400 과 구분합니다.</li>
+    <li data-line="102">길이와 정규식으로 모양부터 봅니다. base64url 글자로 된 본문 1~4000자, 점 하나, 서명 22자가 아니면 바로 400 입니다.</li>
+    <li data-line="110">디코딩한 바이트를 다시 인코딩해 원래 글자와 같은지 봅니다. base64 마지막 글자의 남는 비트가 무시되기 때문에, 이 검사가 없으면 한 결과에 서로 다른 링크 문자열이 여럿 생깁니다.</li>
+    <li data-line="113">압축을 풀기 전에 서명부터 확인합니다. <code>compare_digest</code> 는 일치하는 앞부분 길이와 상관없이 같은 시간이 걸려, 응답 시간으로 서명을 한 바이트씩 맞혀 가는 공격을 막습니다.</li>
+    <li data-line="116"><code>_inflate</code> 는 풀어낸 크기를 16 KB 로 제한합니다. 서명이 맞는 링크라도 압축 폭탄이면 거절합니다.</li>
+    <li data-line="123">서명이 맞아도 <code>PublicResult</code> 를 다시 만들어 출력 규칙(금지어·날짜 패턴 등)을 한 번 더 통과시킵니다. 규칙이 나중에 강화되면 예전에 서명된 링크도 그 규칙을 따릅니다. <code>axes</code> 는 링크에서 받지 않고 <code>TAXONOMY</code> 에서 다시 채웁니다.</li>
+    <li data-line="125">압축 해제·파싱·재검증에서 나올 예외를 모두 같은 400 <code>INVALID_SHARE_LINK</code> 로 모읍니다. 어느 관문에서 실패했는지 밖에 알려 주지 않습니다.</li>
+  </ol>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/share.py" data-line="85">backend/lovecode/share.py:85</a>, <a class="src" data-file="backend/lovecode/share.py" data-line="99">backend/lovecode/share.py:99</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="206">backend/lovecode/api.py:206</a>, <a class="src" data-file="backend/lovecode/contracts.py" data-line="131">backend/lovecode/contracts.py:131</a></p>
+</section>
+
+<section class="lesson" id="fa-3-share" data-track="fastapi" data-depth="3">
+  <h2>원리: 서명, 압축, 헤더 이름의 세부</h2>
+  <p class="lead">왜 암호화가 아니라 서명이고, 왜 서명을 압축 해제보다 먼저 보며, 헤더 이름은 어디서 정해집니까?</p>
+  <p><b>서명과 암호화는 다른 문제를 풉니다.</b> HMAC 서명은 "서버가 만든 그대로인가" 를 보장할 뿐 내용을 숨기지 않습니다. 링크를 가진 사람은 base64url 과 deflate 를 풀어 결과 문장을 읽을 수 있습니다. 러브코드는 원래 공유 대상이 결과 문장이고 원본 입력(생년월일·출생 시각·성별·MBTI)은 링크에 들어가지 않으므로 숨길 필요가 없다고 보고, 대신 발행 시각을 날짜 단위로 내려 정보를 줄였습니다. 링크에 원본 입력이 없다는 사실은 테스트가 압축을 직접 풀어 확인합니다.</p>
+  <code-block file="tests/test_share.py" lines="80-86">
+def test_link_carries_no_raw_inputs_and_stays_short(client):
+    analysis = client.post("/api/v1/analyses", json=request_body()).json()
+    body = analysis["share_code"].split(".")[0]
+    text = zlib.decompress(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)), -15).decode()
+    for raw_input in ("1994-06-15", "1996-09-20", "14:30", "INTJ", "ENFP", "female"):
+        assert raw_input not in text
+    assert len(analysis["share_code"]) < 1200
+</code-block>
+  <ol class="notes">
+    <li data-line="83">서명은 건너뛰고 본문만 풉니다. 링크를 받은 누구나 할 수 있는 일을 그대로 흉내 낸 것입니다. <code>-15</code> 는 헤더 없는 raw deflate 를 뜻합니다.</li>
+    <li data-line="84">요청에 넣었던 생년월일, 출생 시각, MBTI, 성별이 풀린 텍스트에 없어야 합니다.</li>
+  </ol>
+  <p><b>인증 먼저, 압축 해제는 나중.</b> 압축 해제는 입력보다 훨씬 큰 출력을 만들 수 있는 비싼 연산입니다. 서명을 먼저 보면 키를 모르는 사람이 보낸 바이트는 압축 해제기에 닿지 않습니다. 그래도 서명된 본문이 비정상적으로 클 가능성에 대비해 <code>_inflate</code> 가 출력 상한을 둡니다.</p>
+  <code-block file="backend/lovecode/share.py" lines="64-69">
+def _inflate(data):
+    d = zlib.decompressobj(-15)
+    out = d.decompress(data, MAX_PAYLOAD_BYTES)
+    if d.unconsumed_tail or not d.eof:
+        raise ValueError("payload too large or truncated")
+    return out
+</code-block>
+  <ol class="notes">
+    <li data-line="66">두 번째 인자 <code>max_length</code> 가 출력 바이트 상한입니다. 16384 바이트까지만 풀고 멈춥니다.</li>
+    <li data-line="67">상한에 걸려 남은 입력이 <code>unconsumed_tail</code> 에 있거나, 스트림 끝(<code>eof</code>)에 닿지 못했으면 너무 크거나 잘린 본문입니다. 둘 다 <code>ValueError</code> 로 올려 400 이 됩니다.</li>
+  </ol>
+  <p><b>헤더 이름은 FastAPI 가 매개변수 이름에서 만듭니다.</b> <code>Header()</code> 의 <code>convert_underscores</code> 기본값이 참이라, 별칭이 없으면 밑줄을 하이픈으로 바꾼 이름으로 요청 헤더를 찾습니다. HTTP 헤더 이름은 대소문자를 구분하지 않으므로 프런트가 보내는 <code>X-Share-Code</code> 와 맞습니다.</p>
+  <code-block file=".venv/lib/python3.12/site-packages/fastapi/dependencies/utils.py" lines="811-821">
+        if isinstance(received_params, Headers):
+            # Handle fields extracted from a Pydantic Model for a header, each field
+            # doesn't have a FieldInfo of type Header with the default convert_underscores=True
+            convert_underscores = getattr(
+                field.field_info, "convert_underscores", default_convert_underscores
+            )
+            if convert_underscores:
+                alias = get_validation_alias(field)
+                if alias == field.name:
+                    alias = alias.replace("_", "-")
+        value = _get_multidict_value(field, received_params, alias=alias)
+</code-block>
+  <ol class="notes">
+    <li data-line="811">헤더 매개변수에만 적용되는 분기입니다. 쿼리 매개변수에는 이런 변환이 없습니다.</li>
+    <li data-line="817"><code>convert_underscores</code> 는 <code>Header()</code> 의 기본값 <code>True</code> 를 따릅니다.</li>
+    <li data-line="819"><code>alias=</code> 를 직접 주면 이 변환을 건너뛰고 그 이름을 그대로 씁니다.</li>
+    <li data-line="821">Starlette 의 <code>Headers</code> 는 찾는 이름을 소문자로 바꿔, ASGI 서버가 소문자로 넘긴 헤더 이름과 비교합니다. 그래서 <code>x-share-code</code> 로 찾아도 <code>X-Share-Code</code> 가 잡힙니다.</li>
+  </ol>
+  <p>헤더 길이 제한(<code>max_length=MAX_CODE_CHARS</code>)도 같은 검증 단계에서 걸립니다. 그래서 너무 긴 코드는 <code>decode</code> 가 아니라 <code>RequestValidationError</code> 핸들러가 받아 422 를 만들고, <code>field</code> 는 <code>header.x-share-code</code> 가 됩니다. 400 과 422 를 가르는 것은 모양이냐 내용이냐가 아니라 누가 거절하느냐입니다. 매개변수에 선언한 제약(타입·길이)은 핸들러 전에 FastAPI 가 422 로, 정규식 모양·서명·내용 검사는 <code>decode</code> 가 400 으로 거절합니다. 그래서 <code>not-a-code</code> 처럼 모양이 틀린 코드도 길이 안이면 400 입니다.</p>
+  <aside class="principle"><h4>원리 노트: fragment 는 왜 서버에 가지 않을까</h4><p>URL 의 <code>#</code> 뒤 fragment 는 문서 안의 위치를 가리키기 위한 부분이라, 브라우저는 HTTP 요청을 만들 때 이를 빼고 보냅니다. 그래서 <code>/r#코드</code> 링크를 열어도 페이지를 내주는 프런트 서버의 접근 로그에는 <code>/r</code> 만 남습니다. 코드를 서버로 보내야 하는 순간에는 페이지의 JS 가 직접 헤더에 담습니다(<code>frontend/app/r/page.tsx:48</code>). 링크를 메신저에 붙여 넣으면 메신저 서버는 링크 전체를 보게 되므로, 이 장치는 우리 쪽 로그에서 결과를 빼는 것이지 링크 자체를 비밀로 만드는 것이 아닙니다.</p></aside>
+  <p>무저장 서명 링크와 DB 저장 공유를 비교하면 이렇습니다. 서명 링크는 저장소·마이그레이션·삭제 요청 처리가 필요 없고 서버리스 인스턴스 사이에 공유할 상태도 없습니다. 대신 링크를 하나씩 취소할 수 없고(발행 시각으로 일괄 만료는 가능하지만 지금은 두지 않았습니다), 키를 바꾸면 모든 링크가 죽으며, 링크가 깁니다. 면접에서 "왜 JWT 를 쓰지 않았나" 를 묻는다면, 원리는 JWT HS256 과 같은 HMAC-SHA256 서명이지만 헤더·클레임 형식이 필요 없고 압축과 128비트 서명으로 길이를 줄이려고 직접 짰다고 답할 수 있습니다. 알고리즘을 적는 헤더가 없으니 <code>alg</code> 를 바꿔치기하는 JWT 특유의 실수도 생기지 않습니다.</p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/share.py" data-line="64">backend/lovecode/share.py:64</a>, <a class="src" data-file="tests/test_share.py" data-line="80">tests/test_share.py:80</a>, <a class="src" data-file="tests/test_share.py" data-line="178">tests/test_share.py:178</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/dependencies/utils.py" data-line="817">fastapi/dependencies/utils.py:817</a></p>
+</section>
+
+<section class="lesson" id="fa-3-tests-share" data-track="fastapi" data-depth="3">
+  <h2>테스트: 시계를 주입하고 위조를 표로 검사하기</h2>
+  <p class="lead">시간이 들어가는 서명 코드를 어떻게 결정적으로 테스트하고, "어떤 변조든 거절된다" 는 주장을 어떻게 검증합니까?</p>
+  <p><code>ShareCodec</code> 은 생성자에서 비밀 키와 시계 함수를 받습니다. 운영에서는 <code>time.time</code> 이 들어가고, 테스트는 고정된 시각을 돌려주는 람다를 넣습니다. <code>create_app</code> 의 <code>share_codec</code> 인자가 이 테스트용 코덱을 앱에 꽂는 통로입니다.</p>
+  <code-block file="tests/test_share.py" lines="48-61">
+@pytest.fixture
+def client(monkeypatch):
+    for key, value in {
+        "api_enabled": True, "real_analysis_enabled": True, "provider": "openai",
+        "api_key": "test-only", "model": "mock", "classifier_mode": "openai",
+        "rate_limit_enabled": False,
+    }.items():
+        monkeypatch.setattr(settings(), key, value)
+    app = create_app(
+        analysis_service=AnalysisService(mock_provider("T13")),
+        share_codec=ShareCodec(SECRET, clock=lambda: NOW),
+    )
+    with TestClient(app) as c:
+        yield c
+</code-block>
+  <ol class="notes">
+    <li data-line="50">실제 분석 경로가 열리도록 설정을 켭니다. <code>monkeypatch</code> 는 테스트가 끝나면 원래 값으로 되돌립니다.</li>
+    <li data-line="57">OpenAI 대신 항상 T13 유형을 돌려주는 모의 공급자입니다. 네트워크 없이 <code>analyses</code> 가 200 을 냅니다.</li>
+    <li data-line="58">40자 고정 키와 고정 시각을 주입합니다. 같은 입력이면 매번 같은 <code>share_code</code> 가 나오므로 한국 날짜로 내린 발행일까지 정확히 검사할 수 있습니다.</li>
+  </ol>
+  <p>변조 검사는 "정상 코드를 조금씩 망가뜨린 목록" 을 한 루프로 돌립니다. 본문 한 글자, 서명 한 글자, 메신저가 자른 듯한 끝부분, 다른 키로 서명한 코드, 빈 문자열, 모양이 틀린 문자열이 모두 같은 400 이어야 합니다.</p>
+  <code-block file="tests/test_share.py" lines="131-146">
+def test_any_tampering_is_refused(client):
+    code = client.post("/api/v1/analyses", json=request_body()).json()["share_code"]
+    body, sig = code.split(".")
+    flipped = body[:10] + ("A" if body[10] != "A" else "B") + body[11:]
+    for bad in (
+        flipped + "." + sig,                       # payload edited
+        body + "." + ("A" if sig[0] != "A" else "B") + sig[1:],  # signature edited
+        body[:-5] + "." + sig,                     # truncated by a messenger
+        payload_code({"v": 1, "iat": NOW, "r": demo_fields()}, secret="x" * 40),  # other key
+        "",
+        "not-a-code",
+        code + "x",
+    ):
+        r = open_link(client, bad)
+        assert r.status_code == 400, bad[:40]
+        assert r.json()["error"]["code"] == "INVALID_SHARE_LINK"
+</code-block>
+  <ol class="notes">
+    <li data-line="134">본문 11번째 글자를 반드시 다른 글자로 바꿉니다. 원래 글자가 <code>A</code> 이면 <code>B</code> 로 바꿔 우연히 같아지는 일을 막습니다.</li>
+    <li data-line="139">테스트 안에서 직접 만든 <code>payload_code</code> 로 "형식은 완벽하지만 다른 키로 서명된" 코드를 만듭니다. 서명 검사만 이것을 잡을 수 있습니다.</li>
+    <li data-line="145">실패 메시지에 코드 앞 40자를 붙여, 어느 사례가 통과해 버렸는지 바로 보이게 합니다.</li>
+  </ol>
+  <p>나머지 테스트도 같은 방식으로 경계를 하나씩 고정합니다. 서명은 맞지만 금지어가 든 결과(149줄), 압축 폭탄(166줄: 상한을 풀어 주면 200 이 되는 것까지 확인해 거절 이유가 상한임을 증명), 너무 긴 헤더의 422(178줄), 키를 바꾸면 옛 링크가 죽는 것(201줄) 등입니다.</p>
+  <p class="ref">확인: <a class="src" data-file="tests/test_share.py" data-line="48">tests/test_share.py:48</a>, <a class="src" data-file="tests/test_share.py" data-line="131">tests/test_share.py:131</a>, <a class="src" data-file="tests/test_share.py" data-line="166">tests/test_share.py:166</a>, <a class="src" data-file="backend/lovecode/share.py" data-line="73">backend/lovecode/share.py:73</a></p>
+</section>
+
+<script type="application/json" class="quiz" data-track="fastapi" data-depth="2" data-part="share">
+[
+  {"q": "POST /api/v1/demo-analysis 응답에 share_code 가 없는 이유로 맞는 것은?", "options": ["예시 결과는 PublicResult 검증을 통과하지 못해 인코딩이 실패하기 때문이다", "demo 핸들러가 analysis_response(demo_result()) 를 shareable 기본값 False 로 부르기 때문이다", "demo 경로는 boundary 미들웨어가 share_code 를 지우기 때문이다", "LC_DEMO_ENABLED 가 켜져 있으면 공유가 자동으로 꺼지기 때문이다"], "answer": 1, "explain": "analysis_response 는 shareable 이 참이고 키가 준비되었고 코드가 한도에 들어올 때만 share_code 를 붙입니다. analyse 만 shareable=True 를 넘깁니다. tests/test_share.py:184 가 이 동작을 확인합니다.", "ref": "backend/lovecode/api.py:149"},
+  {"q": "GET /api/v1/shared 가 공유 코드를 쿼리스트링이 아니라 X-Share-Code 헤더로 받는 이유는?", "options": ["쿼리스트링은 4000자를 넘을 수 없어서", "FastAPI 는 GET 요청에서 쿼리 매개변수를 읽지 못해서", "헤더로 보내면 자동으로 암호화되기 때문에", "URL 은 웹 서버·프록시 접근 로그에 남지만 헤더는 보통 남지 않아, 결과가 로그에 쌓이지 않게 하려고"], "answer": 3, "explain": "api.py:206 주석이 그대로 이유를 말합니다. 링크의 # 뒤 fragment 도 브라우저가 서버로 보내지 않으므로, 코드가 서버에 닿는 길은 헤더 하나뿐입니다. 헤더도 HTTPS 위에서 보호될 뿐 따로 암호화되지는 않습니다.", "ref": "backend/lovecode/api.py:206"}
+]
+</script>
+
+<script type="application/json" class="quiz" data-track="fastapi" data-depth="3" data-part="share">
+[
+  {"q": "ShareCodec.decode 가 서명 확인(compare_digest)을 압축 해제(_inflate)보다 먼저 하는 가장 중요한 이유는?", "options": ["압축을 풀면 서명이 바뀌기 때문에", "compare_digest 가 압축된 바이트만 비교할 수 있어서", "키를 모르는 사람이 보낸 바이트가 비싼 압축 해제에 닿지 않게 하려고", "순서는 상관없고 코드 스타일 문제다"], "answer": 2, "explain": "압축 해제는 입력보다 훨씬 큰 출력을 만들 수 있습니다. 인증을 먼저 하면 서명 없는 압축 폭탄은 해제기에 들어가지 못합니다. 서명된 본문에 대비해서는 _inflate 의 16 KB 상한이 한 겹 더 있습니다.", "ref": "backend/lovecode/share.py:113"},
+  {"q": "길이가 MAX_CODE_CHARS 를 넘는 X-Share-Code 헤더를 보내면 어떤 응답이 나옵니까?", "options": ["decode 의 길이 검사에서 400 INVALID_SHARE_LINK", "Header(max_length=…) 검증이 먼저 실패해 422 INVALID_REQUEST, field=header.x-share-code", "boundary 미들웨어가 413 PAYLOAD_TOO_LARGE", "서명 검사에서 실패해 503 SHARE_UNAVAILABLE"], "answer": 1, "explain": "헤더 매개변수 검증은 핸들러 실행 전에 일어나므로 decode 는 호출되지 않습니다. RequestValidationError 핸들러가 loc ('header', 'x-share-code') 를 점으로 이어 field 를 만듭니다. tests/test_share.py:178 이 확인합니다. 413 은 POST 본문에만 적용됩니다.", "ref": "tests/test_share.py:178"},
+  {"q": "서명이 올바른 링크인데도 GET /api/v1/shared 가 400 을 돌려줄 수 있는 경우는?", "options": ["담긴 문장이 PublicResult 의 출력 규칙(예: 나중에 추가된 금지어)을 통과하지 못할 때", "링크를 만든 지 하루가 지났을 때", "같은 링크를 두 번째로 열 때", "분석을 요청한 사람과 다른 사람이 열 때"], "answer": 0, "explain": "decode 는 서명 확인 뒤에도 PublicResult 를 다시 만들어 규칙을 재검사합니다. iat 는 발행일 표시에만 쓰이고 만료 검사는 없으며, 무저장 구조라 열람 횟수·소유자 개념도 없으므로 나머지 보기는 일어나지 않습니다.", "ref": "backend/lovecode/share.py:123"}
+]
+</script>

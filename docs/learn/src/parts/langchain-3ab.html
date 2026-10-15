@@ -75,7 +75,7 @@ class Runnable(ABC, Generic[Input, Output]):
     <li data-line="669">변환이 안 되면 <code>NotImplemented</code> 를 돌려주지 않고 <code>TypeError</code> 를 냅니다. 엉뚱한 객체의 <code>__ror__</code> 에 조합을 위임하지 않기 위해서입니다.</li>
     <li data-line="674">오른쪽을 <code>coerce_to_runnable</code> 로 바꾼 뒤 <code>RunnableSequence(self, other)</code> 를 만듭니다. 실행은 아직 없습니다.</li>
   </ol>
-  <p>오른쪽에 함수나 dict 를 그냥 써도 되는 이유가 <code>coerce_to_runnable</code> 입니다. 러브코드에서는 분기 조건 람다 <code>lambda s: bool(s["problems"])</code> 가 이 함수를 거쳐 <code>RunnableLambda</code> 가 되고, 상 단계 <a href="#langchain/3/lc-3-structured">lc-3-structured</a> 섹션에서 볼 <code>itemgetter("raw") | output_parser</code> 도 같은 길을 탑니다.</p>
+  <p>오른쪽에 함수나 dict 를 그냥 써도 되는 이유가 <code>coerce_to_runnable</code> 입니다. 러브코드에서는 분기 조건 람다 <code>lambda s: bool(s["problems"])</code> 가 이 함수를 거쳐 <code>RunnableLambda</code> 가 되고, 상 단계 <a href="#journey/prompt/lc-3-structured">lc-3-structured</a> 섹션에서 볼 <code>itemgetter("raw") | output_parser</code> 도 같은 길을 탑니다.</p>
   <code-block file=".venv/lib/python3.12/site-packages/langchain_core/runnables/base.py" lines="6644-6668">
 def coerce_to_runnable(thing: RunnableLike[Input, Output]) -> Runnable[Input, Any]:
     """Coerce a `Runnable`-like object into a `Runnable`.
@@ -417,7 +417,7 @@ def analysis_chain(classifier, explainer, *, limitations=()):
     <li data-line="496">원래 키를 먼저 펼칩니다.</li>
     <li data-line="497"><code>mapper</code>(= <code>RunnableParallel</code>)의 결과 <code>{"type_id": "T13"}</code> 을 뒤에 펼쳐 합칩니다. 같은 키가 있으면 새 값이 이깁니다. 키가 하나뿐이어도 <code>RunnableParallel.invoke</code> 는 스레드 풀을 거칩니다(base.py:4185-4193).</li>
   </ol>
-  <p>그런데 현재 웹 요청은 이 체인을 쓰지 않습니다. <code>docs/CODE_GUIDE.md</code>(51-52)는 <code>analysis_chain()/analyze()</code> 를 "별도 LCEL 실행·테스트 경로"라 부르고 "두 경로를 같은 호출 경로로 설명하지 않는다"고 못 박습니다. 실제로 <code>analyze()</code> 를 쓰는 곳은 <code>tests/test_pipeline.py:194-204</code> 뿐이고, 웹은 <code>AnalysisService.analyse</code> 가 분류와 해설을 따로 호출합니다.</p>
+  <p>그런데 현재 웹 요청은 이 체인을 쓰지 않습니다. <code>docs/CODE_GUIDE.md</code>(52-53)는 <code>analysis_chain()/analyze()</code> 를 "별도 LCEL 실행·테스트 경로"라 부르고 "두 경로를 같은 호출 경로로 설명하지 않는다"고 못 박습니다. 실제로 <code>analyze()</code> 를 쓰는 곳은 <code>tests/test_pipeline.py:194-204</code> 뿐이고, 웹은 <code>AnalysisService.analyse</code> 가 분류와 해설을 따로 호출합니다.</p>
   <code-block file="backend/lovecode/service.py" lines="47-63">
     def analyse(self, body):
         deadline = time.monotonic() + settings().analysis_wait_seconds
@@ -495,7 +495,7 @@ def analysis_chain(classifier, explainer, *, limitations=()):
     <li data-line="2830">그 클래스가 <code>response_format</code> 키워드로 모델에 bind 됩니다. 실행 확인: bind 된 kwargs 키는 <code>response_format</code>, <code>ls_structured_output_format</code> 둘뿐이고 <code>strict</code> 는 없습니다.</li>
     <li data-line="2832"><code>strict=True</code> 의 유일한 흔적은 이 추적용 메타데이터 <code>ls_structured_output_format.kwargs.strict</code> 입니다.</li>
     <li data-line="2842"><code>bind</code> 는 <code>RunnableBinding</code> 계열 객체를 돌려줍니다. 나중에 <code>invoke</code> 할 때 <code>{**self.kwargs, **kwargs}</code> 로 <code>response_format</code> 이 모델 호출에 섞여 들어갑니다(langchain_core base.py:6018-6022).</li>
-    <li data-line="2844">Pydantic 스키마면 파서는 <code>_oai_structured_outputs_parser</code> 를 감싼 <code>RunnableLambda</code> 입니다. SDK 가 파싱해 둔 <code>parsed</code> 를 꺼내는 역할이며 다음 섹션 <a href="#langchain/3/lc-3-failure-modes">lc-3-failure-modes</a> 에서 봅니다.</li>
+    <li data-line="2844">Pydantic 스키마면 파서는 <code>_oai_structured_outputs_parser</code> 를 감싼 <code>RunnableLambda</code> 입니다. SDK 가 파싱해 둔 <code>parsed</code> 를 꺼내는 역할이며 다음 섹션 <a href="#journey/prompt/lc-3-failure-modes">lc-3-failure-modes</a> 에서 봅니다.</li>
   </ol>
   <p>요청 직전에 <code>_construct_responses_api_payload</code> 가 <code>response_format</code> 을 꺼내 <code>text_format</code> 으로 옮깁니다. 이 한 줄 때문에 <code>_generate</code> 는 Chat Completions 분기(1939)가 아니라 Responses 분기(1945-1950)로 가서 <code>root_client.responses.with_raw_response.parse(**payload)</code> 를 호출합니다.</p>
   <code-block file=".venv/lib/python3.12/site-packages/langchain_openai/chat_models/base.py" lines="4689-4695">
@@ -759,7 +759,7 @@ def _oai_structured_outputs_parser(
     <li data-line="1120">None 이나 음수는 예외입니다. 0 은 "재시도 끔"으로 문서화되어 있습니다(851-859).</li>
     <li data-line="1123"><code>range(0 + 1)</code> 이므로 루프가 한 번만 돕니다. 기본값 2 였다면 <code>_should_retry</code> 가 408/409/429/5xx 에 대해 두 번 더 시도합니다(885-924).</li>
   </ol>
-  <p>왜 이렇게 했는가: 요청당 비용과 지연에 상한을 두기 위해서입니다. 기본값대로라면 <code>_call</code> 한 번이 최대 세 번의 HTTP 시도와 시도당 600초까지 걸릴 수 있지만, 지금은 한 번에 45초가 상한입니다. 서비스는 그동안 해설 슬롯을 쥐고 있으므로(<code>service.py:60-63</code>) SDK 안의 보이지 않는 재시도는 슬롯 점유 시간을 늘릴 뿐이고, 모듈 docstring(7-9)과 <code>provider.py</code> 첫 줄이 "재시도 없음"을 명시합니다. 재시도 여부는 SDK 가 아니라 바깥에서 결정하며, 현재 서비스는 502 와 <code>retryable: true</code>(api.py:28)로 클라이언트에게 그 판단을 넘깁니다.</p>
+  <p>왜 이렇게 했는가: 요청당 비용과 지연에 상한을 두기 위해서입니다. 기본값대로라면 <code>_call</code> 한 번이 최대 세 번의 HTTP 시도와 시도당 600초까지 걸릴 수 있지만, 지금은 한 번에 45초가 상한입니다. 서비스는 그동안 해설 슬롯을 쥐고 있으므로(<code>service.py:60-63</code>) SDK 안의 보이지 않는 재시도는 슬롯 점유 시간을 늘릴 뿐이고, 모듈 docstring(7-9)과 <code>provider.py</code> 첫 줄이 "재시도 없음"을 명시합니다. 재시도 여부는 SDK 가 아니라 바깥에서 결정하며, 현재 서비스는 502 와 <code>retryable: true</code>(api.py:30)로 클라이언트에게 그 판단을 넘깁니다.</p>
   <p>마지막으로 세 실패가 HTTP 응답으로 어떻게 나뉘는지입니다. <code>ProviderError</code> 는 종류와 무관하게 <code>api.py</code> 에서 502 가 됩니다.</p>
   <code-block file="backend/lovecode/api.py" lines="183-190">
             result, _ = service.analyse(body)
@@ -773,7 +773,7 @@ def _oai_structured_outputs_parser(
 </code-block>
   <ol class="notes">
     <li data-line="183"><code>service.analyse</code> 안에서 <code>explain()</code> 이 <code>ProviderError</code> 를 던지면 이 <code>try</code> 를 빠져나옵니다.</li>
-    <li data-line="187"><code>PROVIDER_REQUEST_FAILED</code> 든 <code>OUTPUT_REJECTED</code> 든 502 <code>PROVIDER_UNAVAILABLE</code> 입니다. <code>error()</code> 가 <code>retryable: status &gt;= 500</code> 을 붙이므로(28) 클라이언트가 재시도를 결정합니다.</li>
+    <li data-line="187"><code>PROVIDER_REQUEST_FAILED</code> 든 <code>OUTPUT_REJECTED</code> 든 502 <code>PROVIDER_UNAVAILABLE</code> 입니다. <code>error()</code> 가 <code>retryable: status &gt;= 500</code> 을 붙이므로(30) 클라이언트가 재시도를 결정합니다.</li>
     <li data-line="189">사용자 메시지는 고정 문구이고 내부 코드나 응답 본문은 노출되지 않습니다. 테스트가 "private error" 미노출을 단언합니다(tests/test_langchain_web.py:79).</li>
   </ol>
   <ul>
