@@ -158,7 +158,7 @@ def test_langchain_answer_is_returned_in_meta():
         "입력", "T16", extras=extras(question="누가 먼저 사과해?")
     )
     assert meta["answer"].status == "answered"
-    assert meta["extras_version"] == "extras-v1"
+    assert meta["extras_version"] == "extras-v2"
     assert "answer" not in result.model_dump()
 
 

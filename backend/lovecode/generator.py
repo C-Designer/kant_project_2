@@ -28,7 +28,7 @@ from .spicy import Extras, extras_problems, extras_prompt, finalize_extras, spli
 
 PROMPT_VERSION = "explain-lc-v4"
 # Spicy titles / user question appended to the same call (docs/SPICY_SPEC.md §2.3, §3).
-EXTRAS_VERSION = "extras-v1"
+EXTRAS_VERSION = "extras-v2"
 # OpenAI model comes from LC_MODEL (settings().model); no default is assumed.
 DEFAULT_MODELS = {"ollama": "qwen3:4b-instruct-2507-q4_K_M", "openai": None}
 
