@@ -4,14 +4,12 @@ import { useId, useState } from 'react';
 /** Blurred until the reader confirms they are an adult. Nothing is stored: reload = blurred. */
 export default function SpicyGate({
   title,
-  preconfirmed = false,
   children,
 }: {
   title: string;
-  preconfirmed?: boolean;
   children: React.ReactNode;
 }) {
-  const [adult, setAdult] = useState(preconfirmed);
+  const [adult, setAdult] = useState(false);
   const [open, setOpen] = useState(false);
   const id = useId();
   return (

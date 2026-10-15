@@ -1,12 +1,41 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Analysis } from '@/lib/api';
 import { shareUrl } from '@/lib/share';
 
 type Notice = { text: string; failed: boolean };
 
+/** The Clipboard API is refused in in-app browsers, webviews and unfocused documents
+ * (NotAllowedError), so fall back to the older selection copy, which only needs the click. */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const active = document.activeElement as HTMLElement | null;
+    // A throwaway editable textarea: iOS will not copy from a readonly input.
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('aria-hidden', 'true');
+    area.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+    document.body.appendChild(area);
+    area.focus({ preventScroll: true });
+    area.setSelectionRange(0, text.length);
+    let copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch {
+      copied = false;
+    }
+    area.remove();
+    active?.focus({ preventScroll: true });
+    return copied;
+  }
+}
+
 export default function SharePanel({ analysis }: { analysis: Analysis }) {
   const [notice, setNotice] = useState<Notice | null>(null);
+  const field = useRef<HTMLInputElement>(null);
   if (!analysis.share_code) return null;
   // Rendered only after an analysis arrives in the browser, so window is defined here.
   const link = shareUrl(window.location.origin, analysis.share_code);
@@ -18,12 +47,14 @@ export default function SharePanel({ analysis }: { analysis: Analysis }) {
     requestAnimationFrame(() => setNotice({ text, failed }));
   }
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(link);
+    if (await copyText(link)) {
       announce('링크를 복사했어요.');
-    } catch {
-      announce('자동 복사가 안 돼요. 위 링크를 직접 선택해 복사해 주세요.', true);
+      return;
     }
+    // Leave the link selected so a long-press or Ctrl+C finishes the job.
+    field.current?.focus();
+    field.current?.select();
+    announce('자동 복사가 안 돼요. 선택된 링크를 직접 복사해 주세요.', true);
   }
   async function send() {
     try {
@@ -46,7 +77,7 @@ export default function SharePanel({ analysis }: { analysis: Analysis }) {
       <div className="share-values">
         <label>
           공유 링크
-          <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} />
+          <input ref={field} readOnly value={link} onFocus={(e) => e.currentTarget.select()} />
         </label>
         <button className="button secondary" onClick={copy}>
           링크 복사

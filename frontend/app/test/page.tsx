@@ -7,7 +7,6 @@ import PersonFields, { mbtiFrom } from '@/components/PersonFields';
 import { Analysis, api } from '@/lib/api';
 import { QUESTION_MAX } from '@/lib/spicy';
 export default function Test() {
-  const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -89,8 +88,6 @@ export default function Test() {
       mbti: mbtiFrom(f, id),
     });
     const question = String(f.get('question') || '').trim();
-    const adult = f.get('adult') === 'on';
-    setAdultConfirmed(adult);
     try {
       showResult(
         await api<Analysis>('analyses', {
@@ -100,7 +97,8 @@ export default function Test() {
             person_b: person('b'),
             external_processing_consent: f.get('consent') === 'on',
             question: question || null,
-            adult_confirmed: adult,
+            // Spicy questions are always answered; the spicy cards stay behind the result gate.
+            adult_confirmed: true,
           }),
         }),
       );
@@ -127,11 +125,7 @@ export default function Test() {
       {analysis && !busy && (
         <>
           <div tabIndex={-1} ref={resultTop}>
-            <ResultView
-              result={analysis.result}
-              answer={analysis.answer}
-              adultConfirmed={adultConfirmed}
-            />
+            <ResultView result={analysis.result} answer={analysis.answer} />
           </div>
           <SharePanel analysis={analysis} />
           <button
@@ -160,8 +154,8 @@ export default function Test() {
             양력·한국 표준시 기준이에요. 태어난 시각을 모르면 ‘몰라요’를 선택해 주세요.
           </p>
           <div className="people">
-            <PersonFields id="a" title="첫 번째 사람" />
-            <PersonFields id="b" title="두 번째 사람" />
+            <PersonFields id="a" gender="male" />
+            <PersonFields id="b" gender="female" />
           </div>
           <div className="question">
             <label htmlFor="question">
@@ -179,10 +173,6 @@ export default function Test() {
             <p id="question-hint" className="field-hint">
               결과에 짧은 답을 붙여 줘요. 질문은 공유 링크에 담기지 않아요.
             </p>
-            <label className="check">
-              <input type="checkbox" name="adult" />
-              <span aria-hidden="true">🌶</span> 매운 질문도 답해 줘 (만 19세 이상)
-            </label>
           </div>
           <label className="check consent">
             <input type="checkbox" name="consent" required />

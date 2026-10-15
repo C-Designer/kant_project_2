@@ -338,6 +338,9 @@ input[type='checkbox'] {
   margin-top: 18px;
   line-height: 1.8;
 }
+.result-notes {
+  margin-top: 28px;
+}
 .center {
   text-align: center;
 }
@@ -1102,7 +1105,7 @@ dialog p {
 }
 
 /* Same type identity across personal, example, and shared results. */
-.result-type-link {
+.result-type {
   display: grid;
   align-items: center;
   gap: 32px;
@@ -1123,18 +1126,8 @@ dialog p {
 .result-type-copy > p {
   font-size: 1rem;
 }
-.result-type-copy > span {
-  display: inline-block;
-  margin-top: 24px;
-  font-size: 0.875rem;
-  text-decoration: underline;
-  text-underline-offset: 5px;
-}
-.result-type-link:hover .result-type-copy > span {
-  text-decoration-thickness: 2px;
-}
 @media (max-width: 650px) {
-  .result-type-link {
+  .result-type {
     grid-template-columns: 112px minmax(0, 1fr);
     gap: 18px;
     padding-bottom: 24px;
@@ -1144,10 +1137,6 @@ dialog p {
   }
   .result-type-copy > p {
     font-size: 0.8125rem;
-  }
-  .result-type-copy > span {
-    font-size: 0.8125rem;
-    margin-top: 16px;
   }
 }
 
@@ -1409,7 +1398,7 @@ textarea {
 .consent input {
   margin-top: 5px;
 }
-.result-type-link {
+.result-type {
   grid-template-columns: 200px 1fr;
   padding-bottom: 28px;
 }
@@ -1553,7 +1542,7 @@ dialog {
     padding-inline: 6px;
     font-size: 0.875rem;
   }
-  .result-type-link {
+  .result-type {
     grid-template-columns: 120px minmax(0, 1fr);
     gap: 18px;
   }
