@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     # Signs stateless share links (32+ random characters). Empty turns sharing off.
     # Every instance must use the same value; changing it invalidates links already sent.
     share_secret: str = ""
+    # Spicy titles + notes (docs/SPICY_SPEC.md). Off: results stay schema 1.0.
+    spicy_enabled: bool = True
 
 
 @lru_cache

@@ -60,7 +60,7 @@ def response(data):
     )
 
 
-def mock_provider(type_id="T01", calls=None):
+def mock_provider(type_id="T01", calls=None, answer=None):
     def handle(r):
         body = json.loads(r.content)
         if calls is not None:
@@ -70,11 +70,15 @@ def mock_provider(type_id="T01", calls=None):
         assert body["store"] is False
         if "type_id" in body["text"]["format"]["schema"]["properties"]:
             return response({"type_id": type_id, "label_reason": "검증용 모의 응답"})
-        return response(
-            demo_result().model_dump(
-                include={"summary", "strengths", "adjustments", "conversation_tip"}
-            )
+        result = demo_result().model_dump(
+            include={"summary", "strengths", "adjustments", "conversation_tip"}
         )
+        properties = body["text"]["format"]["schema"]["properties"]
+        if "spicy" in properties:
+            result["spicy"] = demo_result().spicy.notes
+        if "answer" in properties:
+            result |= answer or {"answer_status": "answered", "answer": "먼저 '밥 먹었어?' 보내는 쪽이 이기는 거야."}
+        return response(result)
 
     return OpenAIProvider(httpx.MockTransport(handle))
 

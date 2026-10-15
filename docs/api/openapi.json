@@ -124,7 +124,7 @@
             "required": false,
             "schema": {
               "type": "string",
-              "maxLength": 4023,
+              "maxLength": 6023,
               "default": "",
               "title": "X-Share-Code"
             }
@@ -175,6 +175,23 @@
           },
           "person_b": {
             "$ref": "#/components/schemas/Person"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          },
+          "adult_confirmed": {
+            "type": "boolean",
+            "title": "Adult Confirmed",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -193,6 +210,16 @@
           },
           "result": {
             "$ref": "#/components/schemas/PublicResult"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Answer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "share_code": {
             "anyOf": [
@@ -213,6 +240,40 @@
           "result"
         ],
         "title": "AnalysisResponse"
+      },
+      "Answer": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Question"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "declined_offtopic",
+              "declined_adult"
+            ],
+            "title": "Status"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question",
+          "status",
+          "text"
+        ],
+        "title": "Answer",
+        "description": "Reply to AnalysisInput.question. Lives outside PublicResult so it never enters a link."
       },
       "HTTPValidationError": {
         "properties": {
@@ -273,7 +334,10 @@
         "properties": {
           "schema_version": {
             "type": "string",
-            "const": "1.0",
+            "enum": [
+              "1.0",
+              "1.1"
+            ],
             "title": "Schema Version",
             "default": "1.0"
           },
@@ -351,6 +415,16 @@
               "ai_draft_unreviewed"
             ],
             "title": "Evidence Status"
+          },
+          "spicy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpicyResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -384,6 +458,51 @@
           "created_at"
         ],
         "title": "SharedResult"
+      },
+      "SpicyResult": {
+        "properties": {
+          "titles": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SpicyTitle"
+            },
+            "type": "object",
+            "title": "Titles"
+          },
+          "notes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "titles",
+          "notes"
+        ],
+        "title": "SpicyResult",
+        "description": "Rule-picked title + LLM note per topic. Topic words are allowed here, explicit,\nprofane, numeric-odds and certainty wording is not (lovecode.spicy.spicy_text_ok)."
+      },
+      "SpicyTitle": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "SpicyTitle"
       },
       "Strict": {
         "properties": {},

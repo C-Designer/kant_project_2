@@ -34,5 +34,5 @@ def test_openapi_has_only_current_routes_and_response_fields():
     }
     assert set(schema['paths']['/api/v1/shared']) == {'get'}  # sharing never writes anything
     assert set(schema['components']['schemas']['AnalysisResponse']['properties']) == {
-        'analysis_id', 'result', 'share_code'
+        'analysis_id', 'result', 'answer', 'share_code'
     }

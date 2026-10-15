@@ -6,6 +6,7 @@ import httpx
 
 from .contracts import TAXONOMY, PublicResult
 from .settings import settings
+from .spicy import Extras, extras_json_properties, extras_prompt, finalize_extras, split_extras
 
 
 class ProviderError(Exception):
@@ -117,17 +118,33 @@ class OpenAIProvider:
             raise ProviderError("OUTPUT_REJECTED")
         return data, usage
 
-    def explain(self, text, type_id, *, allow_paid, limitations, synthetic=True):
+    def explain(self, text, type_id, *, allow_paid, limitations, synthetic=True, extras=None):
+        """Direct Responses call, no repair. Returns (result, meta); meta["answer"] as in
+        LangChainExplainer.explain."""
+        extras = extras or Extras()
         prompt = (
             f"유형 {TAXONOMY[type_id]['label']}의 한국어 해설만 작성. summary 120자 이하, 나머지는 각 180자 이하. 생일, 시각, 성별, MBTI 문자열, 사주 한자, URL, HTML, Markdown은 출력 금지. 제안형 문장 사용. strengths와 adjustments는 각각 두 개.\n입력 데이터:\n"
             + text
         )
-        data, usage = self.structured(
-            prompt, EXPLANATION_SCHEMA, synthetic=synthetic, allow_paid=allow_paid
-        )
+        schema = EXPLANATION_SCHEMA
+        if extras:
+            prompt += "\n\n" + extras_prompt(extras)
+            extra_props = extras_json_properties(extras)
+            schema = {
+                **schema,
+                "properties": {**schema["properties"], **extra_props},
+                "required": [*schema["required"], *extra_props],
+            }
+        data, usage = self.structured(prompt, schema, synthetic=synthetic, allow_paid=allow_paid)
+        if not isinstance(data, dict):
+            raise ProviderError("OUTPUT_REJECTED")
+        data, extra = split_extras(data)
+        spicy, answer = finalize_extras(extra, extras)
         try:
             result = PublicResult(
                 **data,
+                schema_version="1.1" if spicy else "1.0",
+                spicy=spicy,
                 type_id=type_id,
                 axes=TAXONOMY[type_id]["axes"],
                 limitations=limitations,
@@ -135,4 +152,4 @@ class OpenAIProvider:
             )
         except (ValueError, TypeError):
             raise ProviderError("OUTPUT_REJECTED") from None
-        return result, usage
+        return result, {**usage, "answer": answer}

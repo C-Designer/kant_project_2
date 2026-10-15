@@ -208,3 +208,12 @@ Release verdict: Not assessed
 ## 실제 요청 처리 개정
 
 AnalysisInput에 `external_processing_consent: boolean = false` 추가. 준비된 실제 분석 경로에서 true 필수. 기존 PersonInput과 7컬럼 CSV는 유지한다. 브라우저 checkbox와 서버 검증 모두 적용하며 미동의 시 유료 호출하지 않는다. OpenAI에 보낼 파생 사주/MBTI는 개인정보 처리 대상이며 사용자 입력/계산 근거를 서비스 DB·로그·학습셋에 저장하지 않는다. 결과만 기존7일 공유 정책으로 저장한다.
+
+## 2026-10-15 매운맛 · 질문 필드
+
+- `AnalysisInput.question: string | null` — 공백 정리 후 1~60자, URL·`<>{}`·제어 문자 거부. 서버 저장·로그·공유 금지.
+- `AnalysisInput.adult_confirmed: boolean = false`
+- `PublicResult.schema_version: "1.0" | "1.1"` — `spicy`가 있으면 1.1이어야 한다.
+- `PublicResult.spicy?: { titles: {skinship|temptation|jealousy|reunion: {id, text}}, notes: {같은 키: string} }` — 칭호 ID는 `lovecode.spicy.TITLES`에 있어야 하고 주제와 접두어(S/C/J/R)가 맞아야 한다. 칭호 문구 40자, 설명 140자 이하, 19금·욕설 원형·퍼센트·확률·등급·단정 표현 금지. 주제어(속궁합·바람기)는 이 필드에서만 허용한다.
+- `AnalysisResponse.answer?: { question, status: answered|declined_offtopic|declined_adult, text(≤200) }` — 공유 링크에 담지 않는다.
+- 프런트 칭호 데이터 `frontend/data/spicy-titles.json`은 `scripts/export_spicy_titles.py`로 만들고, 테스트가 백엔드 규칙과의 일치를 확인한다.

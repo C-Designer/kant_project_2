@@ -1650,3 +1650,123 @@ dialog {
     border-color: GrayText;
   }
 }
+
+/* ---- 매운맛 궁합 · 질문 (docs/SPICY_SPEC.md §5) ---- */
+.question {
+  margin-top: 28px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.question > label:not(.check) {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 18px 0 8px;
+}
+.answer {
+  border-left: 3px solid var(--brand);
+  padding: 4px 0 4px 24px;
+  margin: 32px 0;
+}
+.answer > span {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.answer p {
+  margin-top: 10px;
+  font-size: 1.0625rem;
+}
+.answer .answer-question {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+.answer .answer-declined {
+  color: var(--muted);
+}
+.spicy {
+  --spicy: #b8322a;
+  margin: 40px 0 8px;
+  padding-top: 28px;
+  border-top: 2px solid var(--spicy);
+}
+.spicy h2 {
+  margin-bottom: 18px;
+}
+.spicy-gate {
+  position: relative;
+  min-height: 260px;
+}
+.spicy-blur {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  filter: blur(6px);
+}
+.spicy-blur span {
+  height: 116px;
+  background: linear-gradient(135deg, #f6d9cf, var(--soft));
+}
+.spicy-gate-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  padding: 16px;
+}
+.spicy-gate-actions p {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.spicy-gate-actions .button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.spicy-lead {
+  font-size: 0.9375rem;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.spicy-cards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.spicy-cards li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--spicy);
+}
+.spicy-cards small {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--spicy);
+}
+.spicy-cards strong {
+  font-size: 1.125rem;
+  line-height: 1.45;
+  letter-spacing: -0.02em;
+}
+.spicy-cards p {
+  font-size: 0.9375rem;
+  margin: 0;
+}
+@media (max-width: 650px) {
+  .spicy-cards,
+  .spicy-blur {
+    grid-template-columns: 1fr;
+  }
+  .spicy-gate {
+    min-height: 320px;
+  }
+}

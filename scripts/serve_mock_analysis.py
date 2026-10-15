@@ -36,6 +36,12 @@ def handle(request):
         data = demo_result().model_dump(
             include={"summary", "strengths", "adjustments", "conversation_tip"}
         )
+        properties = body["text"]["format"]["schema"]["properties"]
+        if "spicy" in properties:
+            data["spicy"] = demo_result().spicy.notes
+        if "answer" in properties:
+            data["answer_status"] = "answered"
+            data["answer"] = "모의 응답: 둘 다 시간 두는 타입이라 먼저 '밥 먹었어?' 보내는 쪽이 이기는 거야."
     return httpx.Response(
         200,
         json={

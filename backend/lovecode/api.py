@@ -144,8 +144,10 @@ def create_app(analysis_service=None, share_codec=None):
     def taxonomy():
         return TAXONOMY
 
-    def analysis_response(result, shareable=False):
+    def analysis_response(result, shareable=False, answer=None):
         body = {"analysis_id": str(uuid.uuid4()), "result": result.model_dump()}
+        if answer is not None:
+            body["answer"] = answer.model_dump()
         if shareable and shares.ready and (code := shares.encode(result)):
             body["share_code"] = code
         return body
@@ -180,8 +182,8 @@ def create_app(analysis_service=None, share_codec=None):
                         "DAILY_LIMIT", 429, "오늘의 분석 한도에 도달했어요. 다음에 다시 찾아주세요."
                     )
                 budget["count"] += 1
-            result, _ = service.analyse(body)
-            return analysis_response(result, shareable=True)
+            result, meta = service.analyse(body)
+            return analysis_response(result, shareable=True, answer=meta.get("answer"))
         except AnalysisBusy:
             return busy()
         except ProviderError:
@@ -207,6 +209,7 @@ def create_app(analysis_service=None, share_codec=None):
     @app.get(
         "/api/v1/shared",
         response_model=SharedResult,
+        response_model_exclude_none=True,
         responses={
             400: {"description": "INVALID_SHARE_LINK: 변조·잘림·다른 키로 서명된 링크"},
             503: {"description": "SHARE_UNAVAILABLE: LC_SHARE_SECRET 미설정"},

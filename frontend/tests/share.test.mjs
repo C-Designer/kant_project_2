@@ -20,8 +20,8 @@ test('only well-formed codes are read from the hash', () => {
 
 test('the body length limit matches MAX_BODY_CHARS in backend/lovecode/share.py', () => {
   const sig = '.' + 'A'.repeat(21) + 'g';
-  assert.ok(codeFromHash('#' + 'a'.repeat(4000) + sig));
-  assert.equal(codeFromHash('#' + 'a'.repeat(4001) + sig), null);
+  assert.ok(codeFromHash('#' + 'a'.repeat(6000) + sig));
+  assert.equal(codeFromHash('#' + 'a'.repeat(6001) + sig), null);
 });
 
 test('dates render in Korea time and stay empty when invalid', () => {

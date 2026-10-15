@@ -1,11 +1,24 @@
 'use client';
 import Link from 'next/link';
+import SpicyCards from './SpicyCards';
+import SpicyGate from './SpicyGate';
 import TypeIllustration from './TypeIllustration';
 import types from '@/data/relationship-types.json';
-import { Result } from '@/lib/api';
+import { Answer, Result } from '@/lib/api';
 import { axisEntries } from '@/lib/relationship';
 import { formatDate } from '@/lib/share';
-export default function ResultView({ result, sharedAt }: { result: Result; sharedAt?: string }) {
+export default function ResultView({
+  result,
+  sharedAt,
+  answer,
+  adultConfirmed = false,
+}: {
+  result: Result;
+  sharedAt?: string;
+  answer?: Answer;
+  /** The requester ticked the adult check on the input form; the gate starts ticked. */
+  adultConfirmed?: boolean;
+}) {
   const relationshipType = types.find((type) => type.id === result.type_id);
   const fixture = result.evidence_status === 'fixture';
   return (
@@ -81,6 +94,18 @@ export default function ResultView({ result, sharedAt }: { result: Result; share
           <span>오늘의 대화 한마디</span>
           <p>{result.conversation_tip}</p>
         </section>
+        {answer && (
+          <section className="answer">
+            <span>두 사람이 물어본 것</span>
+            <p className="answer-question">Q. {answer.question}</p>
+            <p className={answer.status === 'answered' ? '' : 'answer-declined'}>{answer.text}</p>
+          </section>
+        )}
+        {result.spicy && (
+          <SpicyGate title="매운맛 궁합" preconfirmed={adultConfirmed && !sharedAt}>
+            <SpicyCards spicy={result.spicy} />
+          </SpicyGate>
+        )}
         {result.limitations.length > 0 && (
           <p className="small-note">
             태어난 시각을 모르는 사람이 있어요. 시주를 제외한 해석이며, 경계일에는 일부 기둥이

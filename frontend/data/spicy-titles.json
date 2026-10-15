@@ -1,0 +1,332 @@
+{
+  "topics": [
+    {
+      "key": "skinship",
+      "emoji": "🔥",
+      "name": "속궁합"
+    },
+    {
+      "key": "temptation",
+      "emoji": "👀",
+      "name": "바람기 · 유혹 내성"
+    },
+    {
+      "key": "jealousy",
+      "emoji": "🔒",
+      "name": "질투 · 집착"
+    },
+    {
+      "key": "reunion",
+      "emoji": "💔",
+      "name": "전 애인 미련 · 재회"
+    }
+  ],
+  "titles": {
+    "S1": "눈만 마주쳐도 분위기 ㅈㄴ 이상해지는 커플",
+    "S2": "시동은 같이 거는데 엔진 식는 속도가 다른 커플",
+    "S3": "겉은 얌전, 불 끄면 온도 급상승 커플",
+    "S4": "진도 빼는 데 n개월 걸리는 신중 끝판왕 커플",
+    "C1": "DM 알림 뜰 때마다 서로 째려보는 커플",
+    "C2": "밖에선 인기 폭발, 집에선 감시 모드 커플",
+    "C3": "한눈팔 시간에 잠이나 자는 귀차니즘 커플",
+    "C4": "남들은 전부 NPC로 보이는 커플",
+    "J1": "읽씹 30초면 부재중 3통 커플",
+    "J2": "팔로잉 목록 정기 점검하는 커플",
+    "J3": "쿨병 걸렸다가 새벽 2시에 폭발하는 커플",
+    "J4": "서로 안 궁금해서 오히려 불안한 커플",
+    "R1": "헤어지고 3일 만에 '자니?' 보내는 커플",
+    "R2": "이별 통보하고 1시간 뒤 '밥은 먹었어?' 커플",
+    "R3": "차단했다 풀었다 무한 반복 커플",
+    "R4": "헤어지면 연락처부터 지우는 칼 같은 커플"
+  },
+  "reachable": {
+    "T01": {
+      "skinship": [
+        "S1",
+        "S2"
+      ],
+      "temptation": [
+        "C2",
+        "C4"
+      ],
+      "jealousy": [
+        "J1"
+      ],
+      "reunion": [
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "T02": {
+      "skinship": [
+        "S1",
+        "S2"
+      ],
+      "temptation": [
+        "C2",
+        "C4"
+      ],
+      "jealousy": [
+        "J1"
+      ],
+      "reunion": [
+        "R1",
+        "R4"
+      ]
+    },
+    "T03": {
+      "skinship": [
+        "S1",
+        "S2"
+      ],
+      "temptation": [
+        "C1",
+        "C3"
+      ],
+      "jealousy": [
+        "J3",
+        "J4"
+      ],
+      "reunion": [
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "T04": {
+      "skinship": [
+        "S1",
+        "S2"
+      ],
+      "temptation": [
+        "C1",
+        "C3"
+      ],
+      "jealousy": [
+        "J3",
+        "J4"
+      ],
+      "reunion": [
+        "R1",
+        "R4"
+      ]
+    },
+    "T05": {
+      "skinship": [
+        "S3",
+        "S4"
+      ],
+      "temptation": [
+        "C2",
+        "C4"
+      ],
+      "jealousy": [
+        "J2"
+      ],
+      "reunion": [
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "T06": {
+      "skinship": [
+        "S3",
+        "S4"
+      ],
+      "temptation": [
+        "C2",
+        "C4"
+      ],
+      "jealousy": [
+        "J2"
+      ],
+      "reunion": [
+        "R1",
+        "R4"
+      ]
+    },
+    "T07": {
+      "skinship": [
+        "S3",
+        "S4"
+      ],
+      "temptation": [
+        "C1",
+        "C3"
+      ],
+      "jealousy": [
+        "J3",
+        "J4"
+      ],
+      "reunion": [
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "T08": {
+      "skinship": [
+        "S3",
+        "S4"
+      ],
+      "temptation": [
+        "C1",
+        "C3"
+      ],
+      "jealousy": [
+        "J3",
+        "J4"
+      ],
+      "reunion": [
+        "R1",
+        "R4"
+      ]
+    },
+    "T09": {
+      "skinship": [
+        "S1",
+        "S2"
+      ],
+      "temptation": [
+        "C2",
+        "C4"
+      ],
+      "jealousy": [
+        "J1"
+      ],
+      "reunion": [
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "T10": {
+      "skinship": [
+        "S1",
+        "S2"
+      ],
+      "temptation": [
+        "C2",
+        "C4"
+      ],
+      "jealousy": [
+        "J1"
+      ],
+      "reunion": [
+        "R1",
+        "R4"
+      ]
+    },
+    "T11": {
+      "skinship": [
+        "S1",
+        "S2"
+      ],
+      "temptation": [
+        "C1",
+        "C3"
+      ],
+      "jealousy": [
+        "J3",
+        "J4"
+      ],
+      "reunion": [
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "T12": {
+      "skinship": [
+        "S1",
+        "S2"
+      ],
+      "temptation": [
+        "C1",
+        "C3"
+      ],
+      "jealousy": [
+        "J3",
+        "J4"
+      ],
+      "reunion": [
+        "R1",
+        "R4"
+      ]
+    },
+    "T13": {
+      "skinship": [
+        "S3",
+        "S4"
+      ],
+      "temptation": [
+        "C2",
+        "C4"
+      ],
+      "jealousy": [
+        "J2"
+      ],
+      "reunion": [
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "T14": {
+      "skinship": [
+        "S3",
+        "S4"
+      ],
+      "temptation": [
+        "C2",
+        "C4"
+      ],
+      "jealousy": [
+        "J2"
+      ],
+      "reunion": [
+        "R1",
+        "R4"
+      ]
+    },
+    "T15": {
+      "skinship": [
+        "S3",
+        "S4"
+      ],
+      "temptation": [
+        "C1",
+        "C3"
+      ],
+      "jealousy": [
+        "J3",
+        "J4"
+      ],
+      "reunion": [
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    "T16": {
+      "skinship": [
+        "S3",
+        "S4"
+      ],
+      "temptation": [
+        "C1",
+        "C3"
+      ],
+      "jealousy": [
+        "J3",
+        "J4"
+      ],
+      "reunion": [
+        "R1",
+        "R4"
+      ]
+    }
+  }
+}

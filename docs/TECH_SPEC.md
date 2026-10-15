@@ -318,3 +318,15 @@ Release verdict: Not assessed
 - 서버 origin은 `LC_ALLOWED_ORIGINS`, Next API upstream은 서버용 `API_INTERNAL_ORIGIN`. 기본 익명 rate limit + 동시분석2건 + UTC일별20시도. 현재 단일 process 메모리 한도이며 재시작 초기화. 공개 확장 시 영속/공유 한도와 proxy client IP 정책이 필요하다.
 - 모의 transport는 자동 테스트 및 `scripts/serve_mock_analysis.py`에만 존재한다. 배포 진입점은 `lovecode.api:app`, 기본 off. 실키를 임의로 사용하지 않았고 실API 품질·운영 배포를 검증 완료라고 표시하지 않는다.
 - 학습 fixture artifact는 runtime loader가 거부한다. 모델 로드 전 digest/16클래스 검사, encoder는 로컬 캐시만 사용한다. pickle 파일은 운영자가 직접 생성한 신뢰하는 artifact만 지정한다.
+
+## 13. 매운맛 궁합 · 커스텀 질문 (2026-10-15, 현행)
+
+상세는 [매운맛 기획서](./SPICY_SPEC.md)다. 요약:
+
+- `AnalysisInput`에 `question`(선택, 공백 정리 후 60자, URL·`<>{}`·제어 문자 422)과 `adult_confirmed`(기본 false)를 더한다.
+- 서버가 두 사람의 도화살·홍염살·일지 합·충을 커플 단위 신호로 계산하고(`saju/spicy.py`), 분류된 유형의 축과 합쳐 주제별 칭호를 규칙으로 고른다(`lovecode/spicy.py`). LLM에는 칭호와 신호 이름만 준다.
+- 칭호 설명과 질문 답변은 기존 해설 호출의 출력 스키마에 필드를 더해 받는다. 호출 수는 그대로다. 아무것도 붙지 않으면 프롬프트·스키마는 평가 때와 같다(`EXTRAS_VERSION`은 meta에만 기록).
+- 매운맛 설명이 수리 1회 뒤에도 검사에 걸리면 섹션만 빼고 `schema_version: "1.0"`으로 돌려준다. 질문 답변이 걸리면 서버의 고정 거절 문구로 바꾼다. 성인 미확인인데 성인 주제로 답하면 서버가 `declined_adult`로 덮어쓴다.
+- 응답: `result.spicy`(칭호 ID·문구, 설명)가 있으면 `schema_version: "1.1"`. `answer`는 `result` 밖에 두어 공유 링크에 들어가지 않는다.
+- 공유 코덱 `VERSION`은 1 그대로다. 1.0 링크는 계속 열리고, 링크 본문 상한은 4000자에서 6000자로 올렸다(최악의 경우 약 5.5K, 실제는 약 1.3~1.6K).
+- `LC_SPICY_ENABLED`(기본 true)를 끄면 칭호·설명을 만들지 않는다. 질문 답변은 계속 동작한다.

@@ -38,6 +38,8 @@ def test_langchain_web_transport(monkeypatch, status):
         result = demo_result().model_dump(
             include={"summary", "strengths", "adjustments", "conversation_tip"}
         )
+        if "spicy" in body["text"]["format"]["schema"]["properties"]:
+            result["spicy"] = demo_result().spicy.notes
         if status == "invalid":
             result["summary"] = "INTJ와 ENFP"
         content = [{"type": "output_text", "text": json.dumps(result), "annotations": []}]
@@ -80,6 +82,9 @@ def test_langchain_web_transport(monkeypatch, status):
             if status == 200:
                 assert response.status_code == 200, response.text
                 assert response.json()["result"]["type_id"] == "T13"
+                spicy = response.json()["result"]["spicy"]
+                assert set(spicy["titles"]) == {"skinship", "temptation", "jealousy", "reunion"}
+                assert response.json()["result"]["schema_version"] == "1.1"
             else:
                 assert response.status_code == 502
                 assert "save_ticket" not in response.text

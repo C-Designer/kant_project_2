@@ -9,6 +9,7 @@ from .generator import LangChainExplainer
 from .inference import Classifier
 from .provider import OpenAIProvider
 from .settings import settings
+from .spicy import Extras, pick_titles
 
 
 class AnalysisService:
@@ -57,11 +58,20 @@ class AnalysisService:
             with self._explanation_slots.acquire(deadline):
                 label, _ = self.provider.label(text, allow_paid=True, synthetic=False)
             type_id = label["type_id"]
+        extras = Extras(
+            titles=pick_titles(inputs["spicy_signals"], type_id) if settings().spicy_enabled else None,
+            signals=inputs["spicy_signals"],
+            question=body.question,
+            adult=body.adult_confirmed,
+        )
         with self._explanation_slots.acquire(deadline):
             result, explanation_meta = self.explainer.explain(
-                text, type_id, allow_paid=True, synthetic=False, limitations=missing
+                text, type_id, allow_paid=True, synthetic=False, limitations=missing,
+                extras=extras or None,
             )
         return result, {
+            # Returned to the caller once, beside the result; never stored or logged.
+            "answer": explanation_meta.get("answer"),
             "generator": settings().model,
             "classifier": settings().classifier_mode,
             "calendar": VERSION,

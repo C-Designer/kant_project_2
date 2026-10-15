@@ -1,5 +1,5 @@
 {
-  "executed_at": "2026-10-15T08:09:29.353812+00:00",
+  "executed_at": "2026-10-15T10:18:30.164333+00:00",
   "paid_api_calls": 0,
   "production_training_executed": false,
   "fixture_training_executed": true,
@@ -7,49 +7,49 @@
     {
       "command": "uv run ruff check backend tests scripts",
       "exit_code": 0,
-      "seconds": 0.051,
+      "seconds": 0.068,
       "output": "All checks passed!"
     },
     {
       "command": "uv run pytest -q",
       "exit_code": 0,
-      "seconds": 38.515,
-      "output": "........................................................................ [ 62%]\n............................................                             [100%]\n116 passed in 33.62s"
+      "seconds": 6.451,
+      "output": "........................................................................ [ 38%]\n........................................................................ [ 76%]\n.............................................                            [100%]\n189 passed in 5.26s"
     },
     {
       "command": "npm --prefix frontend run typecheck",
       "exit_code": 0,
-      "seconds": 1.613,
+      "seconds": 1.048,
       "output": "> lovecode-web@0.1.0 typecheck\n> tsc --noEmit"
     },
     {
       "command": "npm --prefix frontend test",
       "exit_code": 0,
-      "seconds": 0.301,
-      "output": "> lovecode-web@0.1.0 test\n> node --test tests/*.test.mjs\n\n✔ result axes keep their labels even when API property order changes (1.304ms)\n✔ missing or future axis values do not render as blank or undefined (0.110875ms)\n✔ each type has one neighbour per axis that flips only that axis (0.726792ms)\n✔ every axis value has an everyday meaning (0.135ms)\n✔ share links keep the signed code in the fragment (0.496ms)\n✔ only well-formed codes are read from the hash (0.227875ms)\n✔ the body length limit matches MAX_BODY_CHARS in backend/lovecode/share.py (0.144166ms)\n✔ dates render in Korea time and stay empty when invalid (30.035542ms)\nℹ tests 8\nℹ suites 0\nℹ pass 8\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 128.965667"
+      "seconds": 0.18,
+      "output": "> lovecode-web@0.1.0 test\n> node --test tests/*.test.mjs\n\n✔ result axes keep their labels even when API property order changes (0.620084ms)\n✔ missing or future axis values do not render as blank or undefined (0.068583ms)\n✔ each type has one neighbour per axis that flips only that axis (0.487125ms)\n✔ every axis value has an everyday meaning (0.067625ms)\n✔ share links keep the signed code in the fragment (0.35625ms)\n✔ only well-formed codes are read from the hash (0.184958ms)\n✔ the body length limit matches MAX_BODY_CHARS in backend/lovecode/share.py (0.114708ms)\n✔ dates render in Korea time and stay empty when invalid (10.271541ms)\n✔ spicy cards keep topic order and the wording the link was made with (0.611125ms)\n✔ type pages list only titles the rules can reach (0.112208ms)\nℹ tests 10\nℹ suites 0\nℹ pass 10\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 71.454291"
     },
     {
       "command": "npm --prefix frontend run format:check",
       "exit_code": 0,
-      "seconds": 0.479,
+      "seconds": 0.332,
       "output": "> lovecode-web@0.1.0 format:check\n> prettier --check app components lib tests\n\nChecking formatting...\nAll matched files use Prettier code style!"
     },
     {
       "command": "npm --prefix frontend run build",
       "exit_code": 0,
-      "seconds": 6.453,
-      "output": "> lovecode-web@0.1.0 build\n> next build\n\n▲ Next.js 16.4.0 (Turbopack)\n✓ Running next.config.ts took 1673ms\n\n  Creating an optimized production build ...\n✓ Compiled successfully in 1270ms\n  Running TypeScript ...\n  Finished TypeScript in 1251ms ...\n  Collecting page data using 9 workers ...\n  Generating static pages using 9 workers (0/23) ...\n  Generating static pages using 9 workers (5/23) \n  Generating static pages using 9 workers (11/23) \n  Generating static pages using 9 workers (17/23) \n✓ Generating static pages using 9 workers (23/23) in 510ms\n  Finalizing page optimization ...\n\nRoute (app)\n┌ ○ /\n├ ○ /_not-found\n├ ○ /icon.svg\n├ ○ /r\n├ ○ /test\n├ ○ /types\n└   /types/[slug]\n  ├ ● /types/t03\n  ├ ● /types/t01\n  ├ ● /types/t11\n  └ ● [+13 more paths]\n\n\n○  (Static)  prerendered as static content\n●  (SSG)     prerendered as static HTML (uses generateStaticParams)"
+      "seconds": 2.456,
+      "output": "> lovecode-web@0.1.0 build\n> next build\n\n▲ Next.js 16.4.0 (Turbopack)\n✓ Running next.config.ts took 55ms\n\n  Creating an optimized production build ...\n✓ Compiled successfully in 255ms\n  Running TypeScript ...\n  Finished TypeScript in 531ms ...\n  Collecting page data using 9 workers ...\n  Generating static pages using 9 workers (0/23) ...\n  Generating static pages using 9 workers (5/23) \n  Generating static pages using 9 workers (11/23) \n  Generating static pages using 9 workers (17/23) \n✓ Generating static pages using 9 workers (23/23) in 331ms\n  Finalizing page optimization ...\n\nRoute (app)\n┌ ○ /\n├ ○ /_not-found\n├ ○ /icon.svg\n├ ○ /r\n├ ○ /test\n├ ○ /types\n└   /types/[slug]\n  ├ ● /types/t03\n  ├ ● /types/t01\n  ├ ● /types/t11\n  └ ● [+13 more paths]\n\n\n○  (Static)  prerendered as static content\n●  (SSG)     prerendered as static HTML (uses generateStaticParams)"
     },
     {
       "command": "uv run python -m lovecode.dataset validate --dir data/lovecode-rule5/train4800h",
       "exit_code": 0,
-      "seconds": 0.434,
+      "seconds": 0.223,
       "output": "{\n  \"rows\": 6240,\n  \"splits\": {\n    \"train\": 6000,\n    \"validation\": 120,\n    \"test\": 120\n  },\n  \"labeled\": 6240,\n  \"approved\": 0,\n  \"cross_split_people\": 0,\n  \"human_review\": \"incomplete\"\n}"
     },
     {
       "command": "uv run python -m lovecode.train --dir data/lovecode-rule5/train4800h --allow-ai-drafts --dry-run",
       "exit_code": 0,
-      "seconds": 0.453,
+      "seconds": 0.21,
       "output": "{\n  \"ready\": true,\n  \"eligible_rows\": 6240,\n  \"ineligible_rows\": 0,\n  \"classes_per_split\": {\n    \"train\": 16,\n    \"validation\": 16,\n    \"test\": 16\n  },\n  \"training_executed\": false,\n  \"human_review\": \"incomplete\"\n}"
     }
   ]
