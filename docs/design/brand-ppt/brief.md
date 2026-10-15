@@ -1,0 +1,2 @@
+Brand: 러브코드 (LoveCode) — a Korean web service that reads two people's couple/relationship style from saju + MBTI, with 16 hand-drawn couple illustration types. The attached image is the team's presentation cover: that is the brand standard.
+Brand standard (from the deck): warm cream background #FEFBF4, cheerful pink accent #F0607E (used for the key phrase of every headline), deep cocoa text #2B241F, warm grey-brown secondary #7A6A5E. Heavy, clean Korean sans (Pretendard Bold/ExtraBold). Friendly, playful, warm, a little witty ("사주는 CODE, 분류는 BERT"), never childish clip-art.
