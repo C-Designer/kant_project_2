@@ -1,17 +1,40 @@
 :root {
-  --error: #a52c34;
-  --success: #315b3d;
-  --canvas: #fffaf2;
-  --surface: #fffdf8;
-  --text: #342e29;
-  --muted: #71665c;
-  --brand: #885039;
-  --hover: #6d3e2c;
-  --accent: #ead8b9;
-  --soft: #f3ebdf;
-  --border: #d9cbbb;
-  --control: #96816e;
-  --focus: #386755;
+  /* Brand: the presentation deck (docs/presentation) — cream, cocoa, one pink point */
+  --canvas: #fefbf4;
+  --surface: #ffffff;
+  --soft: #f6efe4;
+  --text: #2b241f;
+  --muted: #7a6a5e;
+  --brand: #2b241f;
+  --hover: #48403a;
+  --on-brand: #fefbf4;
+  /* Pink: large text and fills behind cocoa text only (3.0:1 on cream). */
+  --point: #f0607e;
+  --point-text: #c8325a;
+  --point-soft: #fde4ea;
+  --border: #ece3d6;
+  --rule: #ddd1c1;
+  --control: #9a8b7e;
+  --focus: #2f62c9;
+  --success: #2f6a45;
+  --error: #b42b3a;
+  --warning: #7a5216;
+  --spicy: #b8322a;
+  --spicy-soft: #f6d9cf;
+
+  --font:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+    'Malgun Gothic', sans-serif;
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 0 0 1px rgb(32 40 32 / 0.06), 0 1px 2px rgb(32 40 32 / 0.06);
+  --shadow-md:
+    0 0 0 1px rgb(32 40 32 / 0.05), 0 2px 4px rgb(32 40 32 / 0.05), 0 6px 12px rgb(32 40 32 / 0.06),
+    0 14px 28px rgb(32 40 32 / 0.06);
+  --duration-fast: 150ms;
+  --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
 }
 * {
   box-sizing: border-box;
@@ -23,8 +46,8 @@ body {
   margin: 0;
   background: var(--canvas);
   color: var(--text);
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-family: var(--font);
+  font-feature-settings: 'ss06';
   font-size: 1rem;
   line-height: 1.7;
   word-break: keep-all;
@@ -58,6 +81,18 @@ button:disabled {
   outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
+/* Headings/regions focused by script after a step change are not controls. */
+[tabindex='-1']:focus {
+  outline: none;
+}
+::selection {
+  background: var(--point-soft);
+  color: var(--text);
+}
+/* The deck's headline grammar: cocoa line, then the key phrase in pink. */
+.point {
+  color: var(--point);
+}
 h1,
 h2,
 h3,
@@ -72,15 +107,15 @@ h3 {
 }
 h1 {
   font-size: 3rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 h2 {
   font-size: 2rem;
-  font-weight: 650;
+  font-weight: 750;
 }
 h3 {
   font-size: 1.375rem;
-  font-weight: 600;
+  font-weight: 650;
 }
 p {
   color: var(--muted);
@@ -101,18 +136,36 @@ footer {
   gap: 24px;
 }
 .logo {
-  font-size: 1.75rem;
-  font-weight: 850;
-  letter-spacing: -0.07em;
+  font-size: 1.625rem;
   display: inline-flex;
   align-items: center;
-  gap: 13px;
   white-space: nowrap;
 }
-.brand-mark {
-  width: 38px;
-  height: 36px;
+.wordmark {
+  display: inline-flex;
+  align-items: flex-start;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  color: var(--text);
+}
+.wordmark-point {
+  color: var(--point);
+}
+.brand-mark,
+.wordmark-heart {
+  fill: var(--point);
   flex-shrink: 0;
+}
+.wordmark-heart {
+  width: 0.42em;
+  height: 0.42em;
+  margin: -0.2em 0 0 0.04em;
+  transform: rotate(12deg);
+}
+.brand-mark {
+  width: 44px;
+  height: 44px;
 }
 .header nav {
   display: flex;
@@ -128,6 +181,18 @@ footer {
 .header nav a:hover {
   text-decoration: underline;
   text-underline-offset: 5px;
+}
+.header nav .nav-cta {
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  background: var(--brand);
+  color: var(--on-brand);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.header nav .nav-cta:hover {
+  background: var(--hover);
+  text-decoration: none;
 }
 .skip {
   position: fixed;
@@ -158,20 +223,35 @@ footer {
   align-items: center;
   justify-content: center;
   padding: 13px 22px;
-  border: 1px solid transparent;
-  font-size: 0.9375rem;
-  font-weight: 600;
+  border: 1.5px solid transparent;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   transition:
-    background 120ms,
-    color 120ms;
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+.button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .button span[aria-hidden] {
-  font-size: 1.25rem;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-right: -8px;
+  border-radius: 50%;
+  font-size: 1.0625rem;
   line-height: 1;
 }
 .primary {
   background: var(--brand);
-  color: var(--canvas);
+  color: var(--on-brand);
+}
+.primary span[aria-hidden] {
+  background: var(--point);
+  color: var(--text);
 }
 .primary:hover:not(:disabled) {
   background: var(--hover);
@@ -179,7 +259,7 @@ footer {
 .secondary {
   background: transparent;
   color: var(--text);
-  border-color: var(--control);
+  border-color: var(--text);
 }
 .secondary:hover:not(:disabled) {
   background: var(--soft);
@@ -192,7 +272,7 @@ footer {
   display: none;
 }
 .eyebrow {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   margin-bottom: 18px;
 }
 footer {
@@ -204,7 +284,7 @@ footer {
   gap: 24px;
 }
 .footer-logo {
-  font-size: 1.3125rem;
+  font-size: 2rem;
 }
 footer p {
   font-size: 0.75rem;
@@ -274,11 +354,17 @@ footer small {
   font-size: 1.375rem;
 }
 .person legend span {
-  color: var(--muted);
-  font:
-    italic 1rem Georgia,
-    serif;
-  margin-right: 12px;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: var(--point-soft);
+  color: var(--point-text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  vertical-align: 0.15em;
 }
 .person > label:not(.check) {
   display: block;
@@ -375,10 +461,10 @@ input[type='checkbox'] {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   align-items: center;
-  border-top: 1px solid #66705e;
+  border-top: 1px solid var(--rule);
 }
 .result-axes > div:last-child {
-  border-bottom: 1px solid #66705e;
+  border-bottom: 1px solid var(--rule);
 }
 .result-axes dt {
   font-size: 0.8125rem;
@@ -402,12 +488,18 @@ input[type='checkbox'] {
   max-width: 42rem;
 }
 .result-section b {
-  font:
-    italic 0.875rem Georgia,
-    serif;
-  color: var(--muted);
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--point-soft);
+  color: var(--point-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   flex-shrink: 0;
-  margin-top: 7px;
+  margin-top: 1px;
 }
 .conversation {
   background: var(--soft);
@@ -520,7 +612,7 @@ dialog {
   overflow-y: auto;
 }
 dialog::backdrop {
-  background: #20282090;
+  background: rgb(32 40 32 / 0.56);
 }
 dialog h2 {
   font-size: 1.5rem;
@@ -738,7 +830,7 @@ dialog p {
   margin-bottom: 18px;
 }
 .matrix-heading h1 span {
-  font-weight: 350;
+  color: var(--point);
 }
 .matrix-heading > p:last-child {
   font-size: 0.9375rem;
@@ -755,17 +847,23 @@ dialog p {
 .matrix-image {
   position: relative;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--soft);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 250ms var(--ease-out),
+    box-shadow 250ms var(--ease-out);
 }
 .type-illustration {
   width: 100%;
   background-repeat: no-repeat;
-  border-radius: 10px;
+  border-radius: var(--radius);
 }
-.matrix-tile:hover .matrix-image {
-  outline: 2px solid var(--text);
-  outline-offset: 4px;
+@media (hover: hover) and (pointer: fine) {
+  .matrix-tile:hover .matrix-image {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
 }
 .matrix-tile:hover h2 {
   text-decoration: underline;
@@ -775,19 +873,21 @@ dialog p {
   position: absolute;
   bottom: 10px;
   right: 12px;
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  background: var(--canvas);
+  background: var(--point);
+  color: var(--text);
   text-align: center;
-  line-height: 26px;
+  line-height: 30px;
   font-size: 1rem;
+  font-weight: 700;
 }
 .matrix-tile h2 {
   font-size: 1.0625rem;
   text-align: center;
-  margin-top: 12px;
-  font-weight: 600;
+  margin-top: 14px;
+  font-weight: 700;
   letter-spacing: -0.035em;
 }
 .matrix-note {
@@ -819,6 +919,11 @@ dialog p {
 }
 .type-detail-image {
   width: 100%;
+}
+.type-detail-image .type-illustration,
+.result-type-art .type-illustration {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 .type-detail-intro h1 {
   margin-bottom: 14px;
@@ -917,7 +1022,7 @@ dialog p {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--brand);
+  background: var(--point);
 }
 .type-detail-steps {
   counter-reset: step;
@@ -934,11 +1039,11 @@ dialog p {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  border: 1px solid var(--brand);
-  color: var(--brand);
+  background: var(--point-soft);
+  color: var(--point-text);
   font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 24px;
+  font-weight: 700;
+  line-height: 26px;
   text-align: center;
 }
 .type-detail-chips {
@@ -947,8 +1052,9 @@ dialog p {
   gap: 10px;
 }
 .type-detail-chips li {
-  background: var(--soft);
-  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
   padding: 8px 16px;
   font-size: 0.9375rem;
 }
@@ -980,8 +1086,10 @@ dialog p {
   display: block;
   height: 100%;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px 18px;
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
 .type-detail-nearby a:hover {
   border-color: var(--text);
@@ -1150,20 +1258,21 @@ h3 {
   letter-spacing: -0.04em;
 }
 .header {
-  border-color: var(--border);
-  padding-block: 20px;
+  border-color: var(--rule);
+  padding-block: 18px;
 }
 .button {
-  border-radius: 12px;
-  gap: 20px;
+  border-radius: var(--radius-pill);
+  gap: 18px;
+  padding-inline: 28px;
 }
 .eyebrow {
   letter-spacing: 0;
-  color: var(--brand);
-  font-weight: 650;
+  color: var(--point-text);
+  font-weight: 700;
 }
 footer {
-  border-color: var(--border);
+  border-color: var(--rule);
 }
 .edition {
   font-family: inherit;
@@ -1176,8 +1285,9 @@ footer {
   padding: 64px 0;
 }
 .atlas-hero h1 {
-  font-size: clamp(2.5rem, 5vw, 4.25rem);
-  line-height: 1.2;
+  font-size: clamp(2.75rem, 5.6vw, 4.75rem);
+  line-height: 1.14;
+  letter-spacing: -0.055em;
 }
 .atlas-hero .lead {
   margin: 24px 0;
@@ -1196,6 +1306,22 @@ footer {
 }
 .atlas-shelf a {
   display: block;
+  transition: transform 250ms var(--ease-out);
+}
+.atlas-shelf .type-illustration {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.atlas-shelf a:nth-child(1) {
+  transform: rotate(-2.5deg);
+}
+.atlas-shelf a:nth-child(3) {
+  transform: rotate(2.5deg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .atlas-shelf a:hover {
+    transform: translateY(-6px) rotate(0);
+  }
 }
 .atlas-shelf a:nth-child(2) {
   margin-top: 64px;
@@ -1222,8 +1348,9 @@ footer {
   padding: 48px 0 32px;
 }
 .atlas-intro h2 {
-  font-size: 2rem;
-  line-height: 1.4;
+  font-size: 2.25rem;
+  line-height: 1.32;
+  letter-spacing: -0.05em;
 }
 .atlas-intro > div:last-child {
   align-self: center;
@@ -1242,7 +1369,8 @@ footer {
   margin-bottom: 12px;
 }
 .atlas-axes h3 {
-  font-size: 1.25rem;
+  font-size: 1.375rem;
+  font-weight: 750;
   margin-bottom: 8px;
 }
 .atlas-axes article > p:last-child {
@@ -1277,7 +1405,7 @@ footer {
 }
 .notice {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--soft);
   padding: 16px 20px;
   margin-bottom: 28px;
@@ -1352,7 +1480,7 @@ footer {
   min-height: 46px;
   padding: 8px 10px;
   border: 1px solid var(--control);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   font-size: 0.9375rem;
   text-align: center;
@@ -1380,8 +1508,14 @@ footer {
 input:not([type='checkbox']),
 select,
 textarea {
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   min-height: 50px;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+input:not([type='checkbox']):hover:not(:disabled),
+select:hover,
+textarea:hover {
+  border-color: var(--text);
 }
 .form-actions {
   display: flex;
@@ -1406,24 +1540,26 @@ textarea {
   font-size: 2.5rem;
   margin-bottom: 12px;
 }
+/* Result summary as a white deck card on cream. */
 .result-cover {
-  background: var(--soft);
+  background: var(--surface);
   color: var(--text);
-  border-radius: 16px;
-  padding: 28px;
-  gap: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 36px;
+  gap: 40px;
 }
 .result-cover .eyebrow {
-  color: var(--brand);
   margin-bottom: 16px;
 }
 .result-cover h2 {
-  font-size: 1.625rem;
-  line-height: 1.5;
+  font-size: 1.75rem;
+  line-height: 1.45;
 }
 .result-axes > div {
   border-color: var(--border);
-  padding: 12px 0;
+  padding: 14px 0;
 }
 .result-axes > div:last-child {
   border-color: var(--border);
@@ -1432,14 +1568,16 @@ textarea {
   color: var(--muted);
 }
 .result-axes dd {
-  font-size: 1rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
 }
 .result-section h2 {
   font-size: 1.5rem;
 }
 .conversation {
-  border-color: var(--brand);
-  border-radius: 0 12px 12px 0;
+  border-left-width: 4px;
+  border-color: var(--point);
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 .share-panel {
   border-color: var(--border);
@@ -1461,8 +1599,9 @@ textarea {
   border-color: var(--border);
 }
 .type-detail-reading blockquote {
-  border-color: var(--brand);
-  border-radius: 0 12px 12px 0;
+  border-left-width: 4px;
+  border-color: var(--point);
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 .manage-main h1,
 .empty h1 {
@@ -1472,7 +1611,8 @@ textarea {
   border-color: var(--border);
 }
 dialog {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
   border-color: var(--border);
 }
 @media (max-width: 800px) {
@@ -1673,7 +1813,6 @@ dialog {
   color: var(--muted);
 }
 .spicy {
-  --spicy: #b8322a;
   margin: 40px 0 8px;
   padding-top: 28px;
   border-top: 2px solid var(--spicy);
@@ -1693,7 +1832,7 @@ dialog {
 }
 .spicy-blur span {
   height: 116px;
-  background: linear-gradient(135deg, #f6d9cf, var(--soft));
+  background: linear-gradient(135deg, var(--spicy-soft), var(--soft));
 }
 .spicy-gate-actions {
   position: absolute;

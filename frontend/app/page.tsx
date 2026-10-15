@@ -12,7 +12,7 @@ export default function Home() {
           <h1>
             우리 둘은
             <br />
-            어떤 커플일까?
+            <span className="point">어떤 커플일까?</span>
           </h1>
           <p className="lead">
             함께라서 편한 순간, 서로 달라서 좋은 순간.
