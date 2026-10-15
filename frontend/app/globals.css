@@ -1151,6 +1151,13 @@ footer {
   max-width: 600px;
   margin: auto;
 }
+.atlas-form:has(.pair-form) {
+  max-width: 980px;
+}
+.atlas-form > .form-intro,
+.atlas-form > .notice {
+  max-width: 600px;
+}
 .form-intro {
   border: 0;
   margin-bottom: 0;
@@ -1169,56 +1176,100 @@ footer {
 .notice .text-button {
   padding-bottom: 0;
 }
-.form-steps {
-  display: flex;
-  list-style: none;
-  padding: 0;
-  margin: 32px 0;
-  gap: 12px;
+.pair-form > .small-note:first-child {
+  margin: 8px 0 20px;
 }
-.form-steps li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  font-size: 0.8125rem;
-  color: var(--muted);
+/* Two people side by side when there is room for both columns, stacked otherwise. */
+.people {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 24px 48px;
 }
-.form-steps span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.form-steps [aria-current='step'] {
-  color: var(--brand);
-  font-weight: 700;
-}
-.form-steps [aria-current='step'] span {
-  background: var(--brand);
-  color: var(--surface);
-  border-color: var(--brand);
-}
-.step-heading {
-  font-size: 1.5rem;
-  scroll-margin-top: 24px;
-  margin-bottom: 24px;
-}
+/* Editorial rows, not cards (DESIGN_SYSTEM: no rounded cards around ordinary sections). */
 .person {
   border: 0;
-  padding: 0;
+  border-top: 1px solid var(--text);
+  padding: 4px 0 8px;
 }
-.person legend {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+.person > legend {
+  float: left;
+  width: 100%;
+  padding: 18px 0 4px;
+  font-size: 1.25rem;
+}
+.person > legend + * {
+  clear: both;
+}
+.choice {
+  border: 0;
+  margin: 18px 0 0;
   padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
+  min-width: 0;
+}
+.choice > legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.choice > legend small {
+  font-weight: 600;
+  color: var(--brand);
+  margin-left: 8px;
+}
+.segmented {
+  display: flex;
+  gap: 6px;
+}
+.segmented + .segmented {
+  margin-top: 6px;
+}
+.segmented label {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.segmented input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.segmented span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid var(--control);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 0.9375rem;
+  text-align: center;
+  transition:
+    background 120ms,
+    color 120ms;
+}
+.segmented b {
+  font-weight: 700;
+}
+.segmented input:checked + span {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--canvas);
+}
+.segmented input:focus-visible + span {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .segmented input:not(:checked):hover + span {
+    background: var(--soft);
+  }
 }
 input:not([type='checkbox']),
 select,
@@ -1226,40 +1277,12 @@ textarea {
   border-radius: 8px;
   min-height: 50px;
 }
-.step-actions {
+.form-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 28px;
+  margin-top: 8px;
 }
-.step-actions .primary {
+.form-actions .primary {
   flex: 1;
-}
-.review-people section {
-  padding: 16px 0;
-  border-block-start: 1px solid var(--border);
-}
-.review-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.review-heading h3 {
-  font-size: 1.125rem;
-}
-.review-people dl {
-  margin: 0;
-}
-.review-people dl > div {
-  display: flex;
-  justify-content: space-between;
-  padding: 5px 0;
-  font-size: 0.9375rem;
-}
-.review-people dt {
-  color: var(--muted);
-}
-.review-people dd {
-  margin: 0;
 }
 .consent {
   border: 0;
@@ -1409,19 +1432,8 @@ dialog {
   .form-intro h1 {
     font-size: 1.875rem;
   }
-  .form-steps {
-    gap: 6px;
-  }
-  .form-steps li {
-    gap: 5px;
-    font-size: 0.75rem;
-  }
-  .form-steps span {
-    width: 22px;
-    height: 22px;
-  }
-  .step-actions .button {
-    padding-inline: 14px;
+  .segmented span {
+    padding-inline: 6px;
     font-size: 0.875rem;
   }
   .result-type-link {
