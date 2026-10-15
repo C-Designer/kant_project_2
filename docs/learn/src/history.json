@@ -54,7 +54,7 @@
           "title": "PR 전용 워크플로와 CI 필수 체크",
           "added": "main 직접 push를 막는 ruleset과 CI 필수 체크 3개(branch-name, ruff를 돌리는 backend-lint, typecheck·test·format·build를 돌리는 frontend)를 추가했습니다. pytest는 DB·ML 의존성 때문에 이때 CI에서 빠졌습니다.",
           "files": [".github/workflows/ci.yml", ".github/rulesets/main-protection.json", "CONTRIBUTING.md", ".github/pull_request_template.md"],
-          "stages": [],
+          "stages": ["cicd"],
           "kind": "infra"
         }
       ]
@@ -188,7 +188,7 @@
           "title": "Vercel 배포와 BERT·LangChain 서비스 연결",
           "added": "service.py가 Release BERT(compact-v5 입력)로 유형을 고르고 LangChainExplainer로 해설하도록 연결했고, deploy/vercel로 main 병합 시 자동 배포되게 했습니다. 해설 호출에는 strict JSON 스키마와 출력 2000토큰 상한을 걸고 LangSmith 추적을 껐습니다. 이미 있던 share_save_enabled를 기본 꺼짐으로 바꿔 꺼져 있으면 DB 연결과 저장·공유·삭제 API를 만들지 않게 하고 공유·관리 화면을 지웠으며, 분석은 실행 2건·입장 6건·30초 대기로 제한했습니다.",
           "files": ["backend/lovecode/service.py", "backend/lovecode/api.py", "deploy/vercel/main.py", "tests/test_langchain_web.py"],
-          "stages": ["start", "handler", "service", "chain", "prompt", "response", "tests"],
+          "stages": ["start", "handler", "service", "chain", "prompt", "response", "tests", "cicd", "instances"],
           "kind": "backend"
         },
         {
@@ -208,7 +208,7 @@
           "title": "BERT·해설 단계별 대기열 분리",
           "added": "concurrency.py의 StageLimit(FIFO, 공통 30초 기한)으로 BERT 2건·해설 5건을 따로 제한해, 해설을 기다리는 요청이 BERT 슬롯을 붙잡지 않게 했습니다. 인스턴스당 입장 한도는 6건에서 20건(analysis_capacity)으로 늘었고, 초과·만료는 429와 Retry-After로 돌려줍니다.",
           "files": ["backend/lovecode/concurrency.py", "backend/lovecode/service.py", "backend/lovecode/api.py", "tests/test_analysis_concurrency.py"],
-          "stages": ["start", "handler", "service", "tests"],
+          "stages": ["start", "handler", "service", "tests", "instances"],
           "kind": "backend"
         },
         {
@@ -314,7 +314,7 @@
           "title": "CI에 backend-test 추가",
           "added": "torch·CUDA 패키지만 빼고 설치해 pytest를 돌리는 backend-test job을 추가하고, ruleset 필수 체크를 4개로 늘렸습니다. Windows cp949 오류는 테스트 파일 4개에 encoding='utf-8'을 명시해 고쳤습니다.",
           "files": [".github/workflows/ci.yml", ".github/rulesets/main-protection.json", "tests/conftest.py", "CONTRIBUTING.md"],
-          "stages": [],
+          "stages": ["cicd"],
           "kind": "infra"
         },
         {
@@ -346,6 +346,16 @@
           "files": ["frontend/app/test/page.tsx", "frontend/components/PersonFields.tsx", "frontend/app/globals.css"],
           "stages": [],
           "kind": "frontend"
+        },
+        {
+          "pr": 30,
+          "commit": "095eefc",
+          "date": "2026-10-15",
+          "title": "학습 페이지 개편과 결과·입력 안내 상자 제거",
+          "added": "학습 페이지에 히스토리 탭과 공유 링크 단계를 더하고, 시뮬레이터 시나리오를 200/4xx/429/5xx 로 묶었으며, 좁은 화면에서 목차를 접고 탭·시나리오 줄을 가로 스크롤로 바꿨습니다. #28·#29 이후 코드에 맞춰 문장 속 줄 번호와 응답 모양도 고쳤습니다. 시뮬레이터는 실제 앱(TestClient)과 52가지 상황을 대조했습니다. 화면에서는 실제 분석 결과의 'AI 초안 · 사람 검수 미완료' 배너와 입력 화면의 예시 보기 상자를 없앴고, 예시·공유 결과 표시는 남겼습니다.",
+          "files": ["docs/learn/src/shell.html", "docs/learn/src/history.json", "docs/learn/src/parts/fastapi-share.html", "frontend/components/ResultView.tsx"],
+          "stages": [],
+          "kind": "docs"
         }
       ]
     }

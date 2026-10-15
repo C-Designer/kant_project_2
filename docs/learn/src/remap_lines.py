@@ -21,7 +21,7 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parent
 ROOT = SRC.parents[2]
 FILES = [*sorted((SRC / "parts").glob("*.html")), SRC / "shell.html"]
-REPO_PATH = r"(?:backend|tests|frontend|scripts|deploy|docs)/[\w./\[\]-]+?\.(?:py|ts|tsx|md|json|toml)"
+REPO_PATH = r"(?:backend|tests|frontend|scripts|deploy|docs|\.github)/[\w./\[\]-]+?\.(?:py|ts|tsx|md|json|toml|yml)"
 
 
 def line_map(rev, path):

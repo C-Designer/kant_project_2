@@ -1,0 +1,42 @@
+{
+  "infra-1-pipeline": {
+    "bullets": [
+      "GitHub 은 main 에 들어갈 것을, Vercel 은 main 에 들어온 것의 배포를 맡는다",
+      "PR → CI 4개 job → 룰셋 필수 체크 → 병합 → 두 Vercel 프로젝트가 각자 빌드",
+      "빌드가 성공해야 운영 주소가 바뀌지만, 실행 중 오류는 바뀐 뒤에 드러나 Instant Rollback 으로 되돌린다"
+    ],
+    "takeaway": "CI 는 PR 단계에서 main 을 지키고, Vercel 은 빌드가 성공한 경우에만 운영 주소를 옮기며, 그 뒤에 드러난 실행 오류는 Instant Rollback 으로 되돌립니다."
+  },
+  "infra-2-ci": {
+    "bullets": [
+      "PR·main push 에서 돌고, 같은 ref 의 진행 중 실행은 새 실행이 취소한다",
+      "lint 는 dev 그룹만, test 는 uv.lock 에서 뽑은 torch·CUDA 20개만 빼고 설치한다",
+      "frontend 는 npm ci 뒤 타입·테스트·서식·빌드를 차례로 검사한다"
+    ],
+    "takeaway": "ci.yml 은 lockfile 그대로 설치하되 무거운 torch·CUDA 는 빼고, 네 job 을 병렬로 돌려 30초 안팎에 끝나는 검사만 합니다."
+  },
+  "infra-2-deploy": {
+    "bullets": [
+      "화면(frontend)과 API(deploy/vercel)는 Root Directory 가 다른 별도 프로젝트다",
+      "브라우저는 같은 출처의 /api 만 부르고, 빌드 때 정해진 rewrite 가 API 로 넘긴다",
+      "API 빌드는 소스를 복사하고 고정 Release 모델을 해시로 확인한 뒤 네 파일만 푼다"
+    ],
+    "takeaway": "한 저장소를 Vercel 프로젝트 둘로 나눠 화면은 next build, API 는 소스 복사와 모델 검증을 거친 FastAPI 함수 하나로 배포합니다."
+  },
+  "infra-3-ci-design": {
+    "bullets": [
+      "PR 전용과 필수 체크를 함께 걸어 main 에 들어오는 변경마다 네 검사를 거치게 한다",
+      "strict 를 끄면 각자 옛 main 에서 통과한 두 PR 의 조합이 병합 뒤 main 실행에서야 처음 검사될 수 있다",
+      "최소 권한, env 로 넘기는 외부 입력, 테스트의 네트워크 차단으로 저장소 비밀 값 없이 읽기 전용 토큰만으로 돈다"
+    ],
+    "takeaway": "룰셋은 main 으로 가는 길을 PR 하나로 좁히고 CI 를 그 길에 세우며, 워크플로는 읽기 권한과 비밀 값 없는 테스트로 노출면을 줄입니다."
+  },
+  "infra-3-build": {
+    "bullets": [
+      "모델은 고정 URL·ZIP 해시·가중치 해시로 확인하고, 런타임에 한 번 더 확인한다",
+      "Root Directory 밖 소스는 설정이 켜져야 보이며, 꺼져 있으면 다운로드 전에 실패한다",
+      "환경변수는 새 배포에만, rewrite 는 새 빌드에만, settings() 는 새 프로세스에만 반영된다"
+    ],
+    "takeaway": "빌드는 코드에 고정한 해시로 외부 모델을 검증하고, 설정은 배포·빌드·프로세스 시점에 굳으므로 바꾼 뒤에는 다시 배포해야 합니다."
+  }
+}
