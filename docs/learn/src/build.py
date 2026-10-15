@@ -231,7 +231,7 @@ def check_history(data):
     import subprocess
 
     def git_ok(*args):
-        return subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True).returncode == 0
+        return subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, check=False).returncode == 0
 
     if not git_ok("cat-file", "-e", data["mvp"]["commit"] + "^{commit}"):
         problems.append(f"[history] unknown MVP commit {data['mvp']['commit']}")

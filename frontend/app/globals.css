@@ -1154,8 +1154,7 @@ footer {
 .atlas-form:has(.pair-form) {
   max-width: 980px;
 }
-.atlas-form > .form-intro,
-.atlas-form > .notice {
+.atlas-form > .form-intro {
   max-width: 600px;
 }
 .form-intro {
@@ -1172,9 +1171,6 @@ footer {
   background: var(--soft);
   padding: 16px 20px;
   margin-bottom: 28px;
-}
-.notice .text-button {
-  padding-bottom: 0;
 }
 .pair-form > .small-note:first-child {
   margin: 8px 0 20px;
@@ -1483,13 +1479,6 @@ dialog {
   border-top-color: var(--brand);
   border-radius: 50%;
   animation: loading-turn 1s linear infinite;
-}
-.loading-circle-small {
-  width: 16px;
-  height: 16px;
-  border-width: 2px;
-  margin-right: 8px;
-  vertical-align: middle;
 }
 .skeleton-shape {
   height: 16px;

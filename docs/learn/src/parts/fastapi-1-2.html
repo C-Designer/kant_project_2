@@ -627,7 +627,7 @@ class AnalysisResponse(Strict):
   <ol class="notes">
     <li data-line="153"><code>response_model=AnalysisResponse</code> 는 dict 반환값을 검증·직렬화할 모델이고, <code>response_model_exclude_none=True</code> 는 <code>None</code> 인 필드를 JSON 에서 빼라는 뜻입니다. 공유가 꺼져 있을 때 <code>share_code</code> 키가 응답에서 빠지는 것이 이 옵션 덕분입니다.</li>
     <li data-line="154">타입 힌트 <code>body: AnalysisInput</code> 한 줄이 "본문 바이트 → JSON → 모델" 변환을 FastAPI 에 맡기는 선언입니다. 함수 안에서는 이미 검증된 객체만 봅니다.</li>
-    <li data-line="155">설정과 모델이 준비되지 않았으면 503 입니다. 테스트 화면 <code>frontend/app/test/page.tsx:36-47</code> 은 <code>/api/v1/health</code> 의 <code>analysis_ready</code> 를 먼저 읽어, 거짓이면 안내 문구를 띄우고 제출 버튼을 비활성화하므로(182행), 이 503 은 그 선검사를 지나친 요청을 받는 뒷문입니다.</li>
+    <li data-line="155">설정과 모델이 준비되지 않았으면 503 입니다. 테스트 화면 <code>frontend/app/test/page.tsx:36-47</code> 은 <code>/api/v1/health</code> 의 <code>analysis_ready</code> 를 먼저 읽어, 거짓이면 제출 버튼을 비활성화하고(162행) 버튼 아래 안내를 '준비 중' 문구로 바꾸므로, 이 503 은 그 선검사를 지나친 요청을 받는 뒷문입니다.</li>
     <li data-line="161">동의 플래그는 <code>AnalysisInput</code> 에서 기본값 <code>False</code> 이므로, 생략하면 타입 검증은 통과하고 여기서 422 <code>CONSENT_REQUIRED</code> 로 걸립니다.</li>
     <li data-line="163"><code>busy()</code> 는 두 군데(입장 실패, 단계 대기 만료)에서 같은 429 와 <code>Retry-After: 5</code> 를 만들기 위한 지역 함수입니다.</li>
     <li data-line="171"><code>acquire(blocking=False)</code> 는 자리가 없으면 기다리지 않고 즉시 <code>False</code> 를 돌려줍니다. 대기열 대신 바로 429 로 돌려보내는 가장 단순한 백프레셔입니다.</li>
