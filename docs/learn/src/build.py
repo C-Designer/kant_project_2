@@ -13,7 +13,7 @@ from pathlib import Path
 
 TOUR = Path(__file__).resolve().parent
 ROOT = TOUR.parents[2]
-PARTS = ["fastapi-1-2", "fastapi-3ab", "fastapi-3cd", "langchain-1-2", "langchain-3ab", "langchain-3cd"]
+PARTS = ["fastapi-1-2", "fastapi-3ab", "fastapi-3cd", "fastapi-share", "langchain-1-2", "langchain-3ab", "langchain-3cd"]
 OUT = ROOT / "docs/learn/fastapi-langchain.html"
 
 KEYWORDS = {
@@ -217,6 +217,42 @@ def section_ids(text):
     return re.findall(r'<section class="lesson" id="([^"]+)"', text)
 
 
+def embed_json(data):
+    """JSON safe inside <script>: escaping every '<' rules out both '</script>' and '<!--' tricks."""
+    return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+
+
+STAGE_KEYS = set(re.findall(r"\{ key: '([\w-]+)'", (TOUR / "shell.html").read_text(encoding="utf-8")))
+KINDS = {"backend", "ml", "eval", "frontend", "infra", "docs"}
+
+
+def check_history(data):
+    """Every commit must exist, every stage key must be a journey stage, every file must exist at that commit."""
+    import subprocess
+
+    def git_ok(*args):
+        return subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, check=False).returncode == 0
+
+    if not git_ok("cat-file", "-e", data["mvp"]["commit"] + "^{commit}"):
+        problems.append(f"[history] unknown MVP commit {data['mvp']['commit']}")
+    if len(data["mvp"]["then"]) != len(data["mvp"]["now"]):
+        problems.append("[history] mvp.then and mvp.now differ in length")
+    for era in data["eras"]:
+        for it in era["items"]:
+            tag = f"[history] {it.get('pr') or it['commit']}"
+            for s in it["stages"]:
+                if s not in STAGE_KEYS:
+                    problems.append(f"{tag}: unknown stage {s}")
+            if it["kind"] not in KINDS:
+                problems.append(f"{tag}: unknown kind {it['kind']}")
+            if not git_ok("cat-file", "-e", it["commit"] + "^{commit}"):
+                problems.append(f"{tag}: unknown commit {it['commit']}")
+                continue
+            for f in it["files"]:
+                if not git_ok("cat-file", "-e", f"{it['commit']}:{f}"):
+                    problems.append(f"{tag}: {f} does not exist at {it['commit']}")
+
+
 def main():
     shell = (TOUR / "shell.html").read_text(encoding="utf-8")
     tracks = {"fastapi": [], "langchain": []}
@@ -244,10 +280,18 @@ def main():
     glossary = TOUR / "glossary.json"
     if glossary.exists():
         data = json.loads(glossary.read_text(encoding="utf-8"))
-        block = '<script type="application/json" id="glossary">' + json.dumps(data, ensure_ascii=False).replace("</", "<\\/") + "</script>"
+        block = '<script type="application/json" id="glossary">' + embed_json(data) + "</script>"
         out = out.replace("<script>\n(function () {", block + "\n<script>\n(function () {", 1)
     else:
         problems.append("glossary.json missing (tooltips disabled)")
+    history = TOUR / "history.json"
+    if history.exists():
+        data = json.loads(history.read_text(encoding="utf-8"))
+        check_history(data)
+        block = '<script type="application/json" id="history">' + embed_json(data) + "</script>"
+        out = out.replace("<script>\n(function () {", block + "\n<script>\n(function () {", 1)
+    else:
+        problems.append("history.json missing (history tab empty)")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(out, encoding="utf-8")
     print(f"wrote {OUT} ({len(out.encode('utf-8')) // 1024} KB, {len(seen)} sections)")

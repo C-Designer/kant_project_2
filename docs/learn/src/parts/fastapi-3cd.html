@@ -1,7 +1,7 @@
 <section class="lesson" id="fa-3-validation-flow" data-track="fastapi" data-depth="3">
   <h2>요청 본문이 AnalysisInput 이 되기까지</h2>
   <p class="lead"><code>def analyse(body: AnalysisInput)</code> 한 줄 뒤에서 FastAPI 는 바이트를 어떤 순서로 모델로 바꾸고, 실패했을 때 오류의 <code>loc</code> 은 어떤 모양으로 만들어집니까?</p>
-  <p><code>POST /api/v1/analyses</code> 의 본문은 세 단계를 거쳐 <code>AnalysisInput</code> 이 됩니다. 먼저 <code>boundary</code> 미들웨어(middleware)가 Content-Type 을 보고 본문을 청크 단위로 읽어 40,960 바이트를 넘으면 413 을 돌려주고, 통과하면 <code>request._body</code> 에 바이트를 저장합니다(api.py:60-70). 그다음 FastAPI 의 라우트 핸들러가 <code>request.body()</code> 로 그 바이트를 받아 <code>request.json()</code> 으로 dict 를 만들고, <code>solve_dependencies</code> 가 <code>request_body_to_args</code> 를 거쳐 <code>AnalysisInput</code> 필드의 <code>validate</code> 를 호출합니다. 마지막으로 pydantic 의 <code>TypeAdapter.validate_python</code> 이 dict 를 모델 인스턴스로 바꿉니다(fastapi/_compat/v2.py:173-188).</p>
+  <p><code>POST /api/v1/analyses</code> 의 본문은 세 단계를 거쳐 <code>AnalysisInput</code> 이 됩니다. 먼저 <code>boundary</code> 미들웨어(middleware)가 Content-Type 을 보고 본문을 청크 단위로 읽어 40,960 바이트를 넘으면 413 을 돌려주고, 통과하면 <code>request._body</code> 에 바이트를 저장합니다(api.py:63-73). 그다음 FastAPI 의 라우트 핸들러가 <code>request.body()</code> 로 그 바이트를 받아 <code>request.json()</code> 으로 dict 를 만들고, <code>solve_dependencies</code> 가 <code>request_body_to_args</code> 를 거쳐 <code>AnalysisInput</code> 필드의 <code>validate</code> 를 호출합니다. 마지막으로 pydantic 의 <code>TypeAdapter.validate_python</code> 이 dict 를 모델 인스턴스로 바꿉니다(fastapi/_compat/v2.py:173-188).</p>
 <code-block file=".venv/lib/python3.12/site-packages/fastapi/routing.py" lines="446-463">
                     body_bytes = await request.body()
                     if body_bytes:
@@ -29,7 +29,7 @@
     <li data-line="456">maintype 이 <code>application</code> 이고 subtype 이 <code>json</code> 또는 <code>+json</code> 일 때만 <code>request.json()</code> 을 호출합니다.</li>
     <li data-line="463">JSON 으로 해석되지 않으면 바이트를 그대로 넘기므로 모델 검증에서 422 가 납니다.</li>
   </ol>
-  <p>Content-Type 검사는 두 곳에서 일어나며 역할이 다릅니다. <code>boundary</code> 는 <code>application/json</code> 이 아니면 라우팅 전에 415 를 즉시 돌려주고(api.py:61-62), FastAPI 는 헤더의 maintype 이 <code>application</code> 이고 subtype 이 <code>json</code> 또는 <code>+json</code> 일 때만 <code>request.json()</code> 을 호출합니다. FastAPI 쪽 기본값 <code>strict_content_type=True</code>(fastapi/routing.py:399) 때문에 헤더가 없으면 JSON 으로 해석하지 않고 바이트 그대로 모델 검증에 넘겨 422 가 됩니다. 미들웨어에서 한 번 더 끊는 이유는 저장소에 적혀 있지 않습니다. 관찰할 수 있는 결과는 이 검사가 라우트와 무관하게 모든 POST 에 라우팅 전에 걸린다는 것과, FastAPI 0.143.0 생성자에는 본문 크기 제한 옵션이 없어 크기 검사와 같은 자리에 두는 것이 자연스럽다는 것까지입니다.</p>
+  <p>Content-Type 검사는 두 곳에서 일어나며 역할이 다릅니다. <code>boundary</code> 는 <code>application/json</code> 이 아니면 라우팅 전에 415 를 즉시 돌려주고(api.py:64-65), FastAPI 는 헤더의 maintype 이 <code>application</code> 이고 subtype 이 <code>json</code> 또는 <code>+json</code> 일 때만 <code>request.json()</code> 을 호출합니다. FastAPI 쪽 기본값 <code>strict_content_type=True</code>(fastapi/routing.py:399) 때문에 헤더가 없으면 JSON 으로 해석하지 않고 바이트 그대로 모델 검증에 넘겨 422 가 됩니다. 미들웨어에서 한 번 더 끊는 이유는 저장소에 적혀 있지 않습니다. 관찰할 수 있는 결과는 이 검사가 라우트와 무관하게 모든 POST 에 라우팅 전에 걸린다는 것과, FastAPI 0.143.0 생성자에는 본문 크기 제한 옵션이 없어 크기 검사와 같은 자리에 두는 것이 자연스럽다는 것까지입니다.</p>
   <p>검증이 실패하면 <code>RequestValidationError</code> 가 발생하고 <code>exc.errors()</code> 는 pydantic 오류 dict 의 목록입니다. 각 dict 의 <code>loc</code> 은 <code>("body", "person_a", "mbti")</code> 처럼 튜플이며, 첫 칸 <code>"body"</code> 는 FastAPI 가 붙이고(fastapi/dependencies/utils.py:976) 뒤쪽은 pydantic 이 만든 필드 경로입니다. JSON 자체가 깨졌을 때는 <code>("body", e.pos)</code> 처럼 둘째 칸이 문자 위치 숫자가 되며(fastapi/routing.py:469), 실제 앱에 <code>{</code> 만 보내면 422 와 <code>field: "1"</code> 이 돌아오는 것을 확인했습니다.</p>
 <code-block file=".venv/lib/python3.12/site-packages/fastapi/dependencies/utils.py" lines="975-980">
     if single_not_embedded_field:
@@ -153,7 +153,7 @@ def test_taxonomy_and_public_guards():
 <section class="lesson" id="fa-3-response-model" data-track="fastapi" data-depth="3">
   <h2>response_model 과 Response 직접 반환</h2>
   <p class="lead">엔드포인트가 dict 를 돌려줄 때와 <code>JSONResponse</code> 를 돌려줄 때 FastAPI 는 각각 무엇을 하고, 그래서 <code>error()</code> 응답이 <code>AnalysisResponse</code> 모양이 아니어도 되는 이유는 무엇입니까?</p>
-  <p><code>@app.post("/api/v1/analyses", response_model=AnalysisResponse, response_model_exclude_none=True)</code> 는 성공 응답의 계약입니다. <code>analysis_response()</code> 는 <code>{"analysis_id": ..., "result": result.model_dump()}</code> 라는 평범한 dict 를 돌려주고, FastAPI 가 이 dict 를 <code>AnalysisResponse</code> 로 다시 검증한 뒤 JSON 으로 직렬화합니다. <code>PublicResult</code> 는 이미 검증된 인스턴스지만 <code>model_dump()</code> 로 dict 가 된 뒤 한 번 더 검증되므로, 서비스가 실수로 다른 모양을 돌려주면 <code>ResponseValidationError</code> 가 발생합니다(fastapi/routing.py:331-335).</p>
+  <p><code>@app.post("/api/v1/analyses", response_model=AnalysisResponse, response_model_exclude_none=True)</code> 는 성공 응답의 계약입니다. <code>analysis_response()</code> 는 <code>{"analysis_id": ..., "result": result.model_dump()}</code> 라는 평범한 dict 를 돌려주고(공유가 켜진 실제 분석이면 <code>share_code</code> 키가 하나 더 붙습니다), FastAPI 가 이 dict 를 <code>AnalysisResponse</code> 로 다시 검증한 뒤 JSON 으로 직렬화합니다. <code>PublicResult</code> 는 이미 검증된 인스턴스지만 <code>model_dump()</code> 로 dict 가 된 뒤 한 번 더 검증되므로, 서비스가 실수로 다른 모양을 돌려주면 <code>ResponseValidationError</code> 가 발생합니다(fastapi/routing.py:331-335).</p>
 <code-block file="backend/lovecode/api.py" lines="147-162">
     def analysis_response(result, shareable=False):
         body = {"analysis_id": str(uuid.uuid4()), "result": result.model_dump()}
@@ -179,7 +179,7 @@ def test_taxonomy_and_public_guards():
     <li data-line="156"><code>error()</code> 는 <code>JSONResponse</code> 를 만들므로 <code>response_model</code> 검증을 거치지 않습니다.</li>
     <li data-line="162">동의가 없으면 서비스 호출 전에 422 로 끝납니다. 역시 <code>Response</code> 직접 반환입니다.</li>
   </ol>
-  <p>라우트 핸들러는 엔드포인트 반환값이 <code>Response</code> 인스턴스인지 먼저 봅니다(fastapi/routing.py:732). <code>error()</code> 가 만드는 <code>JSONResponse</code> 는 <code>Response</code> 의 하위 클래스라 이 분기로 들어가 <code>serialize_response</code> 를 건너뛰고 그대로 전송됩니다. 그래서 503, 422, 429 응답은 <code>{"error": {...}, "request_id": ...}</code> 모양이어도 <code>response_model</code> 과 충돌하지 않습니다. dict 를 돌려준 경우에만 <code>serialize_response</code> 가 호출되며 <code>exclude_none=response_model_exclude_none</code> 이 여기로 전달됩니다(fastapi/routing.py:749-761).</p>
+  <p>라우트 핸들러는 엔드포인트 반환값이 <code>Response</code> 인스턴스인지 먼저 봅니다(fastapi/routing.py:732). <code>error()</code> 가 만드는 <code>JSONResponse</code> 는 <code>Response</code> 의 하위 클래스라 이 분기로 들어가 <code>serialize_response</code> 를 건너뛰고 그대로 전송됩니다. 그래서 503, 422, 429, 502 응답은 <code>{"error": {...}, "request_id": ...}</code> 모양이어도 <code>response_model</code> 과 충돌하지 않습니다. dict 를 돌려준 경우에만 <code>serialize_response</code> 가 호출되며 <code>exclude_none=response_model_exclude_none</code> 이 여기로 전달됩니다(fastapi/routing.py:749-761).</p>
 <code-block file=".venv/lib/python3.12/site-packages/fastapi/routing.py" lines="727-766">
                 raw_response = await run_endpoint_function(
                     dependant=dependant,
@@ -230,7 +230,7 @@ def test_taxonomy_and_public_guards():
     <li data-line="758">동기 엔드포인트면 <code>is_coroutine=False</code> 가 넘어가 검증이 스레드풀에서 실행됩니다.</li>
     <li data-line="763">빠른 경로의 결과는 <code>JSONResponse</code> 가 아니라 <code>Response(media_type="application/json")</code> 입니다.</li>
   </ol>
-  <p><code>response_model_exclude_none=True</code> 는 검증을 통과한 값을 직렬화할 때 <code>None</code> 인 필드를 JSON 에서 빼라는 뜻입니다. 현재 <code>AnalysisResponse</code> 와 <code>PublicResult</code> 에는 <code>None</code> 이 될 수 있는 필드가 없어 지금은 실제로 빠지는 키가 없지만, 선택 필드가 추가되더라도 <code>null</code> 이 응답에 섞이지 않도록 미리 고정한 옵션입니다. <code>analyse</code> 가 동기 <code>def</code> 이므로 <code>serialize_response</code> 는 <code>is_coroutine=False</code> 를 받아 검증을 <code>run_in_threadpool</code> 로 돌립니다(fastapi/routing.py:323-328). 성공 응답은 기본 <code>response_class</code> 와 <code>response_model</code> 조합이라 <code>field.serialize_json</code> 빠른 경로로 pydantic-core 가 바로 JSON 바이트를 만들고 <code>Response(media_type="application/json")</code> 로 포장됩니다(fastapi/routing.py:745-747, 762-766).</p>
+  <p><code>response_model_exclude_none=True</code> 는 검증을 통과한 값을 직렬화할 때 <code>None</code> 인 필드를 JSON 에서 빼라는 뜻입니다. <code>AnalysisResponse.share_code</code> 는 <code>str | None = None</code> 이라 데모 응답이나 공유가 꺼진(<code>LC_SHARE_SECRET</code> 미설정) 실제 분석에서는 검증 뒤 <code>None</code> 이 되고, 이 옵션 덕분에 <code>"share_code": null</code> 대신 키 자체가 빠집니다. 그래서 그런 응답의 최상위 키는 <code>analysis_id</code>, <code>result</code> 두 개뿐입니다. <code>analyse</code> 가 동기 <code>def</code> 이므로 <code>serialize_response</code> 는 <code>is_coroutine=False</code> 를 받아 검증을 <code>run_in_threadpool</code> 로 돌립니다(fastapi/routing.py:323-328). 성공 응답은 기본 <code>response_class</code> 와 <code>response_model</code> 조합이라 <code>field.serialize_json</code> 빠른 경로로 pydantic-core 가 바로 JSON 바이트를 만들고 <code>Response(media_type="application/json")</code> 로 포장됩니다(fastapi/routing.py:745-747, 762-766).</p>
 <code-block file=".venv/lib/python3.12/site-packages/fastapi/routing.py" lines="322-347">
     if field:
         if is_coroutine:
@@ -266,8 +266,8 @@ def test_taxonomy_and_public_guards():
     <li data-line="336">빠른 경로면 <code>serialize_json</code>, 아니면 Python 객체를 돌려주는 <code>serialize</code> 를 씁니다.</li>
     <li data-line="344"><code>exclude_none</code> 이 pydantic 직렬화 옵션으로 그대로 전달됩니다.</li>
   </ol>
-  <aside class="principle"><h4>원리 노트: response_model 의 세 역할과 Response 직접 반환</h4><p><code>response_model</code> 은 응답 검증, 직렬화 필터(<code>include</code>/<code>exclude</code>/<code>exclude_none</code> 등), OpenAPI 응답 스키마 문서화의 세 역할을 합니다. 엔드포인트가 <code>Response</code> 인스턴스를 직접 돌려주면 FastAPI 0.143.0 은 앞의 두 역할을 건너뛰고 문서화만 남습니다(fastapi/routing.py:732-735). 따라서 OpenAPI 문서의 200 응답 스키마는 dict 를 돌려주는 경로만 설명하며, 오류 응답 모양은 문서에 자동으로 나타나지 않습니다.</p></aside>
-  <p>흔한 대안은 오류도 <code>HTTPException</code> 으로 던지고 FastAPI 기본 핸들러가 <code>{"detail": ...}</code> 을 만들게 두는 것입니다. 이 프로젝트는 모든 오류를 <code>error()</code> 한 함수로 만들어 <code>code</code>·<code>message</code>·<code>field</code>·<code>retryable</code>·<code>request_id</code> 를 가진 한 가지 모양으로 통일합니다. 프런트(frontend/lib/api.ts:30-30)는 <code>error.message</code> 만 읽어 사용자에게 보여 주고, <code>code</code>·<code>field</code>·<code>retryable</code> 은 현재 프런트 코드 어디에서도 읽지 않습니다. 성공 응답은 모델 검증을 받고 오류 응답은 받지 않는 비대칭은 <code>isinstance(raw_response, Response)</code> 분기 덕분에 추가 코드 없이 성립합니다.</p>
+  <aside class="principle"><h4>원리 노트: response_model 의 세 역할과 Response 직접 반환</h4><p><code>response_model</code> 은 응답 검증, 직렬화 필터(<code>include</code>/<code>exclude</code>/<code>exclude_none</code> 등), OpenAPI 응답 스키마 문서화의 세 역할을 합니다. 엔드포인트가 <code>Response</code> 인스턴스를 직접 돌려주면 FastAPI 0.143.0 은 앞의 두 역할을 건너뛰고 문서화만 남습니다(fastapi/routing.py:732-735). 따라서 OpenAPI 문서의 200 응답 스키마는 dict 를 돌려주는 경로만 설명하며, <code>error()</code> 의 오류 모양은 문서에 자동으로 나타나지 않습니다. FastAPI 가 본문·파라미터가 있는 라우트에 자동으로 붙이는 422 는 기본 핸들러의 <code>HTTPValidationError</code>(<code>{"detail": [...]}</code>) 모양이라 이 앱의 실제 422 와 다르고, <code>/api/v1/shared</code> 는 <code>responses=</code> 로 400·503 의 설명만 손으로 적어 둡니다.</p></aside>
+  <p>흔한 대안은 오류도 <code>HTTPException</code> 으로 던지고 FastAPI 기본 핸들러가 <code>{"detail": ...}</code> 을 만들게 두는 것입니다. 이 프로젝트는 모든 오류를 <code>error()</code> 한 함수로 만들어 <code>code</code>·<code>message</code>·<code>field</code>·<code>retryable</code>·<code>request_id</code> 를 가진 한 가지 모양으로 통일합니다. 프런트(frontend/lib/api.ts:31)는 <code>error.message</code> 만 읽어 사용자에게 보여 주고, <code>code</code>·<code>field</code>·<code>retryable</code> 은 현재 프런트 코드 어디에서도 읽지 않습니다. 성공 응답은 모델 검증을 받고 오류 응답은 받지 않는 비대칭은 <code>isinstance(raw_response, Response)</code> 분기 덕분에 추가 코드 없이 성립합니다.</p>
   <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="153">backend/lovecode/api.py:153</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="28">backend/lovecode/api.py:28</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="732">fastapi/routing.py:732</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="322">fastapi/routing.py:322</a></p>
 </section>
 
@@ -362,7 +362,7 @@ def test_taxonomy_and_public_guards():
 <section class="lesson" id="fa-3-tests-client" data-track="fastapi" data-depth="3">
   <h2>TestClient: 소켓 없이 앱을 부르는 테스트</h2>
   <p class="lead"><code>with TestClient(create_app()) as client</code> 한 줄은 실제로 무엇을 띄우고, 요청은 어떻게 네트워크 없이 앱에 닿으며, 왜 conftest 의 HTTP 차단 패치와 충돌하지 않습니까?</p>
-  <p><code>client</code> 픽스처(fixture)는 rate limit 을 끄고 <code>create_app()</code> 으로 새 앱을 만들어 <code>TestClient</code> 로 감쌉니다. <code>offline_api_boundary</code> 는 <code>autouse=True</code> 라 모든 테스트에 자동 적용되며, <code>api_enabled</code> 와 <code>real_analysis_enabled</code> 를 끄고 <code>httpx.HTTPTransport.handle_request</code> 를 <code>AssertionError</code> 를 던지는 함수로 바꿔 둡니다. <code>settings()</code> 가 <code>lru_cache</code> 로 같은 인스턴스를 돌려주므로 <code>monkeypatch.setattr(settings(), ...)</code> 가 앱 전체에 반영되고, 테스트가 끝나면 monkeypatch 가 원래 값으로 되돌립니다.</p>
+  <p><code>client</code> 픽스처(fixture)는 rate limit 을 끄고 <code>create_app()</code> 으로 새 앱을 만들어 <code>TestClient</code> 로 감쌉니다. <code>offline_api_boundary</code> 는 <code>autouse=True</code> 라 모든 테스트에 자동 적용되며, <code>api_enabled</code> 와 <code>real_analysis_enabled</code> 를 끄고 <code>share_secret</code> 을 비워 공유 서명도 끈 뒤 <code>httpx.HTTPTransport.handle_request</code> 를 <code>AssertionError</code> 를 던지는 함수로 바꿔 둡니다. <code>settings()</code> 가 <code>lru_cache</code> 로 같은 인스턴스를 돌려주므로 <code>monkeypatch.setattr(settings(), ...)</code> 가 앱 전체에 반영되고, 테스트가 끝나면 monkeypatch 가 원래 값으로 되돌립니다.</p>
 <code-block file="tests/conftest.py" lines="16-35">
 @pytest.fixture
 def client(monkeypatch):
@@ -390,6 +390,7 @@ def offline_api_boundary(monkeypatch):
     <li data-line="19"><code>with</code> 가 포털을 열고 lifespan 을 실행합니다. 테스트마다 새 앱이므로 세마포어·버킷이 공유되지 않습니다.</li>
     <li data-line="23">모든 테스트에 자동 적용됩니다. 실제 <code>.env</code> 키가 있어도 유료 호출이 나가지 않게 하는 안전장치입니다.</li>
     <li data-line="28"><code>ready()</code> 가 <code>False</code> 를 돌려주게 만들어 <code>/api/v1/analyses</code> 가 기본적으로 503 이 되게 합니다.</li>
+    <li data-line="30">서명 키를 비워 공유를 끕니다. 그래서 다른 테스트의 응답에는 <code>share_code</code> 가 없고, 공유 경로는 <code>tests/test_share.py</code> 가 <code>create_app(share_codec=...)</code> 로 따로 시험합니다.</li>
     <li data-line="35"><code>httpx</code> 모듈의 <code>HTTPTransport</code> 만 패치합니다. <code>TestClient</code> 가 쓰는 <code>httpx2</code> 와 <code>_TestClientTransport</code> 에는 닿지 않습니다.</li>
   </ol>
   <p>Starlette 1.7.0 의 <code>TestClient</code> 는 <code>httpx2.Client</code> 를 상속합니다. <code>starlette/testclient.py:32-44</code> 가 <code>httpx2</code> 를 먼저 import 하고 없을 때만 <code>httpx</code> 로 폴백하는데, 이 venv 에는 httpx2 2.13.1 이 설치돼 있어 실제 베이스는 <code>httpx2</code> 입니다(런타임 확인: <code>TestClient.__mro__[1]</code> 이 <code>httpx2.Client</code>). 요청은 생성자에서 끼운 <code>_TestClientTransport</code> 의 <code>handle_request</code> 로 가고, 이 메서드는 URL 과 헤더로 ASGI <code>scope</code> 를 직접 조립한 뒤 <code>portal.call(self.app, scope, receive, send)</code> 로 앱 함수를 호출합니다(testclient.py:223-262, 354-357). 소켓도 uvicorn 도 없이 ASGI 호출 규약만 재현하는 것입니다.</p>
@@ -433,8 +434,8 @@ def offline_api_boundary(monkeypatch):
     <li data-line="519"><code>with</code> 블록이 끝날 때 shutdown 을 기다리는 콜백입니다.</li>
   </ol>
   <aside class="principle"><h4>원리 노트: ASGI 는 함수 호출 규약이다</h4><p>ASGI 앱은 <code>await app(scope, receive, send)</code> 로 호출되는 함수이므로, 서버를 띄우지 않고 그 함수를 직접 부르면 그대로 테스트가 됩니다. <code>TestClient</code> 는 httpx 계열 클라이언트의 transport 를 바꿔치기해 이 호출을 수행하므로, 테스트 코드는 실제 HTTP 클라이언트와 같은 API(<code>client.post(json=...)</code>)를 씁니다. Starlette 1.7.0 은 <code>httpx2</code> 를 우선 사용하고 <code>httpx</code> 로의 폴백은 deprecation 경고를 냅니다(testclient.py:47-50).</p></aside>
-  <p><code>conftest.py:34</code> 의 패치는 두 가지 이유로 <code>TestClient</code> 를 막지 못합니다. 첫째, <code>_TestClientTransport</code> 는 <code>BaseTransport</code> 를 직접 상속해 <code>HTTPTransport.handle_request</code> 를 호출하지 않습니다. 둘째, 패치는 <code>httpx</code> 모듈의 클래스에 걸렸는데 <code>TestClient</code> 는 <code>httpx2</code> 모듈을 쓰므로 애초에 다른 객체입니다. 반대로 프로젝트의 <code>provider.py:5, 70-71</code> 은 <code>import httpx</code> 와 <code>httpx.Client(transport=self.transport)</code> 를 쓰므로, transport 를 주입하지 않은 채 실제 OpenAI 호출이 일어나면 이 패치가 <code>AssertionError</code> 로 잡습니다.</p>
-  <p>단, openai SDK 는 <code>httpx2</code> 를 import 하므로(openai/_base_client.py:37) langchain_openai 경로는 이 패치의 보호 범위 밖입니다. <code>tests/test_langchain_web.py</code> 는 <code>api_enabled=True</code> 로 이 경로를 실제로 타지만, <code>make_llm(..., http_client=httpx.Client(transport=httpx.MockTransport(...)))</code> 로 전송 계층을 직접 주입하므로 conftest 패치에 기대지 않습니다(openai SDK 는 레거시 <code>httpx.Client</code> 도 <code>http_client</code> 로 받습니다, openai/_base_client.py:994-1002; LangChain 상 lc-3-tests). <code>create_app(analysis_service=...)</code> 는 실제 <code>AnalysisService</code> 대신 가짜를 넣는 입구입니다. <code>tests/test_analysis.py</code> 의 <code>mock_provider()</code> 는 <code>httpx.MockTransport(handle)</code> 를 <code>OpenAIProvider</code> 에 주입해 OpenAI 응답을 흉내 내고, <code>test_analysis_concurrency.py:68</code> 은 <code>AnalysisService(classifier=..., explainer=...)</code> 로 단계 객체 자체를 바꿉니다. 생성자 주입을 쓰면 전역 패치 없이 테스트마다 독립된 앱을 만들 수 있고, 모듈 전역 <code>app = create_app()</code>(api.py:202) 은 uvicorn 용으로만 남습니다.</p>
+  <p><code>conftest.py:35</code> 의 패치는 두 가지 이유로 <code>TestClient</code> 를 막지 못합니다. 첫째, <code>_TestClientTransport</code> 는 <code>BaseTransport</code> 를 직접 상속해 <code>HTTPTransport.handle_request</code> 를 호출하지 않습니다. 둘째, 패치는 <code>httpx</code> 모듈의 클래스에 걸렸는데 <code>TestClient</code> 는 <code>httpx2</code> 모듈을 쓰므로 애초에 다른 객체입니다. 반대로 프로젝트의 <code>provider.py:5, 70-71</code> 은 <code>import httpx</code> 와 <code>httpx.Client(transport=self.transport)</code> 를 쓰므로, transport 를 주입하지 않은 채 실제 OpenAI 호출이 일어나면 이 패치가 <code>AssertionError</code> 로 잡습니다.</p>
+  <p>단, openai SDK 는 <code>httpx2</code> 를 import 하므로(openai/_base_client.py:37) langchain_openai 경로는 이 패치의 보호 범위 밖입니다. <code>tests/test_langchain_web.py</code> 는 <code>api_enabled=True</code> 로 이 경로를 실제로 타지만, <code>make_llm(..., http_client=httpx.Client(transport=httpx.MockTransport(...)))</code> 로 전송 계층을 직접 주입하므로 conftest 패치에 기대지 않습니다(openai SDK 는 레거시 <code>httpx.Client</code> 도 <code>http_client</code> 로 받습니다, openai/_base_client.py:994-1002; LangChain 상 lc-3-tests). <code>create_app(analysis_service=...)</code> 는 실제 <code>AnalysisService</code> 대신 가짜를 넣는 입구이고, <code>share_codec=</code> 도 같은 방식으로 받습니다. <code>tests/test_analysis.py</code> 의 <code>mock_provider()</code> 는 <code>httpx.MockTransport(handle)</code> 를 <code>OpenAIProvider</code> 에 주입해 OpenAI 응답을 흉내 내고, <code>test_analysis_concurrency.py:68</code> 은 <code>AnalysisService(classifier=..., explainer=...)</code> 로 단계 객체 자체를 바꿉니다. 생성자 주입을 쓰면 전역 패치 없이 테스트마다 독립된 앱을 만들 수 있고, 모듈 전역 <code>app = create_app()</code>(api.py:224) 은 uvicorn 용으로만 남습니다.</p>
 <code-block file="tests/test_analysis.py" lines="63-92">
 def mock_provider(type_id="T01", calls=None):
     def handle(r):
@@ -480,7 +481,7 @@ def test_all_types_analysis(live_config, type_id):
 <section class="lesson" id="fa-3-tests-contract" data-track="fastapi" data-depth="3">
   <h2>계약 테스트: test_api.py 와 test_stateless.py</h2>
   <p class="lead">40줄짜리 <code>test_api.py</code> 는 어떤 규칙을 지키게 하고, <code>test_stateless.py</code> 는 아무것도 저장하지 않는다는 약속을 어떻게 코드로 고정합니까?</p>
-  <p><code>test_invalid_requests_do_not_echo_or_persist</code> 는 한 함수에 다섯 가지 규칙을 담습니다. 정상 본문은 서비스가 꺼져 있어 503, <code>mbti</code> 에 카나리 문자열을 넣은 본문은 422 이며 응답 본문과 로그 어디에도 카나리가 없어야 합니다. 이 한 줄이 <code>invalid</code> 핸들러가 필드 경로만 돌려준다는 규칙(api.py:122)과 FastAPI 기본 핸들러를 쓰지 않는다는 결정을 동시에 지킵니다. 이어서 <code>Strict</code> 본문의 추가 필드 422(pydantic 의 <code>extra="forbid"</code> 검증, 라우트 안쪽), 42,000 바이트 본문 413, 허용 목록 밖 Origin 403 을 차례로 확인합니다. <code>boundary</code> 의 네 검사(Origin·Content-Type·본문 크기·레이트리밋) 중 크기와 Origin 은 여기서, Content-Type(415)은 <code>test_early_error_headers</code>, 레이트리밋(429)은 <code>test_rate_limit</code> 이 덮습니다.</p>
+  <p><code>test_invalid_requests_do_not_echo_or_persist</code> 는 한 함수에 다섯 가지 규칙을 담습니다. 정상 본문은 서비스가 꺼져 있어 503, <code>mbti</code> 에 카나리 문자열을 넣은 본문은 422 이며 응답 본문과 로그 어디에도 카나리가 없어야 합니다. 이 한 줄이 <code>invalid</code> 핸들러가 필드 경로만 돌려준다는 규칙(api.py:125)과 FastAPI 기본 핸들러를 쓰지 않는다는 결정을 동시에 지킵니다. 이어서 <code>Strict</code> 본문의 추가 필드 422(pydantic 의 <code>extra="forbid"</code> 검증, 라우트 안쪽), 42,000 바이트 본문 413, 허용 목록 밖 Origin 403 을 차례로 확인합니다. <code>boundary</code> 의 네 검사(Origin·Content-Type·본문 크기·레이트리밋) 중 크기와 Origin 은 여기서, Content-Type(415)은 <code>test_early_error_headers</code>, 레이트리밋(429)은 <code>test_rate_limit</code> 이 덮습니다.</p>
 <code-block file="tests/test_api.py" lines="1-21">
 def test_invalid_requests_do_not_echo_or_persist(client, caplog):
     canary = "PRIVATE_CANARY_BIRTH_1998_05_21"
@@ -512,7 +513,7 @@ def test_invalid_requests_do_not_echo_or_persist(client, caplog):
     <li data-line="12">42,000 바이트는 <code>boundary</code> 의 40,960 바이트 한도를 넘어 413 입니다. FastAPI 자체에는 크기 제한이 없습니다.</li>
     <li data-line="18">허용 목록(<code>allowed_origins</code>) 밖의 Origin 은 403 입니다. Origin 헤더가 없는 요청은 통과합니다.</li>
   </ol>
-  <p><code>test_rate_limit</code> 은 <code>client</code> 픽스처가 꺼 둔 rate limit 을 테스트 안에서 직접 켜고 데모 분석을 5번 성공시킨 뒤 6번째가 429 와 <code>Retry-After</code> 를 돌려주는지 봅니다. 데모 경로는 <code>demo-analysis</code> 로 끝나 <code>"analysis"</code> 그룹(10분에 5회)에 묶이므로 6번째가 막힙니다(api.py:79-89). 마지막 줄에서 다시 끄는 이유는 <code>settings()</code> 가 캐시된 단일 인스턴스라 그대로 두면 다음 테스트로 값이 새기 때문입니다.</p>
+  <p><code>test_rate_limit</code> 은 <code>client</code> 픽스처가 꺼 둔 rate limit 을 테스트 안에서 직접 켜고 데모 분석을 5번 성공시킨 뒤 6번째가 429 와 <code>Retry-After</code> 를 돌려주는지 봅니다. 데모 경로는 <code>demo-analysis</code> 로 끝나 <code>"analysis"</code> 그룹(10분에 5회)에 묶이므로 6번째가 막힙니다(api.py:82-92). 마지막 줄에서 다시 끄는 이유는 <code>settings()</code> 가 캐시된 단일 인스턴스라 그대로 두면 다음 테스트로 값이 새기 때문입니다.</p>
   <p><code>test_early_error_headers</code> 는 JSON 이 아닌 본문을 보냅니다. <code>boundary</code> 가 <code>call_next</code> 를 부르지 않고 415 를 바로 돌려주는데, 그 응답에도 <code>cache-control: no-store</code> 와 <code>referrer-policy: no-referrer</code> 가 붙어 있어야 합니다. 안쪽 미들웨어가 조기 반환한 응답도 바깥쪽 <code>response_headers</code> 에게는 <code>call_next</code> 의 반환값이므로 헤더가 붙습니다(상 단계 앞 절반의 미들웨어 양파 구조). 이 테스트는 모든 응답에 보안 헤더를 붙인다는 규칙이 오류 경로에서도 깨지지 않게 지킵니다.</p>
 <code-block file="tests/test_api.py" lines="24-40">
 def test_rate_limit(client):
@@ -540,7 +541,7 @@ def test_early_error_headers(client):
     <li data-line="37"><code>application/json</code> 이 아닌 본문이라 <code>boundary</code> 가 라우팅 전에 415 를 돌려줍니다.</li>
     <li data-line="39">조기 반환된 415 에도 바깥 미들웨어 <code>response_headers</code> 가 붙인 헤더가 있어야 합니다.</li>
   </ol>
-  <p><code>test_stateless_real_analysis_without_database</code> 는 실제 분석이 켜진 설정으로 가짜 provider 를 주입해 200 응답의 최상위 키가 정확히 <code>{"analysis_id", "result"}</code> 뿐임을 확인하고, 과거에 있던 <code>/api/v1/results</code> 계열 경로가 POST·GET·DELETE 모두 404 인지 확인합니다. 저장 기능을 지운 뒤 DB 없이 동작하고 저장 라우트가 없다는 상태를 테스트로 못 박은 것입니다. 공유 링크는 GET 하나뿐이며, 그 동작은 <code>tests/test_share.py</code> 가 따로 검증합니다. <code>test_openapi_has_only_current_routes_and_response_fields</code> 는 같은 약속을 OpenAPI 스키마 쪽에서 봅니다. 경로 집합과 <code>AnalysisResponse</code> 속성 집합을 정확히 비교하므로 라우트나 응답 필드를 추가하면 이 테스트가 먼저 알려 줍니다.</p>
+  <p><code>test_stateless_real_analysis_without_database</code> 는 실제 분석이 켜진 설정으로 가짜 provider 를 주입해 200 응답의 최상위 키가 정확히 <code>{"analysis_id", "result"}</code> 뿐임을 확인하고(conftest 가 <code>share_secret</code> 을 비워 두어 <code>share_code</code> 도 붙지 않습니다), 과거에 있던 <code>/api/v1/results</code> 계열 경로가 POST·GET·DELETE 모두 404 인지 확인합니다. 저장 기능을 지운 뒤 DB 없이 동작하고 저장 라우트가 없다는 상태를 테스트로 못 박은 것입니다. 공유 링크는 GET 하나뿐이며, 그 동작은 <code>tests/test_share.py</code> 가 따로 검증합니다. <code>test_openapi_has_only_current_routes_and_response_fields</code> 는 같은 약속을 OpenAPI 스키마 쪽에서 봅니다. 경로 집합과 <code>AnalysisResponse</code> 속성 집합을 정확히 비교하므로 라우트나 응답 필드를 추가하면 이 테스트가 먼저 알려 줍니다.</p>
 <code-block file="tests/test_stateless.py" lines="9-38">
 def test_stateless_real_analysis_without_database(monkeypatch):
     for key, value in {
@@ -637,7 +638,7 @@ class Explainer:
     <li data-line="58"><code>release</code> 가 set 될 때까지 멈춥니다. 5초 안에 풀리지 않으면 <code>assert</code> 가 실패해 테스트가 매달리지 않습니다.</li>
     <li data-line="59"><code>demo_result()</code> 는 유효한 <code>PublicResult</code> 라 응답 모델 검증을 통과합니다.</li>
   </ol>
-  <p><code>ThreadPoolExecutor(20)</code> 으로 <code>client.post</code> 를 20번 제출하면 20개 스레드가 각자 <code>portal.call</code> 로 앱을 부르고, 동기 엔드포인트 <code>analyse</code> 는 anyio 워커 스레드(기본 40개 한도)에서 돕니다. <code>all_called.wait(3)</code> 이 참이면 해설이 모두 멈춰 있는데도 분류 20건이 끝났다는 뜻이며, 이것이 BERT 슬롯은 해설을 기다리기 전에 반환한다(service.py:54-60)는 단계 분리의 증명입니다. 그 상태에서 보낸 21번째 요청은 <code>analysis_admission</code> 세마포어(기본 20)가 꽉 차 <code>acquire(blocking=False)</code> 가 즉시 <code>False</code> 를 돌려주므로 <code>ANALYSIS_BUSY</code> 429 와 <code>Retry-After: 5</code> 를 받습니다(api.py:164-165). <code>classifier.peak == 2</code> 와 <code>explainer.peak == 5</code> 는 <code>bert_concurrency</code> 와 <code>explanation_concurrency</code> 기본값이 실제 동시 실행 수를 제한했음을 보여 줍니다.</p>
+  <p><code>ThreadPoolExecutor(20)</code> 으로 <code>client.post</code> 를 20번 제출하면 20개 스레드가 각자 <code>portal.call</code> 로 앱을 부르고, 동기 엔드포인트 <code>analyse</code> 는 anyio 워커 스레드(기본 40개 한도)에서 돕니다. <code>all_called.wait(3)</code> 이 참이면 해설이 모두 멈춰 있는데도 분류 20건이 끝났다는 뜻이며, 이것이 BERT 슬롯은 해설을 기다리기 전에 반환한다(service.py:54-60)는 단계 분리의 증명입니다. 그 상태에서 보낸 21번째 요청은 <code>analysis_admission</code> 세마포어(기본 20)가 꽉 차 <code>acquire(blocking=False)</code> 가 즉시 <code>False</code> 를 돌려주므로 <code>ANALYSIS_BUSY</code> 429 와 <code>Retry-After: 5</code> 를 받습니다(api.py:171-172). <code>classifier.peak == 2</code> 와 <code>explainer.peak == 5</code> 는 <code>bert_concurrency</code> 와 <code>explanation_concurrency</code> 기본값이 실제 동시 실행 수를 제한했음을 보여 줍니다.</p>
   <p><code>finally: explainer.release.set()</code> 은 단언이 실패해도 멈춘 스레드를 풀어 테스트가 매달리지 않게 하는 장치입니다. 풀린 뒤 20건 모두 200 이고 추가 요청도 200 인 것은 단계 슬롯과 입장권이 모두 반환됐다는 뜻입니다. <code>Future.result()</code> 는 워커 스레드에서 난 예외를 메인 스레드로 다시 던지므로, 스레드 안의 실패가 조용히 묻히지 않습니다.</p>
 <code-block file="tests/test_analysis_concurrency.py" lines="65-87">
 def test_twenty_requests_release_bert_before_explanation_and_reject_overflow(monkeypatch):
@@ -764,7 +765,7 @@ def test_fifo_timeout_and_exception_release():
       "422 INVALID_REQUEST, field 는 \"\" — 본문이 None 으로 취급되어 missing 오류가 난다"
     ],
     "answer": 0,
-    "explain": "fastapi/routing.py:464-475 는 json.JSONDecodeError 를 잡아 type json_invalid, loc (\"body\", e.pos) 인 RequestValidationError 를 만듭니다. `{` 하나는 1바이트라 boundary 의 40,960 바이트 검사(api.py:67)를 통과해 request._body 에 담긴 뒤 request.json() 에서 pos=1 로 실패하고, api.py:122 가 \"body\" 를 제외한 조각 1 을 str 로 바꿔 field \"1\" 이 됩니다. 본문이 비어 있지 않으므로 missing 경로(field \"\")가 아닙니다.",
+    "explain": "fastapi/routing.py:464-475 는 json.JSONDecodeError 를 잡아 type json_invalid, loc (\"body\", e.pos) 인 RequestValidationError 를 만듭니다. `{` 하나는 1바이트라 boundary 의 40,960 바이트 검사(api.py:70)를 통과해 request._body 에 담긴 뒤 request.json() 에서 pos=1 로 실패하고, api.py:125 가 \"body\" 를 제외한 조각 1 을 str 로 바꿔 field \"1\" 이 됩니다. 본문이 비어 있지 않으므로 missing 경로(field \"\")가 아닙니다.",
     "ref": ".venv/lib/python3.12/site-packages/fastapi/routing.py:469"
   },
   {
@@ -776,7 +777,7 @@ def test_fifo_timeout_and_exception_release():
       "daily_analysis_limit 초과"
     ],
     "answer": 2,
-    "explain": "configure() 가 rate limit 을 끄고 daily limit 을 40 으로 올렸으며, StageLimit 은 즉시 던지지 않고 deadline 까지 FIFO 로 기다립니다. 20건이 모두 해설 단계에 멈춰 입장권 20개를 쥐고 있으므로 21번째는 api.py:164 에서 바로 busy() 가 됩니다.",
+    "explain": "configure() 가 rate limit 을 끄고 daily limit 을 40 으로 올렸으며, StageLimit 은 즉시 던지지 않고 deadline 까지 FIFO 로 기다립니다. 20건이 모두 해설 단계에 멈춰 입장권 20개를 쥐고 있으므로 21번째는 api.py:171 에서 바로 busy() 가 됩니다.",
     "ref": "backend/lovecode/api.py:171"
   }
 ]

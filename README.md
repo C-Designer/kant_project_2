@@ -107,7 +107,7 @@ Responses API에 `store=false`, 출력 상한 2,000토큰, 타임아웃 45초, �
 구성 참고: [LangChain ChatOpenAI](https://reference.langchain.com/python/langchain-openai/ChatOpenAI),
 [OpenAI Responses](https://developers.openai.com/api/docs/guides/migrate-to-responses).
 
-팀원용 [코드 구조와 읽는 순서](docs/CODE_GUIDE.md)를 참고하세요. 브랜치·PR 규칙은 [협업 규칙](CONTRIBUTING.md)을 따릅니다. `main`에는 PR로만 반영됩니다.
+팀원용 [코드 구조와 읽는 순서](docs/CODE_GUIDE.md)를 참고하세요. 그중 백엔드(FastAPI·LangChain) 경로를 실제 코드 발췌로 따라가는 [학습 페이지](docs/learn/fastapi-langchain.html)도 있습니다(배포 사이트 `/learn`). 브랜치·PR 규칙은 [협업 규칙](CONTRIBUTING.md)을 따릅니다. `main`에는 PR로만 반영됩니다.
 
 ## 검증
 

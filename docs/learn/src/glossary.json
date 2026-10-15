@@ -82,7 +82,7 @@
   {
     "term": "엔드포인트",
     "match": ["엔드포인트"],
-    "def": "HTTP 메서드와 경로 하나에 대응하는 핸들러 함수이며, 이 백엔드의 공개 엔드포인트는 health, taxonomy, analyses, demo-analysis 네 개입니다."
+    "def": "HTTP 메서드와 경로 하나에 대응하는 핸들러 함수이며, 이 백엔드의 공개 엔드포인트는 GET 셋(health, taxonomy, shared)과 POST 둘(analyses, demo-analysis)로 다섯 개입니다."
   },
   {
     "term": "lru_cache",
@@ -97,7 +97,7 @@
   {
     "term": "의존성 주입",
     "match": ["의존성 주입", "Depends"],
-    "def": "객체가 필요한 협력자를 직접 만들지 않고 밖에서 넘겨받는 방식이며, 이 프로젝트는 Depends 대신 create_app 인자로 서비스를 끼워 넣습니다."
+    "def": "객체가 필요한 협력자를 직접 만들지 않고 밖에서 넘겨받는 방식이며, 이 프로젝트는 Depends 대신 create_app 인자로 서비스와 공유 코덱을 끼워 넣습니다."
   },
   {
     "term": "OpenAPI",
@@ -212,7 +212,7 @@
   {
     "term": "BERT",
     "match": ["BERT"],
-    "def": "문장을 읽어 분류하는 트랜스포머 언어 모델이며, 이 프로젝트는 KLUE BERT 분류기가 16유형 중 type_id 를 정하고 LLM 은 해설만 씁니다."
+    "def": "문장을 읽어 분류하는 트랜스포머 언어 모델이며, 이 프로젝트는 local 모드(배포 설정)에서 KLUE BERT 분류기가 16유형 중 type_id 를 정하고 LLM 은 해설만 씁니다."
   },
   {
     "term": "컨텍스트 매니저",
@@ -223,5 +223,45 @@
     "term": "with_fallbacks",
     "match": ["with_fallbacks"],
     "def": "앞 Runnable 이 예외를 내면 대체 Runnable 을 실행하는 LangChain 메서드이며, include_raw=True 가 파싱 실패를 parsing_error 키로 바꾸는 데 씁니다."
+  },
+  {
+    "term": "HMAC",
+    "match": ["HMAC"],
+    "def": "비밀 키와 해시 함수(SHA-256 등)로 메시지 인증 코드를 만드는 방식이며, 키를 모르면 맞는 값을 만들 수 없어 위조는 막지만 내용을 숨기지는 않습니다."
+  },
+  {
+    "term": "base64url",
+    "match": ["base64url", "base64"],
+    "def": "바이트를 6비트씩 끊어 64가지 글자 중 하나로 적는 base64 의 URL 용 변형이며, +, / 대신 -, _ 를 써서 링크에 그대로 넣을 수 있고 share.py 는 끝의 = 패딩도 뺍니다."
+  },
+  {
+    "term": "raw deflate",
+    "match": ["raw deflate", "deflate"],
+    "def": "zlib·gzip 이 쓰는 deflate 압축에서 앞뒤 헤더와 체크섬을 뺀 순수 압축 스트림이며, zlib 에 wbits=-15 를 주면 이 형식으로 압축하고 풉니다."
+  },
+  {
+    "term": "URL fragment",
+    "match": ["fragment"],
+    "def": "URL 에서 # 뒤에 오는 부분으로 문서 안의 위치를 가리키며, 브라우저가 HTTP 요청에 넣지 않으므로 서버와 그 접근 로그에 전달되지 않습니다."
+  },
+  {
+    "term": "압축 폭탄",
+    "match": ["압축 폭탄"],
+    "def": "풀면 원래 크기보다 수백 배 이상 불어나도록 만든 압축 데이터이며, 메모리를 고갈시키는 공격에 쓰이므로 _inflate 처럼 풀어낼 크기에 상한을 둬서 막습니다."
+  },
+  {
+    "term": "도메인 분리",
+    "match": ["도메인 분리"],
+    "def": "같은 키로 여러 용도의 서명을 만들 때 용도별 고정 접두를 메시지 앞에 붙여 한 용도의 서명이 다른 용도에서 통하지 않게 하는 기법이며, share.py 는 lovecode-share.v1. 을 붙입니다."
+  },
+  {
+    "term": "할당 표현식",
+    "match": ["할당 표현식"],
+    "def": "파이썬 3.8 에 추가된 := 연산자로 변수에 값을 대입하면서 그 값을 식의 결과로도 돌려주는 문법이며, 모양 때문에 walrus(바다코끼리) 연산자라고도 부릅니다."
+  },
+  {
+    "term": "JWT",
+    "match": ["JWT"],
+    "def": "헤더·클레임·서명 세 조각을 base64url 로 적어 점으로 이은 서명 토큰 표준이며, HS256 은 그 서명을 HMAC-SHA256 으로 만드는 방식입니다."
   }
 ]

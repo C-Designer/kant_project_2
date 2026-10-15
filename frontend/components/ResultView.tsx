@@ -7,21 +7,22 @@ import { axisEntries } from '@/lib/relationship';
 import { formatDate } from '@/lib/share';
 export default function ResultView({ result, sharedAt }: { result: Result; sharedAt?: string }) {
   const relationshipType = types.find((type) => type.id === result.type_id);
+  const fixture = result.evidence_status === 'fixture';
   return (
     <div className="result-wrap">
-      <div className="notice">
-        <strong>
-          {sharedAt ? '공유받은 결과 · ' : ''}
-          {result.evidence_status === 'fixture'
-            ? '예시 결과 · 실제 분석 아님'
-            : 'AI 초안 · 사람 검수 미완료'}
-        </strong>
-        <p>
-          {result.evidence_status === 'fixture'
-            ? '결과 화면을 살펴보기 위한 고정 예시예요. 입력한 정보로 계산한 결과가 아니에요.'
-            : '개발·실험용 결과예요. 관계의 객관적인 평가가 아니에요.'}
-        </p>
-      </div>
+      {/* A real analysis needs no banner; label only fixed examples and links someone sent. */}
+      {(fixture || sharedAt) && (
+        <div className="notice">
+          <strong>
+            {[sharedAt && '공유받은 결과', fixture && '예시 결과 · 실제 분석 아님']
+              .filter(Boolean)
+              .join(' · ')}
+          </strong>
+          {fixture && (
+            <p>결과 화면을 살펴보기 위한 고정 예시예요. 입력한 정보로 계산한 결과가 아니에요.</p>
+          )}
+        </div>
+      )}
       <article className="result-card">
         {relationshipType && (
           <Link

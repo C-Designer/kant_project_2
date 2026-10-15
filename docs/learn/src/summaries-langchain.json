@@ -9,7 +9,7 @@
   },
   "lc-1-role": {
     "bullets": [
-      "KLUE BERT 분류기가 16유형 중 type_id 를 정한다",
+      "KLUE BERT 분류기(local 모드)가 16유형 중 type_id 를 정한다",
       "LLM 은 정해진 유형의 해설(요약·강점·조정·팁)만 쓴다",
       "explain 입력은 text·type_id·limitations"
     ],

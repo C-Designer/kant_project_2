@@ -27,7 +27,7 @@
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; font-family: var(--sans); color: var(--ink); background: var(--bg); line-height: 1.75; font-size: 16.5px; }
+body { margin: 0; font-family: var(--sans); color: var(--ink); background: var(--bg); line-height: 1.75; font-size: 16.5px; word-break: keep-all; overflow-wrap: break-word; }
 a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.25; margin: 0; letter-spacing: -0.005em; text-wrap: balance; }
 h1 { font-size: 26px; }
@@ -52,7 +52,7 @@ nav.tracks button { border: 0; background: transparent; color: var(--muted); pad
 nav.tracks button.active { color: var(--ink); border-bottom-color: var(--accent); }
 
 .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
-aside.side { position: sticky; top: 70px; align-self: start; height: calc(100dvh - 70px); overflow: auto; padding: 32px 20px 32px 40px; font-size: 14px; }
+aside.side { position: sticky; top: calc(var(--hdr-h, 70px) + var(--step-h, 0px)); align-self: start; height: calc(100dvh - var(--hdr-h, 70px) - var(--step-h, 0px)); overflow: auto; padding: 32px 20px 32px 40px; font-size: 14px; }
 aside.side.hidden { display: none; }
 .depths { display: grid; gap: 0; margin-bottom: 28px; border-top: 1px solid var(--line-strong); }
 .depths button { border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted); padding: 10px 0; display: grid; grid-template-columns: 40px 1fr; align-items: baseline; text-align: left; }
@@ -77,7 +77,7 @@ main { padding: 40px 48px 120px; min-width: 0; counter-reset: lesson; }
 .depth-head h2 { font-size: 34px; font-weight: 500; }
 .depth-head p { margin: 8px 0 0; color: var(--muted); font-size: 15px; max-width: 60ch; }
 
-section.lesson { display: none; padding: 40px 0 44px; border-top: 1px solid var(--line); scroll-margin-top: 80px; position: relative; }
+section.lesson { display: none; padding: 40px 0 44px; border-top: 1px solid var(--line); scroll-margin-top: calc(var(--hdr-h, 70px) + var(--step-h, 0px) + 12px); position: relative; }
 section.lesson.show { display: block; }
 section.lesson.show::before { counter-increment: lesson; content: counter(lesson, decimal-leading-zero); display: block; font-family: var(--serif); font-size: 44px; line-height: 1; color: var(--accent); opacity: .85; margin-bottom: 14px; }
 section.lesson p.lead { color: var(--muted); font-size: 15.5px; margin-bottom: 22px; font-style: italic; }
@@ -90,7 +90,7 @@ pre.ascii { font-family: var(--mono); font-size: 12.5px; background: var(--code-
 
 figure.code { margin: 20px 0 10px; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line); background: var(--code-bg); }
 figure.code figcaption { display: flex; align-items: baseline; gap: 14px; padding: 8px 14px; font-size: 12px; font-family: var(--mono); color: var(--muted); border-bottom: 1px dashed var(--line); }
-figure.code figcaption .path { color: var(--ink); }
+figure.code figcaption .path { color: var(--ink); overflow-wrap: anywhere; min-width: 0; }
 figure.code figcaption .lib { font-size: 11px; color: var(--amber); font-family: var(--sans); }
 figure.code figcaption a.open { margin-left: auto; font-family: var(--sans); }
 figure.code pre { margin: 0; padding: 10px 0; overflow: auto; font-family: var(--mono); font-size: 12.8px; line-height: 1.6; }
@@ -112,8 +112,8 @@ pre.broken { background: var(--red-bg); color: var(--red); padding: 10px; }
 .quiz { margin-top: 44px; padding: 28px 0 0; border-top: 3px double var(--line-strong); }
 .quiz h2 { font-size: 26px; }
 .quiz .q { margin: 26px 0 8px; font-weight: 600; font-family: var(--serif); font-size: 18px; max-width: 70ch; }
-.quiz .opts { display: grid; gap: 0; margin-bottom: 10px; max-width: 70ch; border-top: 1px solid var(--line); }
-.quiz .opts label { display: flex; gap: 12px; align-items: flex-start; padding: 10px 6px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 15.5px; }
+.quiz .opts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin-bottom: 10px; max-width: 70ch; border-top: 1px solid var(--line); }
+.quiz .opts label { overflow-wrap: anywhere; min-width: 0; display: flex; gap: 12px; align-items: flex-start; padding: 10px 6px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 15.5px; }
 .quiz .opts label.correct { background: var(--green-bg); }
 .quiz .opts label.wrong { background: var(--red-bg); }
 .quiz .opts input { margin-top: 6px; accent-color: var(--accent); }
@@ -142,54 +142,140 @@ pre.broken { background: var(--red-bg); color: var(--red); padding: 10px; }
 .flow div.fa b { color: var(--accent); } .flow div.lc b { color: var(--teal); }
 .legend { display: grid; gap: 10px; margin: 10px 0 24px; font-size: 15px; max-width: 70ch; }
 
-.sim { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 36px; align-items: start; }
-.sim form { display: grid; gap: 18px; position: sticky; top: 86px; }
-.sim fieldset { border: 0; border-top: 1px solid var(--line-strong); padding: 10px 0 6px; margin: 0; }
-.sim legend { font-weight: 600; font-size: 11.5px; color: var(--muted); padding: 0 8px 0 0; text-transform: uppercase; letter-spacing: .08em; }
-.sim .field { display: grid; gap: 3px; margin: 8px 0; font-size: 14px; }
-.sim .field label { font-weight: 600; font-size: 13.5px; }
-.sim .field select, .sim .field input[type=range] { width: 100%; font-family: inherit; font-size: 14px; }
-.sim .field select { padding: 6px 8px; border-radius: 2px; border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink); }
-.sim .field input[type=range] { accent-color: var(--accent); }
-.sim .field .val { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.sim .field .help { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
-.sim .presets { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 6px; }
-.sim .presets button { border: 0; background: transparent; color: var(--accent); padding: 2px 0; font-size: 13.5px; text-decoration: underline; text-underline-offset: 3px; }
-.trace { display: grid; gap: 0; border-top: 1px solid var(--line-strong); }
-.step { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+/* ---------- simulator ---------- */
+.layout.wide main { max-width: 1180px; }
+.sim { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "scen ctl" "result ctl"; gap: 0 40px; align-items: start; }
+.sim-scen { grid-area: scen; min-width: 0; }
+.sim-result { grid-area: result; min-width: 0; }
+.scen { border-top: 1px solid var(--line-strong); margin: 4px 0 26px; }
+.scen-row { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.scen-row .g { font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.4; }
+.scen-row .g b { display: block; font-size: 14px; font-weight: 700; }
+.scen-row.ok .g b { color: var(--green); } .scen-row.c4 .g b { color: var(--amber); } .scen-row.c429 .g b { color: var(--accent); } .scen-row.c5 .g b { color: var(--red); }
+.scen-row .opts { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.scen-row button { border: 0; border-bottom: 1px solid transparent; background: transparent; color: var(--ink); padding: 3px 6px; font-size: 14px; border-radius: 2px; }
+.scen-row button:hover { border-bottom-color: var(--accent); }
+.scen-row button[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.scen-now { font-size: 14px; color: var(--muted); margin: -12px 0 22px; min-height: 1.6em; }
+.scen-now b { color: var(--ink); font-weight: 600; }
+
+.pipe { list-style: none; margin: 0; padding: 18px 0 8px; scroll-margin-top: calc(var(--hdr-h, 70px) + 8px); display: flex; align-items: flex-start; overflow-x: auto; scrollbar-width: thin; }
+.pipe li { flex: 1 1 0; min-width: 76px; position: relative; text-align: center; padding: 0 4px; }
+.pipe li::before { content: ""; position: absolute; top: 11px; left: -50%; width: 100%; height: 2px; background: var(--line-strong); }
+.pipe li:first-child::before { display: none; }
+.pipe li.pass::before, .pipe li.reject::before, .pipe li.skip::before, .pipe li.end::before { background: var(--ink); }
+.pipe li.dim::before { background: repeating-linear-gradient(90deg, var(--line-strong) 0 4px, transparent 4px 8px); }
+.pipe button { position: relative; z-index: 1; border: 0; background: transparent; color: var(--muted); padding: 0; display: grid; justify-items: center; gap: 6px; width: 100%; font-size: 12.5px; line-height: 1.3; }
+.pipe .dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line-strong); background: var(--bg); display: grid; place-items: center; font-size: 12px; font-weight: 700; font-family: var(--mono); }
+.pipe li.pass .dot { border-color: var(--green); background: var(--green); color: var(--bg); }
+.pipe li.skip .dot { border-color: var(--muted); border-style: dashed; }
+.pipe li.reject .dot { border-color: var(--red); background: var(--red); color: var(--bg); }
+.pipe li.reject button { color: var(--red); font-weight: 600; }
+.pipe li.pass button, .pipe li.skip button { color: var(--ink); }
+.pipe li.dim .dot { border-style: dotted; }
+.pipe li.end .dot { width: auto; min-width: 46px; padding: 0 8px; border-radius: 2px; border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.pipe li.end.fail .dot { border-color: var(--red); background: var(--red); }
+.pipe li.end.ok .dot { border-color: var(--green); background: var(--green); }
+
+.verdict { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 18px; align-items: baseline; padding: 16px 0 18px; margin: 10px 0 0; border-top: 3px double var(--line-strong); border-bottom: 1px solid var(--line-strong); }
+.verdict .code { font-family: var(--serif); font-size: 44px; line-height: 1; grid-row: span 2; }
+.verdict.ok .code { color: var(--green); } .verdict.fail .code { color: var(--red); }
+.verdict .what { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+.verdict .where { font-size: 14.5px; color: var(--muted); }
+.verdict .where a { margin-left: 4px; }
+.verdict .where .r { font-family: var(--mono); font-size: 12.5px; }
+
+.trace-tools { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0 6px; font-size: 13px; color: var(--muted); }
+.trace-tools button { border: 0; background: transparent; color: var(--accent); padding: 0; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+.trace { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.step { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 140px; }
 .step .chip { font-size: 11.5px; font-weight: 700; padding: 2px 0; text-transform: uppercase; letter-spacing: .06em; align-self: start; font-family: var(--mono); }
 .step.pass .chip { color: var(--green); }
 .step.reject .chip { color: var(--red); }
 .step.skip .chip { color: var(--muted); }
 .step.info .chip { color: var(--accent); }
-.step.skip { opacity: .65; }
-.step .t { font-weight: 600; font-size: 15.5px; font-family: var(--serif); }
-.step .d { font-size: 14.5px; color: var(--muted); margin-top: 3px; max-width: 68ch; }
-.step .r { font-size: 12.5px; font-family: var(--mono); margin-top: 5px; }
-.resp { margin-top: 24px; border-top: 3px double var(--line-strong); }
-.resp .status { padding: 12px 0; font-weight: 600; font-family: var(--mono); font-size: 15px; }
-.resp.ok .status { color: var(--green); }
-.resp.fail .status { color: var(--red); }
-.resp pre { margin: 0; padding: 12px 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; background: var(--code-bg); overflow: auto; }
-.resp .hdr { padding: 8px 0; font-family: var(--mono); font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+.step.skip { opacity: .7; }
+.step .t { font-weight: 600; font-size: 15px; font-family: var(--serif); }
+.step .d { font-size: 14px; color: var(--muted); margin-top: 3px; max-width: 70ch; }
+.step .r { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; font-family: var(--mono); margin-top: 5px; }
+.step .r a.learn { font-family: var(--sans); }
+.trace.folded .step.passed { display: none; }
+.step.reject { background: var(--red-bg); box-shadow: inset 3px 0 0 var(--red); padding-left: 10px; padding-right: 10px; }
+.step.reject .d { color: var(--ink); }
+.step.flash { animation: flash 900ms ease-out; }
+@keyframes flash { from { background: var(--code-mark); } }
+.resp { margin-top: 24px; }
+.resp h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+.resp pre { margin: 0; padding: 12px 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; background: var(--code-bg); overflow: auto; border-top: 1px solid var(--line-strong); }
+.resp .hdr { padding: 8px 0; font-family: var(--mono); font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .sim-note { font-size: 13.5px; color: var(--muted); margin: 12px 0 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.sim-ctl { grid-area: ctl; position: sticky; top: calc(var(--hdr-h, 70px) + 16px); max-height: calc(100dvh - var(--hdr-h, 70px) - 32px); overflow: auto; padding: 0 6px 20px 0; scrollbar-width: thin; }
+.sim-ctl-head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line-strong); }
+.sim-ctl-head h3 { margin: 0; font-size: 18px; }
+.sim-ctl-head .n { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.sim-ctl-head button { margin-left: auto; border: 0; background: transparent; color: var(--accent); padding: 0; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+.sim-ctl-toggle { display: none; }
+.sim-ctl fieldset { border: 0; padding: 10px 0 4px; margin: 0; border-bottom: 1px solid var(--line); }
+.sim-ctl fieldset[hidden] { display: none; }
+.sim-ctl legend { font-weight: 600; font-size: 11.5px; color: var(--muted); padding: 6px 0 0; text-transform: uppercase; letter-spacing: .08em; float: left; width: 100%; }
+.sim-ctl .field { display: grid; gap: 2px; margin: 8px 0; font-size: 14px; clear: both; }
+.sim-ctl .field[hidden] { display: none; }
+.sim-ctl .field label { font-weight: 600; font-size: 13px; display: flex; align-items: baseline; gap: 6px; }
+.sim-ctl .field.changed label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; transform: translateY(-1px); }
+.sim-ctl .field select, .sim-ctl .field input[type=range] { width: 100%; font-family: inherit; font-size: 13.5px; }
+.sim-ctl .field select { padding: 5px 6px; border-radius: 2px; border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink); }
+.sim-ctl .field.changed select { border-color: var(--accent); }
+.sim-ctl .field input[type=range] { accent-color: var(--accent); }
+.sim-ctl .field .val { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.sim-ctl .field .help { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.sim-ctl .ctl-note { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
+
+/* ---------- history ---------- */
+.hist h2 { font-size: 34px; font-weight: 500; }
+.thennow { width: 100%; margin: 6px 0 34px; }
+.thennow th:first-child, .thennow td:first-child { width: 50%; }
+.thennow td { font-size: 14.5px; }
+.thennow td:first-child { color: var(--muted); }
+.thennow th small { font-family: var(--mono); font-weight: 400; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.hist-filter { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; padding: 10px 0; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line); margin-bottom: 8px; position: sticky; top: var(--hdr-h, 70px); background: var(--bg); z-index: 5; }
+.hist-filter span { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-right: 8px; }
+.hist-filter button { border: 0; background: transparent; color: var(--ink); padding: 3px 8px; font-size: 14px; border-radius: 2px; }
+.hist-filter button[aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.hist-filter .cnt { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.era { padding: 30px 0 10px; }
+.era-head { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; margin-bottom: 10px; }
+.era-head .no { font-family: var(--serif); font-size: 44px; line-height: 1; color: var(--accent); opacity: .85; }
+.era-head h3 { margin: 4px 0 2px; font-size: 24px; }
+.era-head .dates { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.era-head p { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+.prs { list-style: none; margin: 0 0 0 31px; padding: 0 0 0 0; border-left: 1px solid var(--line-strong); max-width: none; }
+.prs li { position: relative; display: grid; grid-template-columns: 82px minmax(0, 1fr); min-width: 0; gap: 14px; padding: 14px 0 14px 18px; margin: 0; border-bottom: 1px solid var(--line); }
+.prs li:last-child { border-bottom: 0; }
+.prs li::before { content: ""; position: absolute; left: -5px; top: 21px; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--line-strong); background: var(--bg); }
+.prs li.linked::before { background: var(--accent); border-color: var(--accent); }
+.prs li[hidden] { display: none; }
+.prs .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.5; }
+.prs .meta a { font-size: 14px; font-weight: 600; display: block; }
+.prs .meta .c { font-style: normal; color: var(--muted); }
+.prs h4 { font-family: var(--serif); font-size: 17px; margin: 0 0 4px; }
+.prs h4 .kind { font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-left: 8px; }
+.prs p { font-size: 14.5px; margin: 0 0 6px; }
+.prs .files { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.prs .files a { color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
+.prs .to { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 13.5px; margin-top: 6px; }
+.prs .to a::before { content: "→ "; }
+.hist-empty { color: var(--muted); font-size: 14px; padding: 10px 0 0 49px; }
 .next-step { margin-top: 32px; text-align: right; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; font-size: 13.5px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
 .toast.show { opacity: 1; }
 
-@media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; }
-  aside.side { position: static; height: auto; padding: 20px 24px; border-bottom: 1px solid var(--line-strong); }
-  main { padding: 24px 24px 80px; }
-  header.top { padding: 12px 24px; }
-  .sim { grid-template-columns: 1fr; }
-  .sim form { position: static; }
-}
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition-duration: 0.01ms !important; } }
 
 /* ---------- journey layout additions ---------- */
 .lead-text { color: var(--muted); font-size: 15.5px; max-width: 64ch; margin-bottom: 20px; }
-.stepper-wrap { position: sticky; top: 70px; z-index: 15; background: var(--bg); border-bottom: 1px solid var(--line); }
+.stepper-wrap { position: sticky; top: var(--hdr-h, 70px); z-index: 15; background: var(--bg); border-bottom: 1px solid var(--line); }
 .stepper-wrap.hidden { display: none; }
 ol.stepper { list-style: none; margin: 0 auto; padding: 0 40px; max-width: 1180px; display: flex; overflow-x: auto; scrollbar-width: none; }
 ol.stepper::-webkit-scrollbar { display: none; }
@@ -280,17 +366,93 @@ figure.code .line.hit { cursor: pointer; }
 .quiz-sets button.active { background: var(--accent-bg); }
 .quiz-sets button.done .s { color: var(--green); }
 #view-quiz .quiz { margin-top: 0; border-top: 0; padding-top: 0; }
-.step .r { display: flex; gap: 16px; flex-wrap: wrap; }
-.step .r a.learn { font-family: var(--sans); font-size: 12.5px; }
 
-@media (max-width: 900px) {
-  .stepper-wrap { top: 0; }
-  ol.stepper { padding: 0 12px; }
-  .stage-head h2 { font-size: 28px; }
-  .walk-note { grid-template-columns: auto 1fr; }
-  .walk-note .ln-ref { grid-column: 2; }
+.toc-toggle { display: none; }
+
+/* ---------- narrow screens ---------- */
+@media (max-width: 1100px) {
+  .sim { grid-template-columns: minmax(0, 1fr); grid-template-areas: "scen" "ctl" "result"; gap: 0; }
+  .sim-ctl { position: static; max-height: none; overflow: visible; padding: 0; margin: 0 0 22px; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); }
+  .sim-ctl-head { border-bottom: 0; padding: 0; }
+  .sim-ctl-toggle { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; color: var(--ink); padding: 12px 0; text-align: left; font-size: 15px; }
+  .sim-ctl-toggle .chev { width: 8px; height: 8px; border-right: 1.5px solid var(--accent); border-bottom: 1.5px solid var(--accent); transform: rotate(-45deg); transition: transform 150ms cubic-bezier(0.25, 1, 0.5, 1); flex: none; }
+  .sim-ctl.open .sim-ctl-toggle .chev { transform: rotate(45deg); }
+  .sim-ctl-toggle .dl { font-family: var(--serif); font-size: 17px; }
+  .sim-ctl-toggle .n { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .sim-ctl-head h3, .sim-ctl-head .n { display: none; }
+  .sim-ctl-head button { margin: 0 0 0 auto; }
+  .sim-ctl-body { display: none; padding-bottom: 12px; }
+  .sim-ctl.open .sim-ctl-body { display: block; }
+  .sim-ctl-body .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0 24px; }
+  .sim-ctl fieldset { break-inside: avoid; }
 }
-
+@media (max-width: 900px) {
+  body { font-size: 16px; }
+  header.top { padding: 10px 16px 0; gap: 4px 16px; }
+  header .brand h1 { font-size: 18px; }
+  header .brand p { display: none; }
+  nav.tracks { margin-left: 0; width: 100%; gap: 20px; overflow-x: auto; scrollbar-width: none; }
+  nav.tracks::-webkit-scrollbar { display: none; }
+  nav.tracks button { white-space: nowrap; padding: 6px 0 8px; }
+  .layout { grid-template-columns: 1fr; }
+  ol.stepper { padding: 0 8px; }
+  ol.stepper li { flex: none; }
+  ol.stepper li button { padding: 8px 10px 7px 6px; font-size: 12.5px; }
+  aside.side { position: static; height: auto; padding: 10px 16px; border-bottom: 1px solid var(--line-strong); overflow: visible; }
+  .side-stage { margin: 0; padding: 0; border: 0; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 10px; }
+  .side-stage strong { font-size: 16px; }
+  .toc-toggle { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--accent); padding: 4px 0; font-size: 13.5px; }
+  .toc-toggle .chev { width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform 150ms cubic-bezier(0.25, 1, 0.5, 1); }
+  aside.side.open .toc-toggle .chev { transform: rotate(-135deg) translateY(-1px); }
+  aside.side ol.toc, aside.side .side-note { display: none; }
+  aside.side.open ol.toc { display: block; margin-top: 10px; }
+  main { padding: 22px 16px 80px; }
+  .layout.full main { padding: 22px 16px 80px; }
+  h2 { font-size: 24px; }
+  .map h2, .hist h2, .depth-head h2 { font-size: 28px; }
+  .stage-head h2 { font-size: 26px; }
+  .stage-head .intro { font-size: 15.5px; }
+  section.lesson { padding: 28px 0 32px; }
+  section.lesson.show::before { font-size: 34px; margin-bottom: 10px; }
+  figure.code .ln { width: 38px; padding-right: 8px; }
+  figure.code pre { font-size: 12px; }
+  figure.code figcaption { flex-wrap: wrap; gap: 4px 10px; }
+  .walk-note { grid-template-columns: auto 1fr; padding: 10px 12px; font-size: 14.5px; }
+  .walk-note .ln-ref { grid-column: 2; }
+  .walk-bar { flex-wrap: wrap; }
+  .stage-nav { flex-wrap: wrap; }
+  .stage-nav .btn { white-space: normal; text-align: left; }
+  .map-stages li { grid-template-columns: 40px 1fr; gap: 10px; }
+  .map-stages li .n { font-size: 26px; }
+  table { display: block; overflow-x: auto; }
+  .scen-row { grid-template-columns: 44px minmax(0, 1fr); gap: 8px; padding: 6px 0; align-items: center; }
+  .scen-row .g span { display: none; }
+  .scen-row .opts { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -16px; padding-right: 16px; }
+  .scen-row .opts::-webkit-scrollbar { display: none; }
+  .scen-row button { white-space: nowrap; flex: none; }
+  .verdict .code { font-size: 34px; }
+  .pipe li { min-width: 0; padding: 0 1px; }
+  .pipe button { font-size: 11.5px; gap: 4px; }
+  .pipe .dot { width: 22px; height: 22px; }
+  .pipe li::before { top: 10px; }
+  .pipe li.end .dot { min-width: 38px; padding: 0 4px; }
+  .step { grid-template-columns: 1fr; gap: 2px; }
+  .hist-filter { top: var(--hdr-h, 70px); }
+  .era-head { grid-template-columns: 44px minmax(0, 1fr); gap: 10px; }
+  .era-head .no { font-size: 32px; }
+  .era-head h3 { font-size: 20px; }
+  .prs { margin-left: 21px; }
+  .prs li { grid-template-columns: minmax(0, 1fr); gap: 2px; padding-left: 16px; }
+  .prs .meta { display: flex; gap: 10px; align-items: baseline; }
+  .prs .meta a { display: inline; }
+  .thennow, .thennow tbody, .thennow tr, .thennow td { display: block; width: 100% !important; }
+  .thennow thead { display: none; }
+  .thennow tr { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .thennow td { border: 0; padding: 2px 0; font-size: 14px; }
+  .thennow td::before { display: block; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .thennow td:first-child::before { content: "MVP"; }
+  .thennow td:last-child::before { content: "지금"; color: var(--accent); }
+}
 </style>
 </head>
 <body>
@@ -302,6 +464,7 @@ figure.code .line.hit { cursor: pointer; }
   <nav class="tracks" role="tablist" aria-label="보기">
     <button data-track="map">지도</button>
     <button data-track="journey">요청 여정</button>
+    <button data-track="history">히스토리</button>
     <button data-track="quiz">개념 체크</button>
     <button data-track="sim">시뮬레이터</button>
   </nav>
@@ -319,13 +482,13 @@ figure.code .line.hit { cursor: pointer; }
   <main>
     <div id="view-map" class="view map">
       <h2>지도</h2>
-      <p class="lead-text">이 페이지는 러브코드 백엔드의 실제 코드를 교재로 씁니다. 요청 한 건이 서버를 지나는 순서대로 9단계를 따라가며, 각 단계에서 먼저 한눈에 보고 필요하면 파일 단위, 원리 단위로 더 깊이 내려갑니다.</p>
+      <p class="lead-text">이 페이지는 러브코드 백엔드의 실제 코드를 교재로 씁니다. 요청 한 건이 서버를 지나는 순서대로 10단계를 따라가며, 각 단계의 관문과 소개를 먼저 보고 필요하면 파일 단위, 원리 단위로 더 깊이 내려갑니다.</p>
       <ol class="map-stages" id="mapStages"></ol>
       <h3>읽는 법</h3>
       <div class="legend">
         <div><b>이 섹션에서 알 것</b>: 각 섹션 머리의 세 줄. 이것만 읽어도 무엇을 배우는지 알 수 있습니다. 끝의 "한 줄 정리"는 면접에서 그대로 말할 수 있는 문장입니다.</div>
-        <div><b>한 줄씩 따라가기</b>: 코드 블록 아래 "다음 줄"을 누르면 실행 순서대로 줄이 강조되고 설명이 옆에 붙습니다. 키보드 ←/→ 도 됩니다.</div>
-        <div><b>더 깊이</b>: 단계마다 "파일 따라가기", "원리 파고들기"가 접혀 있습니다. 한눈에 보기만 읽고 다음 단계로 넘어가도 전체 흐름이 이어집니다.</div>
+        <div><b>한 줄씩 따라가기</b>: 코드 블록 아래 "다음 줄"을 누르면 실행 순서대로 줄이 강조되고 설명이 바로 아래 붙습니다. 키보드 ←/→ 도 됩니다.</div>
+        <div><b>더 깊이</b>: "한눈에" 섹션이 있는 단계(시작, 해설 체인: 구조, 공유 링크)는 "파일 따라가기", "원리 파고들기"가 모두 접혀 있고, 나머지 단계는 가장 얕은 묶음(대개 "파일 따라가기", 테스트 단계는 "원리 파고들기")이 펼쳐진 채 시작합니다. 단계 머리의 관문과 소개만 읽고 다음 단계로 넘어가도 전체 흐름이 이어집니다.</div>
         <div><b>용어</b>: 점선 밑줄이 있는 용어에 마우스를 올리거나 탭하면 한 문장 정의가 뜹니다.</div>
         <div><b>개념 체크</b>: 트랙·깊이별 퀴즈 6세트. 단계 끝의 "관련 퀴즈"에서 바로 갈 수 있습니다.</div>
       </div>
@@ -344,15 +507,36 @@ figure.code .line.hit { cursor: pointer; }
       <div class="quiz-host" id="quizHost"></div>
     </div>
 
+    <div id="view-history" class="view hist">
+      <h2>히스토리</h2>
+      <p class="lead-text">이 코드는 처음부터 지금 모양이 아니었습니다. 첫 MVP 에서 시작해 PR(초기 두 건은 직접 커밋)이 하나씩 무엇을 더하고 바꿨는지 시기별로 보여줍니다. 채워진 점이 찍힌 PR 은 요청 여정의 해당 단계에서 그 결과를 배울 수 있습니다.</p>
+      <div id="histBody"></div>
+    </div>
+
     <div id="view-sim" class="view">
       <h2>요청 시뮬레이터</h2>
-      <p class="lead-text">조건을 바꾸면 api.py 와 service.py 의 분기를 그대로 따라가며 어느 줄에서 멈추는지 보여줍니다. 각 관문의 "이 단계 배우기"를 누르면 여정의 해당 단계로 갑니다.</p>
+      <p class="lead-text">시나리오를 고르면 api.py, service.py, share.py 의 분기를 그대로 따라가며 요청이 어느 관문에서 멈추는지 보여줍니다. "직접 조절" 에서 조건을 하나씩 바꿔 볼 수도 있습니다.</p>
       <div class="sim">
-        <form id="simForm" onsubmit="return false"></form>
-        <div>
+        <div class="sim-scen">
+          <div class="scen" id="scen" role="group" aria-label="시나리오"></div>
+          <p class="scen-now" id="scenNow" aria-live="polite"></p>
+        </div>
+        <aside class="sim-ctl" id="simCtl" aria-label="직접 조절">
+          <button type="button" class="sim-ctl-toggle" id="simCtlToggle" aria-expanded="false" aria-controls="simCtlBody"><span class="chev" aria-hidden="true"></span><span class="dl">직접 조절</span><span class="n" id="simCtlCount"></span></button>
+          <div class="sim-ctl-body" id="simCtlBody">
+            <div class="sim-ctl-head"><h3>직접 조절</h3><span class="n" id="simCtlCount2"></span><button type="button" id="simReset">처음 상태로</button></div>
+            <form id="simForm" onsubmit="return false"><div class="fields" id="simFields"></div></form>
+            <p class="ctl-note">점이 찍힌 항목이 기본값과 다른 조건입니다. 지금 요청 경로에 쓰이지 않거나 다른 조건 때문에 결과에 영향이 없는 조건은 숨깁니다.</p>
+          </div>
+        </aside>
+        <div class="sim-result">
+          <p class="sr-only" id="simStatus" role="status"></p>
+          <ol class="pipe" id="pipe" aria-label="관문 진행"></ol>
+          <div id="verdict"></div>
+          <div class="trace-tools"><span id="traceCount"></span><button type="button" id="traceFold"></button></div>
           <div class="trace" id="trace"></div>
           <div id="resp"></div>
-          <p class="sim-note">응답 헤더 네 개는 response_headers 미들웨어가 모든 응답에 붙입니다(api.py 106~113줄). 429 응답에는 Retry-After 가 추가됩니다.</p>
+          <p class="sim-note">보안 헤더 네 개는 response_headers 미들웨어가 boundary 의 조기 거절까지 포함한 응답에 붙입니다(api.py 112~115줄). 처리되지 않은 예외로 생긴 500 에는 붙지 않습니다. 429 중 Retry-After 는 RATE_LIMITED(api.py 104줄)와 ANALYSIS_BUSY(168줄)에만 붙고, DAILY_LIMIT 에는 없습니다.</p>
         </div>
       </div>
     </div>
@@ -374,7 +558,7 @@ figure.code .line.hit { cursor: pointer; }
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
   const STAGES = [
-    { key: 'start', title: '시작: 앱과 요청', gate: '프런트 fetch → uvicorn → FastAPI 앱', intro: 'FastAPI 앱이 무엇으로 이뤄져 있고 요청이 어떤 모양으로 들어오는지 봅니다. create_app 팩토리, 네 개의 엔드포인트, 설정값이 여기서 정해집니다.', sections: ['fa-1-what', 'fa-1-app', 'fa-1-routes', 'fa-1-request', 'fa-2-settings', 'fa-3-asgi', 'fa-3-openapi'], quiz: ['fastapi-1'] },
+    { key: 'start', title: '시작: 앱과 요청', gate: '프런트 fetch → uvicorn → FastAPI 앱', intro: 'FastAPI 앱이 무엇으로 이뤄져 있고 요청이 어떤 모양으로 들어오는지 봅니다. create_app 팩토리, 다섯 개의 엔드포인트, 설정값이 여기서 정해집니다.', sections: ['fa-1-what', 'fa-1-app', 'fa-1-routes', 'fa-1-request', 'fa-2-settings', 'fa-3-asgi', 'fa-3-openapi'], quiz: ['fastapi-1'] },
     { key: 'middleware', title: '미들웨어', gate: 'response_headers → boundary', intro: '라우터에 닿기 전에 모든 요청이 지나는 두 겹입니다. 바깥 겹은 응답에 보안 헤더를 붙이고, 안쪽 겹은 Origin, Content-Type, 본문 40 KB, IP 버킷을 검사해 통과하지 못한 요청을 바로 돌려보냅니다.', sections: ['fa-2-middleware', 'fa-3-middleware-order', 'fa-3-body'], quiz: ['fastapi-2', 'fastapi-3'] },
     { key: 'validation', title: '검증', gate: 'Pydantic AnalysisInput → 422', intro: '본문 JSON 이 계약(contracts.py)에 맞는지 FastAPI 가 Pydantic 으로 검사합니다. 틀리면 커스텀 핸들러가 어느 필드가 문제인지 담아 422 를 돌려줍니다.', sections: ['fa-2-contracts', 'fa-3-validation-flow', 'fa-3-strict', 'fa-3-exception'], quiz: ['fastapi-2', 'fastapi-3'] },
     { key: 'handler', title: '핸들러', gate: 'analyse(): 준비 → 동의 → 입장 → 예산', intro: '검증을 통과한 요청이 analyse 함수에 도착합니다. 분석 준비 여부, 동의, 동시 처리 20건, 하루 20건을 차례로 확인하고, 서비스가 던지는 예외를 상태 코드로 바꿉니다.', sections: ['fa-2-handlers', 'fa-3-sync', 'fa-3-limits-map'], quiz: ['fastapi-2', 'fastapi-3'] },
@@ -382,7 +566,8 @@ figure.code .line.hit { cursor: pointer; }
     { key: 'chain', title: '해설 체인: 구조', gate: 'LangChain: 초안 → 검사 → 1회 재작성 → PublicResult', intro: 'LangChain 이 무엇이고 이 프로젝트에서 어떤 일을 맡는지, 체인이 어떤 단계로 이어지는지 봅니다. 분류기가 정한 유형을 받아 해설만 쓰는 역할 분담이 핵심입니다.', sections: ['lc-1-what', 'lc-1-role', 'lc-1-chain-overview', 'lc-1-llm', 'lc-2-steps', 'lc-2-finalize', 'lc-3-runnable', 'lc-3-sequence-invoke', 'lc-3-lambda-branch', 'lc-3-assign'], quiz: ['langchain-1', 'langchain-2', 'langchain-3'] },
     { key: 'prompt', title: '해설 체인: 프롬프트와 출력', gate: 'ChatPromptTemplate | with_structured_output(Explanation)', intro: '모델에게 무엇을 어떻게 시키는지, 답을 어떤 스키마로 강제하는지, 규칙 검사와 재작성이 어떻게 맞물리는지, OpenAI 와 Ollama 를 어떻게 바꿔 끼우는지 봅니다.', sections: ['lc-2-prompts', 'lc-2-schema', 'lc-2-call', 'lc-2-provider', 'lc-3-structured', 'lc-3-failure-modes', 'lc-3-prompt-design', 'lc-3-repair-loop', 'lc-3-checks', 'lc-3-provider-swap', 'lc-3-ops'], quiz: ['langchain-2', 'langchain-3'] },
     { key: 'response', title: '응답', gate: 'PublicResult → response_model 직렬화 → 보안 헤더', intro: '결과 dict 가 AnalysisResponse 로 검증되어 JSON 이 되고, 오류일 때는 항상 같은 모양의 error 객체가 나갑니다.', sections: ['fa-2-errors', 'fa-3-response-model'], quiz: ['fastapi-2', 'fastapi-3'] },
-    { key: 'tests', title: '테스트', gate: 'TestClient + 모의 HTTP', intro: '위 모든 단계를 네트워크 없이 검증하는 방법입니다. TestClient 가 앱을 직접 호출하고, 외부 API 는 모의 전송으로 격리합니다.', sections: ['fa-3-tests-client', 'fa-3-tests-contract', 'fa-3-tests-concurrency', 'lc-3-tests'], quiz: ['fastapi-3', 'langchain-3'] },
+    { key: 'share', title: '공유 링크', gate: 'share_code → /r#코드 → X-Share-Code → GET /shared', intro: '분석 결과를 저장하지 않고 공유하는 방법입니다. 결과를 압축하고 HMAC 으로 서명해 링크 자체에 담고, 링크를 열 때 서명을 확인한 뒤 출력 규칙을 다시 검사해 돌려줍니다.', sections: ['fa-1-share', 'fa-2-share', 'fa-3-share'], quiz: ['fastapi-2', 'fastapi-3'] },
+    { key: 'tests', title: '테스트', gate: 'TestClient + 모의 HTTP', intro: '위 모든 단계를 네트워크 없이 검증하는 방법입니다. TestClient 가 앱을 직접 호출하고, 외부 API 는 모의 전송으로 격리합니다.', sections: ['fa-3-tests-client', 'fa-3-tests-contract', 'fa-3-tests-concurrency', 'fa-3-tests-share', 'lc-3-tests'], quiz: ['fastapi-3', 'langchain-3'] },
   ];
   const DEPTH_LABEL = { 1: '한눈에', 2: '파일 따라가기', 3: '원리 파고들기' };
   const QUIZ_SETS = [
@@ -396,15 +581,18 @@ figure.code .line.hit { cursor: pointer; }
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800); }
   const stageOf = (key) => STAGES.find(s => s.key === key) || STAGES[0];
   const stageIndex = (key) => STAGES.findIndex(s => s.key === key);
+  // Older saved state may name a stage or quiz set that no longer exists.
+  if (stageIndex(state.stage) < 0) state.stage = STAGES[0].key;
+  if (!QUIZ_SETS.some(q => q[0] === state.quizSet)) state.quizSet = QUIZ_SETS[0][0];
 
   // ---------- hash routing ----------
   function readHash() {
-    const m = location.hash.match(/^#(map|journey|quiz|sim)(?:\/([\w-]+))?(?:\/([\w-]+))?$/);
+    const m = location.hash.match(/^#(map|journey|history|quiz|sim)(?:\/([\w-]+))?(?:\/([\w-]+))?$/);
     if (!m) return null;
     state.track = m[1];
-    if (m[1] === 'journey' && m[2]) state.stage = m[2];
-    if (m[1] === 'quiz' && m[2]) state.quizSet = m[2];
-    return m[3] || null;
+    if (m[1] === 'journey' && m[2]) { if (stageIndex(m[2]) >= 0) state.stage = m[2]; else if (!m[3]) return m[2]; }
+    if (m[1] === 'quiz' && m[2] && QUIZ_SETS.some(q => q[0] === m[2])) state.quizSet = m[2];
+    return m[1] === 'journey' ? m[3] || null : null;
   }
   function writeHash(section) {
     let h = '#' + state.track;
@@ -447,12 +635,13 @@ figure.code .line.hit { cursor: pointer; }
     const k = stageKey + '-' + d;
     if (k in state.open) return !!state.open[k];
     const st = stageOf(stageKey);
-    const hasD1 = st.sections.some(id => sectionEl(id) && +sectionEl(id).dataset.depth === 1);
-    return d === 2 && !hasD1;
+    // Without a 한눈에 section, the shallowest group present starts open (테스트 has only depth 3).
+    const depths = [2, 3].filter(x => st.sections.some(id => sectionEl(id) && +sectionEl(id).dataset.depth === x));
+    return !st.sections.some(id => sectionEl(id) && +sectionEl(id).dataset.depth === 1) && d === depths[0];
   }
   function toggleGroup(stageKey, d, force) {
     const k = stageKey + '-' + d;
-    state.open[k] = force === undefined ? !state.open[k] : force;
+    state.open[k] = force === undefined ? !groupOpen(stageKey, d) : force;
     save(); applyGroups();
   }
   function applyGroups() {
@@ -473,6 +662,7 @@ figure.code .line.hit { cursor: pointer; }
     $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + state.track));
     const journey = state.track === 'journey';
     $('#layout').classList.toggle('full', !journey);
+    $('#layout').classList.toggle('wide', state.track === 'sim');
     $('#side').classList.toggle('hidden', !journey);
     $('#stepperWrap').classList.toggle('hidden', !journey);
     if (journey) {
@@ -488,8 +678,10 @@ figure.code .line.hit { cursor: pointer; }
     }
     if (state.track === 'quiz') renderQuizView();
     if (state.track === 'map') renderMap();
+    if (state.track === 'history') renderHistory();
+    measureChrome();
     save(); writeHash(sectionId);
-    if (sectionId) {
+    if (sectionId && journey) {
       const el = sectionEl(sectionId);
       requestAnimationFrame(() => requestAnimationFrame(() => el.scrollIntoView({ block: 'start', behavior: 'instant' })));
     } else window.scrollTo({ top: 0 });
@@ -507,6 +699,7 @@ figure.code .line.hit { cursor: pointer; }
       b.addEventListener('click', () => { state.stage = st.key; render(null); });
       li.appendChild(b); ol.appendChild(li);
     });
+    const curLi = ol.children[cur]; if (curLi) ol.scrollLeft = curLi.offsetLeft - (ol.clientWidth - curLi.offsetWidth) / 2;
   }
   function renderStageHead() {
     const st = stageOf(state.stage); const i = stageIndex(st.key);
@@ -516,8 +709,10 @@ figure.code .line.hit { cursor: pointer; }
     h.querySelector('h2').textContent = st.title;
     h.querySelector('.gate').textContent = st.gate;
     h.querySelector('.intro').textContent = st.intro;
-    const side = $('#sideStage'); side.innerHTML = '<span class="k">단계 ' + (i + 1) + '</span><strong></strong>';
+    const side = $('#sideStage'); side.innerHTML = '<span class="k">단계 ' + (i + 1) + '</span><strong></strong><button type="button" class="toc-toggle" aria-controls="toc">목차<span class="chev" aria-hidden="true"></span></button>';
     side.querySelector('strong').textContent = st.title;
+    const tg = side.querySelector('.toc-toggle'); const aside = $('#side'); aside.classList.remove('open'); tg.setAttribute('aria-expanded', 'false');
+    tg.addEventListener('click', () => { aside.classList.toggle('open'); tg.setAttribute('aria-expanded', String(aside.classList.contains('open'))); });
   }
   function renderStageFoot() {
     const st = stageOf(state.stage); const i = stageIndex(st.key);
@@ -548,7 +743,7 @@ figure.code .line.hit { cursor: pointer; }
       ids.forEach(id => {
         const s = sectionEl(id); const li = document.createElement('li'); const a = document.createElement('a');
         a.href = '#journey/' + st.key + '/' + id; a.textContent = s.querySelector('h2').textContent;
-        a.addEventListener('click', e => { e.preventDefault(); if (d > 1) toggleGroup(st.key, d, true); writeHash(id); s.scrollIntoView({ block: 'start' }); });
+        a.addEventListener('click', e => { e.preventDefault(); if (d > 1) toggleGroup(st.key, d, true); $('#side').classList.remove('open'); const tg = $('#sideStage .toc-toggle'); if (tg) tg.setAttribute('aria-expanded', 'false'); writeHash(id); s.scrollIntoView({ block: 'start' }); });
         li.appendChild(a); toc.appendChild(li);
       });
     });
@@ -586,6 +781,10 @@ figure.code .line.hit { cursor: pointer; }
     return items;
   }
   function renderQuizView() {
+    renderQuizSets();
+    renderQuiz($('#quizHost'), state.quizSet);
+  }
+  function renderQuizSets() {
     const sets = $('#quizSets'); sets.innerHTML = '';
     QUIZ_SETS.forEach(([k, label]) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = (k === state.quizSet ? 'active' : '');
@@ -597,7 +796,6 @@ figure.code .line.hit { cursor: pointer; }
       b.addEventListener('click', () => { state.quizSet = k; render(null); });
       sets.appendChild(b);
     });
-    renderQuiz($('#quizHost'), state.quizSet);
   }
   function renderQuiz(host, key) {
     const items = quizItems(key); host.innerHTML = '';
@@ -634,12 +832,11 @@ figure.code .line.hit { cursor: pointer; }
       score.textContent = correct + ' / ' + items.length + ' 정답 (' + pct + '%)' + (passed ? ' · 이 세트 완료' : ' · 해설을 읽고 다시 풀어 보세요');
       const prev = state.progress[key];
       state.progress[key] = { score: prev && prev.passed ? Math.max(prev.score, pct) : pct, passed: passed || !!(prev && prev.passed) };
-      save(); renderQuizSetsOnly();
+      save(); renderQuizSets();
     });
     reset.addEventListener('click', () => renderQuiz(host, key));
     host.appendChild(box);
   }
-  function renderQuizSetsOnly() { const cur = $('#quizHost').innerHTML; renderQuizView(); $('#quizHost').innerHTML = cur; }
 
   // ---------- summaries are injected at build; nothing to do ----------
 
@@ -695,7 +892,8 @@ figure.code .line.hit { cursor: pointer; }
         return n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       } });
       const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
-      nodes.forEach(node => {
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
         let text = node.nodeValue; let best = null;
         terms.forEach(t => {
           if (seen.has(t.term)) return;
@@ -706,13 +904,15 @@ figure.code .line.hit { cursor: pointer; }
             if (best === null || at < best.at) best = { at, len: (mm[2] || mm[1]).length, t };
           });
         });
-        if (!best) return;
+        if (!best) continue;
         seen.add(best.t.term);
         const before = text.slice(0, best.at), mid = text.slice(best.at, best.at + best.len), after = text.slice(best.at + best.len);
         const span = document.createElement('span'); span.className = 'term'; span.tabIndex = 0; span.dataset.def = best.t.def; span.textContent = mid;
-        const frag = document.createDocumentFragment(); frag.appendChild(document.createTextNode(before)); frag.appendChild(span); frag.appendChild(document.createTextNode(after));
+        const tail = document.createTextNode(after);
+        const frag = document.createDocumentFragment(); frag.appendChild(document.createTextNode(before)); frag.appendChild(span); frag.appendChild(tail);
         node.parentNode.replaceChild(frag, node);
-      });
+        if (after.trim()) nodes.splice(i + 1, 0, tail); // the rest of the sentence may hold another term
+      }
     });
     let active = null;
     const show = (span) => { active = span; tip.textContent = span.dataset.def; tip.hidden = false; const r = span.getBoundingClientRect(); const w = Math.min(360, window.innerWidth - 24); tip.style.width = w + 'px'; let left = r.left + r.width / 2 - w / 2; left = Math.max(12, Math.min(left, window.innerWidth - w - 12)); tip.style.left = left + 'px'; tip.style.top = (r.bottom + 8 + window.scrollY) + 'px'; };
@@ -738,55 +938,69 @@ figure.code .line.hit { cursor: pointer; }
 
   // ---------- simulator ----------
   const DEFAULT_MSG = '요청을 처리하지 못했어요. 다시 확인해 주세요.';
+  const POSTS = ['analyses', 'demo'];
+  const ALL = ['analyses', 'demo', 'health', 'taxonomy', 'shared'];
   const FIELDS = [
-    { group: '요청', key: 'route', label: '요청', type: 'select', options: [['analyses', 'POST /api/v1/analyses (실제 분석)'], ['demo', 'POST /api/v1/demo-analysis (예시 결과)'], ['health', 'GET /api/v1/health'], ['taxonomy', 'GET /api/v1/taxonomy']] },
-    { group: '요청', key: 'origin', label: 'Origin 헤더', type: 'select', options: [['allowed', 'http://localhost:3100 (허용 목록)'], ['none', '없음 (curl 등 비브라우저)'], ['other', 'https://evil.example (다른 출처)']], help: 'LC_ALLOWED_ORIGINS 기본값은 127.0.0.1:3100 과 localhost:3100 입니다.' },
-    { group: '요청', key: 'ctype', label: 'Content-Type', type: 'select', options: [['json', 'application/json'], ['json-charset', 'application/json; charset=utf-8'], ['text', 'text/plain']] },
-    { group: '요청', key: 'sizeKB', label: '본문 크기 (KB)', type: 'range', min: 0, max: 64, step: 1, value: 2, help: '한도는 40960 바이트(40 KB)입니다.' },
-    { group: '요청', key: 'body', label: '본문 내용', type: 'select', options: [['valid', '올바른 입력 (두 사람 정보 + 동의)'], ['empty', '{} (프런트가 demo 에 보내는 빈 객체)'], ['missing', 'person_a.mbti 누락'], ['extra', '알 수 없는 필드 nickname 포함'], ['mbti', 'person_a.mbti = "ABCD"'], ['date', 'person_b.birth_date = 1930-01-01']] },
-    { group: '요청', key: 'consent', label: 'external_processing_consent', type: 'select', options: [['true', 'true (동의)'], ['false', 'false (미동의)']] },
-    { group: '같은 IP 의 최근 요청', key: 'rateEnabled', label: 'LC_RATE_LIMIT_ENABLED', type: 'select', options: [['true', 'true'], ['false', 'false (테스트 기본)']] },
-    { group: '같은 IP 의 최근 요청', key: 'recent', label: '같은 그룹 윈도 안 요청 수', type: 'range', min: 0, max: 60, step: 1, value: 0, help: '분석 그룹 5건/600초, 그 외 POST 10건/600초, GET 60건/60초. 429 로 거절된 요청은 큐에 들어가지 않고, 솔트가 600초마다 바뀔 때 모든 큐가 비워집니다.' },
-    { group: '서버 설정', key: 'configured', label: 'OpenAI 설정 완료', type: 'select', options: [['true', 'LC_REAL_ANALYSIS_ENABLED, LC_API_ENABLED, LC_PROVIDER=openai, 키, 모델 모두 있음'], ['false', '하나라도 비어 있음']], help: 'service.ready() 의 다섯 조건. LC_PROVIDER 기본값은 unconfigured 라 명시해야 합니다.' },
-    { group: '서버 설정', key: 'classifier', label: 'LC_CLASSIFIER_MODE', type: 'select', options: [['local', 'local (BERT)'], ['openai', 'openai (LLM 라벨)']], help: 'settings.py 기본값은 openai 입니다. 배포 설정(README)과 동시성 테스트는 local 로 바꾸므로 여기서는 local 을 먼저 둡니다.' },
-    { group: '서버 설정', key: 'artifact', label: '로컬 모델 아티팩트', type: 'select', options: [['ok', '모델 파일 sha256 이 report.json 과 일치, dataset.text_format = compact-v5'], ['bad', '체크섬 불일치(로드 실패) 또는 다른 text_format']] },
-    { group: '서버 설정', key: 'demoEnabled', label: 'LC_DEMO_ENABLED', type: 'select', options: [['true', 'true'], ['false', 'false']] },
-    { group: '서버 상태', key: 'inflight', label: '지금 처리 중인 분석 요청 수', type: 'range', min: 0, max: 24, step: 1, value: 0, help: '입장 세마포어 용량 LC_ANALYSIS_CAPACITY 기본 20.' },
-    { group: '서버 상태', key: 'daily', label: '오늘 처리한 분석 건수', type: 'range', min: 0, max: 24, step: 1, value: 0, help: 'LC_DAILY_ANALYSIS_LIMIT 기본 20.' },
-    { group: '서버 상태', key: 'stageWait', label: '단계 슬롯 대기 30초 초과', type: 'select', options: [['none', '없음'], ['bert', '분류 단계에서 초과'], ['explain', '해설 단계에서 초과']] },
-    { group: '처리 결과', key: 'saju', label: '사주 계산', type: 'select', options: [['ok', '정상'], ['error', 'ValueError 계열 (ManseInputError 등)']], help: '입력 검증이 생년월일을 1940년~오늘로 제한하므로 ManseInputError 는 지금은 방어적 분기입니다.' },
-    { group: '처리 결과', key: 'explain', label: 'LLM 해설 결과', type: 'select', options: [['ok', '초안이 규칙 검사를 통과'], ['repair-ok', '초안에 문제 → 재작성 후 통과'], ['repair-soft', '재작성 후에도 문장 규칙 문제만 남음'], ['provider', '네트워크·공급자 오류'], ['rejected', '스키마 거부가 재작성 후에도 남음'], ['contract', 'PublicResult 계약 검증 실패 (금지어·날짜 패턴)']] },
+    { group: '요청', key: 'route', label: '요청 경로', type: 'select', on: ALL, options: [['analyses', 'POST /api/v1/analyses (실제 분석)'], ['demo', 'POST /api/v1/demo-analysis (예시 결과)'], ['shared', 'GET /api/v1/shared (공유 링크 열기)'], ['health', 'GET /api/v1/health'], ['taxonomy', 'GET /api/v1/taxonomy']] },
+    { group: '요청', key: 'origin', label: 'Origin 헤더', type: 'select', on: POSTS, options: [['allowed', 'http://localhost:3100 (허용 목록)'], ['none', '없음 (curl 등 비브라우저)'], ['other', 'https://evil.example (다른 출처)']], help: 'LC_ALLOWED_ORIGINS 기본값은 127.0.0.1:3100 과 localhost:3100 입니다.' },
+    { group: '요청', key: 'ctype', label: 'Content-Type', type: 'select', on: POSTS, options: [['json', 'application/json'], ['json-charset', 'application/json; charset=utf-8'], ['text', 'text/plain']] },
+    { group: '요청', key: 'sizeKB', label: '본문 크기', type: 'range', on: POSTS, min: 0, max: 64, step: 1, value: 2, help: '한도는 40960 바이트(40 KB)입니다.' },
+    { group: '요청', key: 'body', label: '본문 내용', type: 'select', on: POSTS, options: [['valid', '올바른 입력 (두 사람 정보 + 동의)'], ['empty', '{} (프런트가 demo 에 보내는 빈 객체)'], ['missing', 'person_a.mbti 누락'], ['extra', '알 수 없는 필드 nickname 포함'], ['mbti', 'person_a.mbti = "ABCD"'], ['date', 'person_b.birth_date = 1930-01-01']] },
+    { group: '요청', key: 'consent', label: 'external_processing_consent', type: 'select', on: ['analyses'], options: [['true', 'true (동의)'], ['false', 'false (미동의)']] },
+    { group: '요청', key: 'shareCode', label: 'X-Share-Code 헤더', type: 'select', on: ['shared'], options: [['valid', '분석 응답의 share_code 그대로'], ['tampered', '본문 한 글자를 바꿈'], ['otherkey', '다른 키로 서명한 코드'], ['truncated', '메신저가 끝을 자름'], ['noncanonical', '서명 마지막 글자만 다른 표기'], ['toolong', 'MAX_CODE_CHARS(4023자) 초과'], ['bomb', '서명은 맞지만 풀면 16 KB 초과'], ['banned', '서명은 맞지만 금지어가 든 결과']], help: '링크 /r#코드 의 # 뒤를 /r 페이지가 이 헤더에 담아 보냅니다.' },
+    { group: '같은 IP 의 최근 요청', key: 'rateEnabled', label: 'LC_RATE_LIMIT_ENABLED', type: 'select', on: ALL, options: [['true', 'true'], ['false', 'false (테스트 기본)']] },
+    { group: '같은 IP 의 최근 요청', key: 'recent', label: '같은 그룹 윈도 안 요청 수', type: 'range', on: ALL, when: s => s.rateEnabled === 'true', min: 0, max: 60, step: 1, value: 0, help: '분석 그룹 5건/600초, 그 외 POST 10건/600초, GET 60건/60초. 429 로 거절된 요청은 큐에 들어가지 않습니다.' },
+    { group: '서버 설정', key: 'configured', label: 'OpenAI 설정 완료', type: 'select', on: ['analyses', 'health'], options: [['true', '다섯 조건 모두 있음'], ['false', '하나라도 비어 있음']], help: 'service.ready() 의 다섯 조건: LC_REAL_ANALYSIS_ENABLED, LC_API_ENABLED, LC_PROVIDER=openai, 키, 모델.' },
+    { group: '서버 설정', key: 'classifier', label: 'LC_CLASSIFIER_MODE', type: 'select', on: ['analyses', 'health'], options: [['local', 'local (BERT)'], ['openai', 'openai (LLM 라벨)']], help: 'settings.py 기본값은 openai 이고, 배포 설정(README)과 동시성 테스트는 local 을 씁니다.' },
+    { group: '서버 설정', key: 'artifact', label: '로컬 모델 아티팩트', type: 'select', on: ['analyses', 'health'], when: s => s.classifier === 'local', options: [['ok', 'sha256 일치, text_format = compact-v5'], ['bad', '체크섬 불일치 또는 다른 text_format']] },
+    { group: '서버 설정', key: 'demoEnabled', label: 'LC_DEMO_ENABLED', type: 'select', on: ['demo', 'health'], options: [['true', 'true'], ['false', 'false']] },
+    { group: '서버 설정', key: 'shareSecret', label: 'LC_SHARE_SECRET', type: 'select', on: ['analyses', 'shared', 'health'], options: [['ok', '32자 이상'], ['none', '비어 있음 또는 32자 미만']], help: '모든 인스턴스가 같은 값을 써야 하고, 바꾸면 이미 보낸 링크가 모두 열리지 않습니다.' },
+    { group: '서버 상태', key: 'inflight', label: '지금 처리 중인 분석', type: 'range', on: ['analyses'], min: 0, max: 24, step: 1, value: 0, help: '입장 세마포어 용량 LC_ANALYSIS_CAPACITY 기본 20.' },
+    { group: '서버 상태', key: 'daily', label: '오늘 처리한 분석', type: 'range', on: ['analyses'], min: 0, max: 24, step: 1, value: 0, help: 'LC_DAILY_ANALYSIS_LIMIT 기본 20.' },
+    { group: '서버 상태', key: 'stageWait', label: '단계 슬롯 대기 30초 초과', type: 'select', on: ['analyses'], options: [['none', '없음'], ['bert', '분류 단계에서 초과'], ['explain', '해설 단계에서 초과']] },
+    { group: '처리 결과', key: 'saju', label: '사주 계산', type: 'select', on: ['analyses'], options: [['ok', '정상'], ['error', 'ValueError 계열 (ManseInputError 등)']], help: '입력 검증이 생년월일을 1940년~오늘로 제한하므로 지금은 방어적 분기입니다.' },
+    { group: '처리 결과', key: 'explain', label: 'LLM 해설 결과', type: 'select', on: ['analyses'], options: [['ok', '초안이 규칙 검사를 통과'], ['repair-ok', '초안에 문제 → 재작성 후 통과'], ['repair-soft', '재작성 후에도 문장 규칙 문제만 남음'], ['provider', '네트워크·공급자 오류'], ['rejected', '스키마 거부가 재작성 후에도 남음'], ['contract', 'PublicResult 계약 검증 실패']] },
   ];
-  const PRESETS = [
-    ['정상 요청', {}],
-    ['다른 출처', { origin: 'other' }],
-    ['본문 60KB', { sizeKB: 60 }],
-    ['IP 한도 초과', { recent: 5 }],
-    ['필드 누락', { body: 'missing' }],
-    ['설정 없음', { configured: 'false' }],
-    ['동의 없음', { consent: 'false' }],
-    ['동시 20건', { inflight: 20 }],
-    ['일일 한도', { daily: 20 }],
-    ['공급자 장애', { explain: 'provider' }],
-    ['계약 검증 실패', { explain: 'contract' }],
-    ['openai 분류 모드', { classifier: 'openai' }],
-    ['예시 결과', { route: 'demo', body: 'empty' }],
+  const SCENARIOS = [
+    { cls: 'ok', code: '200', label: '성공', items: [
+      ['정상 분석', {}], ['openai 분류 모드', { classifier: 'openai' }], ['예시 결과', { route: 'demo', body: 'empty' }], ['공유 링크 열기', { route: 'shared' }], ['공유 꺼진 채 분석', { shareSecret: 'none' }]] },
+    { cls: 'c4', code: '4xx', label: '입구에서 거절', items: [
+      ['다른 출처', { origin: 'other' }], ['text/plain', { ctype: 'text' }], ['본문 60 KB', { sizeKB: 60 }], ['필드 누락', { body: 'missing' }], ['동의 없음', { consent: 'false' }],
+      ['변조된 링크', { route: 'shared', shareCode: 'tampered' }], ['너무 긴 링크', { route: 'shared', shareCode: 'toolong' }], ['금지어 든 링크', { route: 'shared', shareCode: 'banned' }]] },
+    { cls: 'c429', code: '429', label: '혼잡·한도', items: [
+      ['IP 한도', { recent: 5 }], ['동시 20건', { inflight: 20 }], ['일일 한도', { daily: 20 }], ['슬롯 대기 초과', { stageWait: 'explain' }]] },
+    { cls: 'c5', code: '5xx', label: '서버·모델 오류', items: [
+      ['설정 없음', { configured: 'false' }], ['공유 키 없음', { route: 'shared', shareSecret: 'none' }], ['공급자 장애', { explain: 'provider' }], ['재작성 후 거부', { explain: 'rejected' }], ['계약 검증 실패', { explain: 'contract' }]] },
   ];
-  const sim = {};
+  const PHASES = { mw: '미들웨어', val: '검증', handler: '핸들러', service: '서비스', chain: '해설 체인', share: '공유 디코드' };
+  const PIPES = { analyses: ['mw', 'val', 'handler', 'service', 'chain'], demo: ['mw', 'val', 'handler'], health: ['mw', 'handler'], taxonomy: ['mw', 'handler'], shared: ['mw', 'val', 'share'] };
+  const defaults = () => Object.fromEntries(FIELDS.map(f => [f.key, String(f.value !== undefined ? f.value : f.options[0][0])]));
+  const sim = defaults();
+  let simFold = true;
+  const fieldText = (f, v) => f.type === 'range' ? v + (f.key === 'sizeKB' ? ' KB' : '건') : (f.options.find(o => o[0] === v) || [, v])[1];
   function buildSim() {
-    const form = $('#simForm');
-    const presets = document.createElement('div'); presets.className = 'presets';
-    PRESETS.forEach(([name, patch]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = name;
-      b.addEventListener('click', () => { FIELDS.forEach(f => sim[f.key] = String(f.value !== undefined ? f.value : f.options[0][0])); Object.entries(patch).forEach(([k, v]) => sim[k] = String(v)); syncForm(); runSim(); });
-      presets.appendChild(b);
+    const scen = $('#scen');
+    SCENARIOS.forEach(g => {
+      const row = document.createElement('div'); row.className = 'scen-row ' + g.cls;
+      row.innerHTML = '<div class="g"><b></b><span></span></div><div class="opts"></div>';
+      row.querySelector('b').textContent = g.code; row.querySelector('.g span').textContent = g.label;
+      g.items.forEach(([name, patch]) => {
+        const b = document.createElement('button'); b.type = 'button'; b.textContent = name; b.dataset.name = name;
+        b.addEventListener('click', () => {
+          Object.assign(sim, defaults()); Object.entries(patch).forEach(([k, v]) => sim[k] = String(v)); simFold = true; syncForm(); runSim();
+          // On narrow screens the result sits below the scenario list: bring it into view.
+          const top = $('#pipe').getBoundingClientRect().top;
+          if (top > innerHeight * 0.7) $('#pipe').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+        });
+        row.querySelector('.opts').appendChild(b);
+      });
+      scen.appendChild(row);
     });
-    form.appendChild(presets);
+    const host = $('#simFields');
     let fs = null, groupName = null;
     FIELDS.forEach(f => {
-      sim[f.key] = String(f.value !== undefined ? f.value : f.options[0][0]);
-      if (f.group !== groupName) { fs = document.createElement('fieldset'); const lg = document.createElement('legend'); lg.textContent = f.group; fs.appendChild(lg); form.appendChild(fs); groupName = f.group; }
-      const wrap = document.createElement('div'); wrap.className = 'field';
+      if (f.group !== groupName) { fs = document.createElement('fieldset'); const lg = document.createElement('legend'); lg.textContent = f.group; fs.appendChild(lg); host.appendChild(fs); groupName = f.group; }
+      const wrap = document.createElement('div'); wrap.className = 'field'; wrap.id = 'w-' + f.key;
       const label = document.createElement('label'); label.textContent = f.label; label.htmlFor = 'f-' + f.key; wrap.appendChild(label);
       let input;
       if (f.type === 'select') {
@@ -794,22 +1008,47 @@ figure.code .line.hit { cursor: pointer; }
         f.options.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; input.appendChild(o); });
       } else {
         input = document.createElement('input'); input.type = 'range'; input.min = f.min; input.max = f.max; input.step = f.step;
-        const val = document.createElement('span'); val.className = 'val'; val.id = 'v-' + f.key; wrap.appendChild(val);
       }
-      input.id = 'f-' + f.key; input.dataset.key = f.key;
+      input.id = 'f-' + f.key;
       input.addEventListener('input', () => { sim[f.key] = input.value; syncForm(); runSim(); });
-      wrap.insertBefore(input, wrap.querySelector('.val'));
+      wrap.appendChild(input);
+      if (f.type === 'range') { const val = document.createElement('span'); val.className = 'val'; val.id = 'v-' + f.key; wrap.appendChild(val); }
       if (f.help) { const h = document.createElement('div'); h.className = 'help'; h.textContent = f.help; wrap.appendChild(h); }
       fs.appendChild(wrap);
     });
+    $('#simReset').addEventListener('click', () => { Object.assign(sim, defaults()); simFold = true; syncForm(); runSim(); });
+    $('#simCtlToggle').addEventListener('click', () => { const c = $('#simCtl'); c.classList.toggle('open'); $('#simCtlToggle').setAttribute('aria-expanded', String(c.classList.contains('open'))); });
+    $('#traceFold').addEventListener('click', () => { simFold = !simFold; applyFold(); });
     syncForm(); runSim();
   }
+  const relevant = (f) => f.on.includes(sim.route) && (!f.when || f.when(sim));
+  // Hidden fields keep their values (so switching back restores them) but never count as changed.
+  function changedFields() { const d = defaults(); return FIELDS.filter(f => relevant(f) && sim[f.key] !== d[f.key]); }
   function syncForm() {
+    const changed = new Set(changedFields().map(f => f.key));
     FIELDS.forEach(f => {
-      const el = $('#f-' + f.key); if (!el) return;
-      el.value = sim[f.key];
-      if (f.type === 'range') $('#v-' + f.key).textContent = sim[f.key] + (f.key === 'sizeKB' ? ' KB (' + (sim[f.key] * 1024).toLocaleString() + ' 바이트)' : '건');
+      const el = $('#f-' + f.key); el.value = sim[f.key];
+      const w = $('#w-' + f.key); w.hidden = !relevant(f); w.classList.toggle('changed', changed.has(f.key));
+      if (f.type === 'range') $('#v-' + f.key).textContent = f.key === 'sizeKB' ? sim[f.key] + ' KB (' + (sim[f.key] * 1024).toLocaleString() + ' 바이트)' : sim[f.key] + '건';
     });
+    $$('#simFields fieldset').forEach(fs => { fs.hidden = $$('.field', fs).every(w => w.hidden); });
+    const shown = FIELDS.filter(relevant).length;
+    const cnt = '조건 ' + shown + '개' + (changed.size ? ' · ' + changed.size + '개 변경' : '');
+    $('#simCtlCount').textContent = cnt; $('#simCtlCount2').textContent = cnt;
+    // which scenario (if any) the current conditions match exactly
+    let active = null;
+    SCENARIOS.forEach(g => g.items.forEach(([name, patch]) => { const want = Object.assign(defaults(), Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, String(v)]))); if (FIELDS.every(f => !relevant(f) || want[f.key] === sim[f.key])) active = active || name; }));
+    $$('#scen button').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.name === active));
+      if (b.dataset.name !== active) return;
+      // Rows scroll sideways on phones; keep the chosen scenario in view.
+      const row = b.parentElement, br = b.getBoundingClientRect(), rr = row.getBoundingClientRect();
+      if (br.left < rr.left || br.right > rr.right) row.scrollLeft += br.left - rr.left - 8;
+    });
+    const now = $('#scenNow'); now.innerHTML = '';
+    const b = document.createElement('b'); b.textContent = active || '직접 조절한 조건'; now.appendChild(b);
+    const list = changedFields();
+    now.appendChild(document.createTextNode(list.length ? ' · 기본값에서 바뀐 조건: ' + list.map(f => f.label + ' = ' + fieldText(f, sim[f.key])).join(', ') : ' · 모든 조건이 기본값입니다.'));
   }
   const BASE_HEADERS = { 'content-type': 'application/json', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' };
   function errResp(code, status, message, field, extra) {
@@ -824,170 +1063,346 @@ figure.code .line.hit { cursor: pointer; }
     conversation_tip: '“오늘 우리 둘 다 편안했던 순간은 언제였어?”라고 물어보세요.',
     limitations: ['missing_hour_a'], disclaimer_version: 'entertainment-v1',
   };
+  const BUSY = () => errResp('ANALYSIS_BUSY', 429, '분석 요청이 많아 대기 시간이 길어지고 있어요. 잠시 후 다시 시도해 주세요.', null, { 'retry-after': '5' });
+  const BAD_LINK = () => errResp('INVALID_SHARE_LINK', 400, '링크가 잘렸거나 더 이상 열 수 없는 링크예요. 받은 링크 전체를 다시 열어 주세요.');
   function simulate(s) {
     const steps = [];
-    const add = (status, title, detail, ref) => steps.push({ status, title, detail, ref });
-    const isPost = s.route === 'analyses' || s.route === 'demo';
-    const path = { analyses: '/api/v1/analyses', demo: '/api/v1/demo-analysis', health: '/api/v1/health', taxonomy: '/api/v1/taxonomy' }[s.route];
+    const add = (status, title, detail, ref, phase) => steps.push({ status, title, detail, ref, phase });
+    const isPost = POSTS.includes(s.route);
+    const path = { analyses: '/api/v1/analyses', demo: '/api/v1/demo-analysis', health: '/api/v1/health', taxonomy: '/api/v1/taxonomy', shared: '/api/v1/shared' }[s.route];
     const method = isPost ? 'POST' : 'GET';
-    const finish = (resp) => ({ steps, resp, method, path });
-    add('info', 'uvicorn 이 ASGI 앱을 호출', '가장 바깥 사용자 미들웨어인 response_headers 가 먼저 요청을 받고 call_next 로 안쪽(boundary)에 넘깁니다. 응답이 돌아오면 보안 헤더 네 개를 붙입니다.', 'backend/lovecode/api.py:109');
-    // boundary: origin
+    const finish = (resp) => ({ steps, resp, method, path, route: s.route });
+    add('info', 'uvicorn 이 ASGI 앱을 호출', '가장 바깥 사용자 미들웨어인 response_headers 가 먼저 요청을 받고 call_next 로 안쪽(boundary)에 넘깁니다. 응답이 돌아오면 보안 헤더 네 개를 붙입니다.', 'backend/lovecode/api.py:109', 'mw');
     if (isPost) {
       const originOk = s.origin !== 'other';
       add(originOk ? 'pass' : 'reject', 'boundary · Origin 검사', originOk
         ? (s.origin === 'none' ? 'Origin 헤더가 없으면 None 이고, None 은 허용 튜플에 들어 있으므로 통과합니다. 브라우저가 아닌 클라이언트를 막지 않기 위한 선택입니다.' : '허용 목록(LC_ALLOWED_ORIGINS)에 있는 출처라 통과합니다.')
-        : '허용 목록에 없는 출처의 POST(와 DELETE)는 본문을 읽기도 전에 403 으로 끝납니다. CSRF 성격의 교차 출처 전송을 막습니다.', 'backend/lovecode/api.py:58');
+        : '허용 목록에 없는 출처의 POST(와 DELETE)는 본문을 읽기도 전에 403 으로 끝납니다. CSRF 성격의 교차 출처 전송을 막습니다.', 'backend/lovecode/api.py:58', 'mw');
       if (!originOk) return finish(errResp('INVALID_REQUEST', 403));
       const ctOk = s.ctype !== 'text';
       add(ctOk ? 'pass' : 'reject', 'boundary · Content-Type 검사', ctOk
         ? '세미콜론 앞부분만 비교하므로 charset 이 붙어도 application/json 으로 인정합니다.'
-        : 'JSON 이 아닌 본문은 415 로 거절합니다. FastAPI 의 JSON 파싱 단계에 도달하지 않습니다.', 'backend/lovecode/api.py:64');
+        : 'JSON 이 아닌 본문은 415 로 거절합니다. FastAPI 의 JSON 파싱 단계에 도달하지 않습니다.', 'backend/lovecode/api.py:64', 'mw');
       if (!ctOk) return finish(errResp('INVALID_REQUEST', 415));
       const bytes = s.sizeKB * 1024;
       const sizeOk = bytes <= 40960;
       add(sizeOk ? 'pass' : 'reject', 'boundary · 본문 40 KB 검사', sizeOk
-        ? '스트림 청크를 더해 가며 ' + bytes.toLocaleString() + ' 바이트를 읽었고 한도 안이라 request._body 에 넣어 둡니다. BaseHTTPMiddleware 의 _CachedRequest 가 이 바이트를 안쪽 앱에 http.request 메시지로 다시 흘려보내므로 엔드포인트의 새 Request 가 같은 본문을 받습니다. 넣지 않으면 빈 본문이 전달됩니다.'
-        : '누적 ' + bytes.toLocaleString() + ' 바이트가 40960 을 넘는 순간 나머지를 읽지 않고 413 을 돌려줍니다.', sizeOk ? 'backend/lovecode/api.py:73' : 'backend/lovecode/api.py:70');
+        ? '스트림 청크를 더해 가며 ' + bytes.toLocaleString() + ' 바이트를 읽었고 한도 안이라 request._body 에 넣어 둡니다. BaseHTTPMiddleware 의 _CachedRequest 가 이 바이트를 안쪽 앱에 다시 흘려보내므로 엔드포인트가 같은 본문을 받습니다.'
+        : '누적 ' + bytes.toLocaleString() + ' 바이트가 40960 을 넘는 순간 나머지를 읽지 않고 413 을 돌려줍니다.', sizeOk ? 'backend/lovecode/api.py:73' : 'backend/lovecode/api.py:70', 'mw');
       if (!sizeOk) return finish(errResp('PAYLOAD_TOO_LARGE', 413));
     } else {
-      add('skip', 'boundary · Origin, Content-Type, 크기 검사', 'GET 요청은 세 검사를 건너뜁니다. Origin 검사는 POST·DELETE 에, Content-Type·크기 검사는 POST 에만 적용됩니다.', 'backend/lovecode/api.py:58');
+      add('skip', 'boundary · Origin, Content-Type, 크기 검사', 'GET 요청은 세 검사를 건너뜁니다. Origin 검사는 POST·DELETE 에, Content-Type·크기 검사는 POST 에만 적용됩니다.', 'backend/lovecode/api.py:58', 'mw');
     }
-    // rate limit
     if (s.rateEnabled === 'true') {
       const group = isPost ? 'analysis' : 'GET';
       const [limit, window] = { analysis: [5, 600], GET: [60, 60] }[group];
       const over = s.recent >= limit;
       add(over ? 'reject' : 'pass', 'boundary · IP 버킷 제한 (' + group + ' 그룹 ' + limit + '건/' + window + '초)', over
         ? '같은 솔트 해시 키의 큐 길이가 ' + Math.min(s.recent, limit) + ' 로 한도 ' + limit + ' 에 도달해 429 와 Retry-After: ' + window + ' 를 돌려줍니다. 거절된 요청은 큐에 추가되지 않으므로 큐 길이가 한도를 넘는 일은 없습니다.'
-        : '큐 길이 ' + s.recent + ' 는 한도 ' + limit + ' 미만이라 지금 시각을 큐에 추가하고 통과합니다. 경로가 analyses 나 demo-analysis 로 끝나면 analysis 그룹입니다.', 'backend/lovecode/api.py:102');
+        : '큐 길이 ' + s.recent + ' 는 한도 ' + limit + ' 미만이라 지금 시각을 큐에 추가하고 통과합니다. 경로가 analyses 나 demo-analysis 로 끝나면 analysis 그룹입니다.', 'backend/lovecode/api.py:102', 'mw');
       if (over) return finish(errResp('RATE_LIMITED', 429, '잠시 후 다시 시도해 주세요.', null, { 'retry-after': String(window) }));
     } else {
-      add('skip', 'boundary · IP 버킷 제한', 'LC_RATE_LIMIT_ENABLED=false 라 건너뜁니다. 테스트의 client fixture 가 이 값을 끕니다.', 'backend/lovecode/api.py:74');
+      add('skip', 'boundary · IP 버킷 제한', 'LC_RATE_LIMIT_ENABLED=false 라 건너뜁니다. 테스트의 client fixture 가 이 값을 끕니다.', 'backend/lovecode/api.py:74', 'mw');
     }
-    add('info', 'call_next → ExceptionMiddleware → Router', '사용자 미들웨어를 통과한 요청은 Starlette 라우터가 경로와 메서드로 핸들러를 고릅니다.', 'backend/lovecode/api.py:107');
+    add('info', 'call_next → ExceptionMiddleware → Router', '사용자 미들웨어를 통과한 요청은 Starlette 라우터가 경로와 메서드로 핸들러를 고릅니다.', 'backend/lovecode/api.py:107', PIPES[s.route].includes('val') ? 'val' : 'handler');
     if (s.route === 'health') {
-      add('pass', 'health 핸들러', 'service.ready() 를 호출해 준비 상태를 계산합니다. 동기 def 라 스레드풀에서 실행됩니다.', 'backend/lovecode/api.py:128');
+      add('pass', 'health 핸들러', 'service.ready() 와 shares.ready 를 읽어 준비 상태를 계산합니다. 동기 def 라 스레드풀에서 실행됩니다.', 'backend/lovecode/api.py:128', 'handler');
       const ready = s.configured === 'true' && (s.classifier === 'openai' || s.artifact === 'ok');
-      return finish({ status: 200, headers: BASE_HEADERS, body: { status: 'ok', analysis_ready: ready, demo_ready: s.demoEnabled === 'true', provider: 'openai', verification_mode: false, reason: ready ? 'configured_not_quality_certified' : 'configuration_required' } });
+      return finish({ status: 200, headers: BASE_HEADERS, body: { status: 'ok', analysis_ready: ready, demo_ready: s.demoEnabled === 'true', provider: 'openai', verification_mode: false, share_ready: s.shareSecret === 'ok', reason: ready ? 'configured_not_quality_certified' : 'configuration_required' } });
     }
     if (s.route === 'taxonomy') {
-      add('pass', 'taxonomy 핸들러', 'contracts.TAXONOMY dict 를 그대로 돌려줍니다. response_model 이 없어 dict 가 JSON 으로 직렬화됩니다.', 'backend/lovecode/api.py:143');
+      add('pass', 'taxonomy 핸들러', 'contracts.TAXONOMY dict 를 그대로 돌려줍니다. response_model 이 없어 dict 가 JSON 으로 직렬화됩니다.', 'backend/lovecode/api.py:143', 'handler');
       return finish({ status: 200, headers: BASE_HEADERS, body: { T01: { axes: { chemistry: 'similar', temperature: 'passionate', distance: 'together', conflict: 'immediate' }, label: '닮은꼴·열정형·밀착형·바로 풀기' }, '…': '16개 유형' } });
     }
+    if (s.route === 'shared') {
+      const long = s.shareCode === 'toolong';
+      add(long ? 'reject' : 'pass', '헤더 검증 · Header(max_length=MAX_CODE_CHARS)', long
+        ? '매개변수 x_share_code 의 밑줄이 하이픈으로 바뀌어 X-Share-Code 헤더를 읽고, 4023자 제한을 넘어 핸들러 실행 전에 RequestValidationError 가 납니다. 커스텀 핸들러가 field=header.x-share-code 로 422 를 만듭니다. decode 는 호출되지 않습니다.'
+        : 'X-Share-Code 헤더 값을 x_share_code 로 받습니다. 길이 제한 안이라 통과합니다.', 'backend/lovecode/api.py:215', 'val');
+      if (long) return finish(errResp('INVALID_REQUEST', 422, '입력값을 다시 확인해 주세요.', 'header.x-share-code'));
+      const ready = s.shareSecret === 'ok';
+      add(ready ? 'pass' : 'reject', 'decode · 공유 준비 (shares.ready)', ready ? '비밀 키가 32자 이상이라 검사를 시작합니다.' : '비밀 키가 없거나 짧아 어떤 코드든 503 SHARE_UNAVAILABLE 입니다. 링크가 틀린 것이 아니라 서버가 준비되지 않은 것이므로 400 과 구분합니다.', 'backend/lovecode/share.py:100', 'share');
+      if (!ready) return finish(errResp('SHARE_UNAVAILABLE', 503, '지금은 공유 링크를 열 수 없어요. 잠시 후 다시 시도해 주세요.'));
+      const cut = s.shareCode === 'truncated';
+      add(cut ? 'reject' : 'pass', 'decode · 모양 검사 (길이·정규식)', cut ? '끝이 잘리면 점 뒤 서명이 22자보다 짧아지거나 점까지 사라져 정규식 CODE 에 맞지 않습니다. base64 해석과 서명 확인 전에 400 입니다.' : '본문 base64url 4000자 이하, 점 하나, 서명 22자 모양이라 통과합니다.', 'backend/lovecode/share.py:102', 'share');
+      if (cut) return finish(BAD_LINK());
+      const nc = s.shareCode === 'noncanonical';
+      add(nc ? 'reject' : 'pass', 'decode · 정규 base64 표기', nc ? '디코딩한 바이트는 같지만 다시 인코딩하면 원래 글자와 다릅니다. 한 결과에 링크 문자열이 하나만 있도록 400 으로 거절합니다.' : '디코딩한 바이트를 다시 인코딩하면 원래 글자와 같습니다.', 'backend/lovecode/share.py:110', 'share');
+      if (nc) return finish(BAD_LINK());
+      const sigBad = { tampered: '본문 바이트가 바뀌어 다시 계산한 HMAC 이 링크의 서명과 다릅니다.', otherkey: '형식은 완벽하지만 다른 키로 서명되어 서명이 맞지 않습니다.' }[s.shareCode];
+      add(sigBad ? 'reject' : 'pass', 'decode · 서명 확인 (hmac.compare_digest)', sigBad || '서버 키로 다시 계산한 HMAC 앞 16바이트가 링크의 서명과 같습니다. 압축 해제는 이 확인 뒤에야 합니다.', 'backend/lovecode/share.py:113', 'share');
+      if (sigBad) return finish(BAD_LINK());
+      const bomb = s.shareCode === 'bomb';
+      add(bomb ? 'reject' : 'pass', 'decode · 압축 해제 (16 KB 상한)', bomb ? '서명은 맞지만 풀어낸 크기가 MAX_PAYLOAD_BYTES 에 걸려 unconsumed_tail 이 남습니다. ValueError 가 400 이 됩니다.' : 'raw deflate 를 풀어 JSON 을 읽고 버전 v=1 과 정수 iat 를 확인합니다.', 'backend/lovecode/share.py:116', 'share');
+      if (bomb) return finish(BAD_LINK());
+      const banned = s.shareCode === 'banned';
+      add(banned ? 'reject' : 'pass', 'decode · PublicResult 재검증, axes 복원', banned ? '서명이 맞아도 PublicResult 의 model_validator 가 금지어를 잡습니다. 규칙이 나중에 강화되면 예전 링크도 그 규칙을 따릅니다.' : 'axes 는 링크에서 받지 않고 TAXONOMY[type_id] 에서 채운 뒤, 출력 규칙을 한 번 더 통과시킵니다.', 'backend/lovecode/share.py:123', 'share');
+      if (banned) return finish(BAD_LINK());
+      add('pass', 'response_model=SharedResult 직렬화', 'result 와 created_at(발행일, 한국 날짜 자정) 두 필드를 JSON 으로 만듭니다. 서버에는 아무것도 남지 않습니다.', 'backend/lovecode/api.py:209', 'end');
+      return finish({ status: 200, headers: BASE_HEADERS, body: { result: Object.assign({}, SAMPLE_RESULT, { evidence_status: 'ai_draft_unreviewed' }), created_at: '2026-10-14T15:00:00Z' } });
+    }
     if (s.route === 'demo') {
-      const firstKey = { empty: null, valid: 'external_processing_consent', missing: 'external_processing_consent', mbti: 'external_processing_consent', date: 'external_processing_consent', extra: 'external_processing_consent' }[s.body];
+      const firstKey = s.body === 'empty' ? null : 'person_a';
       add(firstKey ? 'reject' : 'pass', 'Pydantic 검증 · body: Strict', firstKey
-        ? 'Strict 는 필드가 하나도 없는 모델이고 extra="forbid" 라, 어떤 키든 들어 있으면 extra_forbidden 오류가 납니다. 커스텀 핸들러는 첫 오류의 loc 에서 field=' + firstKey + ' 를 만듭니다. 그래서 frontend/app/test/page.tsx 는 demo 에 {} 를 보냅니다.'
-        : '빈 객체 {} 라 통과합니다. 예시 결과에는 입력이 필요 없습니다.', 'backend/lovecode/api.py:201');
+        ? 'Strict 는 필드가 하나도 없는 모델이고 extra="forbid" 라, 어떤 키든 들어 있으면 extra_forbidden 오류가 납니다. 오류는 본문 키 순서대로 쌓이고 프런트·테스트 본문은 person_a 가 첫 키라, 커스텀 핸들러가 첫 오류의 loc 에서 field=person_a 를 만듭니다. 그래서 frontend/app/test/page.tsx 는 demo 에 {} 를 보냅니다.'
+        : '빈 객체 {} 라 통과합니다. 예시 결과에는 입력이 필요 없습니다.', 'backend/lovecode/api.py:201', 'val');
       if (firstKey) return finish(errResp('INVALID_REQUEST', 422, '입력값을 다시 확인해 주세요.', firstKey));
       const on = s.demoEnabled === 'true';
-      add(on ? 'pass' : 'reject', 'demo 핸들러 · LC_DEMO_ENABLED', on ? 'contracts.demo_result() 의 고정 결과를 analysis_response 로 감쌉니다.' : '예시 결과가 꺼져 있어 503 입니다.', 'backend/lovecode/api.py:202');
+      add(on ? 'pass' : 'reject', 'demo 핸들러 · LC_DEMO_ENABLED', on ? 'contracts.demo_result() 의 고정 결과를 analysis_response 로 감쌉니다. shareable 기본값이 False 라 share_code 는 붙지 않습니다.' : '예시 결과가 꺼져 있어 503 입니다.', 'backend/lovecode/api.py:202', 'handler');
       if (!on) return finish(errResp('ANALYSIS_UNAVAILABLE', 503));
-      add('pass', 'response_model=AnalysisResponse 직렬화', 'dict 를 AnalysisResponse 로 검증한 뒤 None 필드를 빼고 JSON 으로 만듭니다.', 'backend/lovecode/api.py:200');
+      add('pass', 'response_model=AnalysisResponse 직렬화', 'dict 를 AnalysisResponse 로 검증한 뒤 None 필드를 빼고 JSON 으로 만듭니다.', 'backend/lovecode/api.py:200', 'end');
       return finish({ status: 200, headers: BASE_HEADERS, body: { analysis_id: '3f0c9a1e-…(uuid4)', result: Object.assign({}, SAMPLE_RESULT, { evidence_status: 'fixture' }) } });
     }
     // analyses
     const VALID = { valid: null, empty: ['person_a', '빈 객체라 person_a 부터 missing 오류가 납니다. loc 는 ("body","person_a") 입니다.'], missing: ['person_a.mbti', '필수 필드가 없어 loc 가 ("body","person_a","mbti") 입니다.'], extra: ['nickname', 'AnalysisInput 은 extra="forbid" 라 모르는 키가 오류입니다.'], mbti: ['person_a.mbti', 'Person.valid_mbti 가 정규식에 맞지 않아 ValueError 를 올립니다.'], date: ['person_b.birth_date', 'Person.valid_date 가 1940년 이전 날짜를 거절합니다.'] }[s.body];
     add(VALID ? 'reject' : 'pass', 'Pydantic 검증 · body: AnalysisInput', VALID
       ? VALID[1] + ' RequestValidationError 핸들러가 loc 에서 "body" 를 빼고 점으로 이어 field 를 만듭니다.'
-      : 'FastAPI 가 request._body 의 JSON 을 AnalysisInput 으로 검증합니다. 세 validator 모두 통과했습니다.', 'backend/lovecode/api.py:154');
+      : 'FastAPI 가 request._body 의 JSON 을 AnalysisInput 으로 검증합니다. 세 validator 모두 통과했습니다.', 'backend/lovecode/api.py:154', 'val');
     if (VALID) return finish(errResp('INVALID_REQUEST', 422, '입력값을 다시 확인해 주세요.', VALID[0]));
     const ready = s.configured === 'true' && (s.classifier === 'openai' || s.artifact === 'ok');
     add(ready ? 'pass' : 'reject', 'analyse · service.ready()', ready
       ? (s.classifier === 'local' ? '설정 다섯 조건이 참이고, 로컬 분류기가 로드되어 report.json 의 dataset.text_format 이 compact-v5 입니다.' : '설정 다섯 조건이 참이고 classifier_mode 가 openai 라 바로 True 입니다.')
-      : (s.configured !== 'true' ? 'real_analysis_enabled, api_enabled, api_key, model, provider 중 하나라도 비면 False 라 503 입니다.' : '로컬 모델 로드가 실패하거나 compact-v5 가 아니면 False 입니다.'), 'backend/lovecode/service.py:23');
+      : (s.configured !== 'true' ? 'real_analysis_enabled, api_enabled, api_key, model, provider 중 하나라도 비면 False 라 503 입니다.' : '로컬 모델 로드가 실패하거나 compact-v5 가 아니면 False 입니다.'), 'backend/lovecode/service.py:23', 'handler');
     if (!ready) return finish(errResp('ANALYSIS_UNAVAILABLE', 503, '실제 분석은 아직 준비 중이에요. 예시 결과를 둘러볼 수 있어요.'));
     const consent = s.consent === 'true';
-    add(consent ? 'pass' : 'reject', 'analyse · external_processing_consent', consent ? '동의가 true 라 OpenAI 로 파생 데이터를 보낼 수 있습니다.' : '동의 없이는 외부 전송을 하지 않습니다. 준비 검사 뒤, 입장 제한 앞에서 422 를 돌려줍니다.', 'backend/lovecode/api.py:161');
+    add(consent ? 'pass' : 'reject', 'analyse · external_processing_consent', consent ? '동의가 true 라 OpenAI 로 파생 데이터를 보낼 수 있습니다.' : '동의 없이는 외부 전송을 하지 않습니다. 준비 검사 뒤, 입장 제한 앞에서 422 를 돌려줍니다.', 'backend/lovecode/api.py:161', 'handler');
     if (!consent) return finish(errResp('CONSENT_REQUIRED', 422, 'OpenAI 처리 동의를 확인해 주세요.'));
     const admit = s.inflight < 20;
     add(admit ? 'pass' : 'reject', 'analyse · 입장 세마포어 (용량 20)', admit
       ? 'BoundedSemaphore.acquire(blocking=False) 가 True 를 돌려줍니다. 처리 중 ' + s.inflight + '건이라 자리가 있습니다.'
-      : '처리 중 ' + s.inflight + '건이라 즉시 False 가 돌아오고, 기다리지 않고 429 ANALYSIS_BUSY 와 Retry-After: 5 를 돌려줍니다.', 'backend/lovecode/api.py:171');
-    if (!admit) return finish(errResp('ANALYSIS_BUSY', 429, '분석 요청이 많아 대기 시간이 길어지고 있어요. 잠시 후 다시 시도해 주세요.', null, { 'retry-after': '5' }));
+      : '처리 중 ' + s.inflight + '건이라 즉시 False 가 돌아오고, 기다리지 않고 429 ANALYSIS_BUSY 와 Retry-After: 5 를 돌려줍니다.', 'backend/lovecode/api.py:171', 'handler');
+    if (!admit) return finish(BUSY());
     const budgetOk = s.daily < 20;
     add(budgetOk ? 'pass' : 'reject', 'analyse · 일일 예산 (20건)', budgetOk
       ? 'budget_lock 안에서 날짜를 확인하고 count 를 ' + (s.daily + 1) + ' 로 올립니다. 날짜는 UTC 기준(한국 시간 09:00 초기화)이고, 분석을 시작하기 전에 올리므로 뒤에서 502·503 으로 실패해도 되돌리지 않습니다. 인스턴스 메모리에만 있는 값입니다.'
-      : '오늘 ' + s.daily + '건을 이미 처리해 429 DAILY_LIMIT 입니다. finally 가 입장 슬롯을 돌려줍니다.', 'backend/lovecode/api.py:178');
+      : '오늘 ' + s.daily + '건을 이미 처리해 429 DAILY_LIMIT 입니다. finally 가 입장 슬롯을 돌려줍니다.', 'backend/lovecode/api.py:178', 'handler');
     if (!budgetOk) return finish(errResp('DAILY_LIMIT', 429, '오늘의 분석 한도에 도달했어요. 다음에 다시 찾아주세요.'));
     const sajuOk = s.saju === 'ok';
     add(sajuOk ? 'pass' : 'reject', 'service.analyse · features.analysis_inputs', sajuOk
       ? '사주를 한 번 계산해 분류용 compact 텍스트, 해설용 서술 텍스트, 한계 목록을 만듭니다. 원본 생년월일은 여기서 멈춥니다.'
-      : 'ManseInputError 는 ValueError 의 하위 클래스라 핸들러의 except (ValueError, OSError, KeyError) 에 잡혀 503 이 됩니다.', 'backend/lovecode/service.py:51');
+      : 'ManseInputError 는 ValueError 의 하위 클래스라 핸들러의 except (ValueError, OSError, KeyError) 에 잡혀 503 이 됩니다.', 'backend/lovecode/service.py:51', 'service');
     if (!sajuOk) return finish(errResp('ANALYSIS_UNAVAILABLE', 503, '분석 설정을 확인하고 있어요. 잠시 후 다시 시도해 주세요.'));
     const bertWait = s.stageWait === 'bert';
     if (s.classifier === 'local') {
       add(bertWait ? 'reject' : 'pass', 'service.analyse · BERT 슬롯 (최대 2) → Classifier.predict', bertWait
         ? 'StageLimit.acquire 가 공통 30초 기한 안에 자리를 얻지 못해 AnalysisBusy 를 올리고, 핸들러가 429 ANALYSIS_BUSY 로 바꿉니다.'
-        : 'FIFO 티켓으로 자리를 얻어 compact 텍스트를 16유형 중 하나로 분류합니다. with 블록이 끝나면 슬롯을 바로 돌려줍니다.', 'backend/lovecode/service.py:54');
+        : 'FIFO 티켓으로 자리를 얻어 compact 텍스트를 16유형 중 하나로 분류합니다. with 블록이 끝나면 슬롯을 바로 돌려줍니다.', 'backend/lovecode/service.py:54', 'service');
     } else {
       const labelFail = !bertWait && s.explain === 'provider';
       add(bertWait || labelFail ? 'reject' : 'pass', 'service.analyse · 해설 슬롯 → OpenAIProvider.label', bertWait
         ? '해설 슬롯 대기가 30초를 넘어 AnalysisBusy 입니다.'
         : (labelFail
-          ? 'openai 모드의 첫 외부 호출이 여기입니다. OpenAIProvider.structured 가 httpx 오류나 비정상 응답을 ProviderError(PROVIDER_REQUEST_FAILED 등)로 바꾸고, 핸들러가 502 PROVIDER_UNAVAILABLE 로 돌려줍니다. 해설 단계에는 도달하지 않습니다.'
-          : 'openai 모드에서는 LangChain 없이 provider.py 가 Responses API 로 유형 라벨을 받습니다.'), 'backend/lovecode/service.py:57');
+          ? 'openai 모드의 첫 외부 호출이 여기입니다. OpenAIProvider.structured 가 httpx 오류나 비정상 응답을 ProviderError 로 바꾸고, 핸들러가 502 PROVIDER_UNAVAILABLE 로 돌려줍니다. 해설 단계에는 도달하지 않습니다.'
+          : 'openai 모드에서는 LangChain 없이 provider.py 가 Responses API 로 유형 라벨을 받습니다.'), 'backend/lovecode/service.py:57', 'service');
       if (labelFail) return finish(errResp('PROVIDER_UNAVAILABLE', 502, '분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요.'));
     }
-    if (bertWait) return finish(errResp('ANALYSIS_BUSY', 429, '분석 요청이 많아 대기 시간이 길어지고 있어요. 잠시 후 다시 시도해 주세요.', null, { 'retry-after': '5' }));
+    if (bertWait) return finish(BUSY());
     const exWait = s.stageWait === 'explain';
     add(exWait ? 'reject' : 'pass', 'service.analyse · 해설 슬롯 (최대 5)', exWait
-      ? '해설 슬롯 대기가 기한을 넘겨 AnalysisBusy 입니다. 분류 슬롯은 이미 반환된 뒤라 BERT 가 묶이지 않습니다.'
-      : '해설 슬롯을 얻어 explainer.explain(text, type_id, limitations) 을 부릅니다.', 'backend/lovecode/service.py:60');
-    if (exWait) return finish(errResp('ANALYSIS_BUSY', 429, '분석 요청이 많아 대기 시간이 길어지고 있어요. 잠시 후 다시 시도해 주세요.', null, { 'retry-after': '5' }));
-    add('info', 'LangChain · _draft_step', 'ChatPromptTemplate | llm.with_structured_output(Explanation) 체인을 invoke 합니다. tracing_context(enabled=False) 안이라 LangSmith 로 나가지 않습니다.', 'backend/lovecode/generator.py:265');
+      ? (s.classifier === 'local' ? '해설 슬롯 대기가 기한을 넘겨 AnalysisBusy 입니다. 분류 슬롯은 이미 반환된 뒤라 BERT 가 묶이지 않습니다.' : '해설 슬롯 대기가 공통 기한을 넘겨 AnalysisBusy 입니다. openai 모드에서는 라벨 호출이 해설 슬롯을 쓰고 반환한 뒤 다시 줄을 서므로, 그사이 다른 요청이 슬롯을 채우면 여기서 기한이 끝날 수 있습니다.')
+      : '해설 슬롯을 얻어 explainer.explain(text, type_id, limitations) 을 부릅니다.', 'backend/lovecode/service.py:60', 'service');
+    if (exWait) return finish(BUSY());
+    add('info', 'LangChain · _draft_step', 'ChatPromptTemplate | llm.with_structured_output(Explanation) 체인을 invoke 합니다. tracing_context(enabled=False) 안이라 LangSmith 로 나가지 않습니다.', 'backend/lovecode/generator.py:265', 'chain');
     if (s.explain === 'provider') {
-      add('reject', 'LangChain · _call 예외', '네트워크나 공급자 오류는 PROVIDER_REQUEST_FAILED 로 기록되고, _review_step 은 재시도하지 않으며 _finalize 가 ProviderError 를 올립니다. 핸들러가 502 로 바꿉니다.', 'backend/lovecode/generator.py:318');
+      add('reject', 'LangChain · _call 예외', '네트워크나 공급자 오류는 PROVIDER_REQUEST_FAILED 로 기록되고, _review_step 은 재시도하지 않으며 _finalize 가 ProviderError 를 올립니다. 핸들러가 502 로 바꿉니다.', 'backend/lovecode/generator.py:318', 'chain');
       return finish(errResp('PROVIDER_UNAVAILABLE', 502, '분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요.'));
     }
     const needRepair = s.explain !== 'ok' && s.explain !== 'contract';
     add(needRepair ? 'info' : 'pass', 'LangChain · _review_step → checks.find_problems', needRepair
       ? (s.explain === 'rejected' ? '구조화 출력 파싱이 실패해 problems 에 ("schema", SCHEMA_FIX) 가 들어갑니다.' : '초안에서 문제를 찾아 (kind, 수정 지시) 목록을 만듭니다. RunnableBranch 조건이 참이 됩니다.')
-      : '초안이 모든 규칙을 통과해 problems 가 비었습니다. RunnableBranch 는 RunnablePassthrough 가지를 택합니다.', 'backend/lovecode/checks.py:38');
+      : '초안이 모든 규칙을 통과해 problems 가 비었습니다. RunnableBranch 는 RunnablePassthrough 가지를 택합니다.', 'backend/lovecode/checks.py:38', 'chain');
     if (needRepair) {
-      add(s.explain === 'rejected' ? 'reject' : 'pass', 'LangChain · RunnableBranch → _repair_step (1회)', s.explain === 'rejected'
-        ? '재작성 뒤에도 parsed 가 None 이거나 HARD 문제(length, mbti_code, hanja, markup)가 남아 _finalize 가 OUTPUT_REJECTED 를 올립니다. 502 입니다.'
-        : (s.explain === 'repair-soft' ? '재작성 뒤 비HARD 문제(예: 단정 표현)가 남았지만 계약 수준 문제가 아니라 결과를 돌려주고 meta.remaining_problems 에만 적습니다.' : '같은 대화에 이전 초안과 수정 지시를 붙여 한 번 더 호출하고, 재검사에서 문제가 사라졌습니다.'), 'backend/lovecode/generator.py:278');
-      if (s.explain === 'rejected') return finish(errResp('PROVIDER_UNAVAILABLE', 502, '분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요.'));
+      add(s.explain === 'rejected' ? 'info' : 'pass', 'LangChain · RunnableBranch → _repair_step (1회)', s.explain === 'rejected'
+        ? '같은 대화에 "(형식 오류)" 와 SCHEMA_FIX 지시를 붙여 한 번 더 호출했지만, 재검사에서도 parsed 가 None 입니다.'
+        : (s.explain === 'repair-soft' ? '재작성 뒤 비HARD 문제(예: 단정 표현)가 남았지만 계약 수준 문제가 아니라 결과를 돌려주고 meta.remaining_problems 에만 적습니다.' : '같은 대화에 이전 초안과 수정 지시를 붙여 한 번 더 호출하고, 재검사에서 문제가 사라졌습니다.'), 'backend/lovecode/generator.py:278', 'chain');
+      if (s.explain === 'rejected') {
+        add('reject', 'LangChain · _finalize → OUTPUT_REJECTED', '재작성 뒤에도 parsed 가 None 이거나 HARD 문제(length, mbti_code, hanja, markup)가 남아 _finalize 가 ProviderError("OUTPUT_REJECTED") 를 올립니다. 핸들러가 502 로 바꿉니다.', 'backend/lovecode/generator.py:319', 'chain');
+        return finish(errResp('PROVIDER_UNAVAILABLE', 502, '분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요.'));
+      }
     }
     const contractFail = s.explain === 'contract';
     add(contractFail ? 'reject' : 'pass', 'LangChain · _finalize → PublicResult', contractFail
-      ? 'PublicResult 의 model_validator 가 checks.py 는 보지 않는 패턴(바람기 같은 금지어, 날짜·시각 패턴, 간지 한자 조합)을 잡아 ValueError 를 내고, _finalize 가 ProviderError("OUTPUT_REJECTED") 로 바꿉니다. 핸들러는 502 입니다. HARD 집합과는 별개의 마지막 관문입니다.'
-      : '파싱된 dict 에 type_id, axes, limitations, evidence_status 를 더해 PublicResult 를 만듭니다. model_validator 가 금지 패턴을 한 번 더 검사하며, 여기서 실패하면 OUTPUT_REJECTED 로 502 가 됩니다.', 'backend/lovecode/generator.py:321');
+      ? 'PublicResult 의 model_validator 가 checks.py 는 보지 않는 패턴(바람기 같은 금지어, 날짜·시각 패턴, 빈 문장)을 잡아 ValueError 를 내고, _finalize 가 ProviderError("OUTPUT_REJECTED") 로 바꿉니다. 핸들러는 502 입니다.'
+      : '파싱된 dict 에 type_id, axes, limitations, evidence_status 를 더해 PublicResult 를 만듭니다. model_validator 가 금지 패턴을 한 번 더 검사합니다.', 'backend/lovecode/generator.py:321', 'chain');
     if (contractFail) return finish(errResp('PROVIDER_UNAVAILABLE', 502, '분석을 마치지 못했어요. 잠시 후 다시 시도해 주세요.'));
-    add('pass', 'analyse · analysis_response → response_model 직렬화 → finally release', 'analysis_id 를 붙인 dict 를 FastAPI 가 AnalysisResponse 로 검증하고 None 을 뺀 JSON 으로 만듭니다. finally 가 입장 슬롯을 돌려주고, response_headers 가 헤더를 붙입니다.', 'backend/lovecode/api.py:184');
-    return finish({ status: 200, headers: BASE_HEADERS, body: { analysis_id: '3f0c9a1e-…(uuid4)', result: Object.assign({}, SAMPLE_RESULT, { evidence_status: 'ai_draft_unreviewed' }) } });
+    const share = s.shareSecret === 'ok';
+    add(share ? 'pass' : 'skip', 'analysis_response · share_code', share
+      ? 'shareable=True 이고 키가 준비되어 ShareCodec.encode 가 결과를 압축·서명한 코드(약 1 KB)를 붙입니다. 공유 링크 단계에서 이 코드를 엽니다.'
+      : 'LC_SHARE_SECRET 이 32자 미만이라 shares.ready 가 False 입니다. share_code 는 None 이 되어 response_model_exclude_none 이 키를 뺍니다. 분석 결과는 정상으로 나갑니다.', 'backend/lovecode/api.py:149', 'end');
+    add('pass', 'finally release → response_model 직렬화', 'return 하는 순간 finally 가 입장 슬롯을 돌려줍니다. 그 뒤 FastAPI 가 analysis_id 를 붙인 dict 를 AnalysisResponse 로 검증하고 None 을 뺀 JSON 으로 만들며, response_headers 가 헤더를 붙입니다.', 'backend/lovecode/api.py:184', 'end');
+    const body = { analysis_id: '3f0c9a1e-…(uuid4)', result: Object.assign({}, SAMPLE_RESULT, { evidence_status: 'ai_draft_unreviewed' }) };
+    if (share) body.share_code = 'jZBNbtswEIX3OQX…(약 1 KB).Qm3x8Vt0…(22자)';
+    return finish({ status: 200, headers: BASE_HEADERS, body });
   }
   function stageForRef(ref) {
     const [file, lineStr] = ref.split(':'); const line = +lineStr;
-    if (file.endsWith('api.py')) { if (line <= 53) return 'start'; if (line <= 116) return 'middleware'; if (line <= 126) return 'validation'; if (line >= 147 && line <= 151) return 'response'; if (line === 184) return 'response'; return 'handler'; }
+    if (file.endsWith('api.py')) { if (line <= 53) return 'start'; if (line <= 116) return 'middleware'; if (line <= 126) return 'validation'; if (line >= 147 && line <= 151) return 'response'; if (line === 184) return 'response'; if (line >= 206 && line <= 219) return 'share'; if (line === 154 || line === 201) return 'validation'; return 'handler'; }
+    if (file.endsWith('share.py')) return 'share';
     if (file.endsWith('service.py')) return 'service';
     if (file.endsWith('generator.py') || file.endsWith('checks.py')) return line >= 296 || file.endsWith('checks.py') ? 'prompt' : 'chain';
+    if (file.startsWith('tests/')) return 'tests';
     return null;
+  }
+  function learnLink(ref) {
+    const sk = stageForRef(ref); if (!sk) return null;
+    const a = document.createElement('a'); a.className = 'learn'; a.href = '#journey/' + sk;
+    a.textContent = '이 단계 배우기: ' + stageOf(sk).title;
+    a.addEventListener('click', e => { e.preventDefault(); state.track = 'journey'; state.stage = sk; render(null); });
+    return a;
+  }
+  function srcLink(ref) {
+    const a = document.createElement('a'); a.className = 'src'; a.href = '#'; const [f, l] = ref.split(':'); a.dataset.file = f; a.dataset.line = l; a.textContent = ref; return a;
+  }
+  function applyFold() {
+    const tr = $('#trace'); const hasReject = !!$('.step.reject', tr); const n = $$('.step.passed', tr).length;
+    tr.classList.toggle('folded', hasReject && simFold);
+    const b = $('#traceFold'); b.hidden = !hasReject || !n;
+    b.textContent = simFold ? '앞에서 통과한 ' + n + '단계 펼치기' : '통과한 단계 접기';
+    b.setAttribute('aria-expanded', String(!simFold));
   }
   function runSim() {
     const s = Object.assign({}, sim);
     ['sizeKB', 'recent', 'inflight', 'daily'].forEach(k => s[k] = +s[k]);
     const out = simulate(s);
+    const r = out.resp; const ok = r.status < 400;
+    const reject = out.steps.find(st => st.status === 'reject');
+    // pipeline
+    const pipe = $('#pipe'); pipe.innerHTML = '';
+    let reached = true;
+    PIPES[out.route].forEach(ph => {
+      const mine = out.steps.filter(st => st.phase === ph);
+      let cls = 'dim';
+      if (mine.some(st => st.status === 'reject')) cls = 'reject';
+      else if (mine.some(st => st.status === 'pass' || st.status === 'info')) cls = 'pass';
+      else if (mine.length) cls = 'skip';
+      if (!reached) cls = 'dim';
+      if (cls === 'reject') reached = false;
+      const li = document.createElement('li'); li.className = cls;
+      const b = document.createElement('button'); b.type = 'button';
+      b.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="l"></span>';
+      b.querySelector('.dot').textContent = cls === 'pass' ? '✓' : cls === 'reject' ? '✕' : '';
+      b.querySelector('.l').textContent = PHASES[ph];
+      b.setAttribute('aria-label', PHASES[ph] + ': ' + { pass: '통과', reject: '여기서 멈춤', skip: '건너뜀', dim: '도달하지 않음' }[cls]);
+      b.disabled = !mine.length || cls === 'dim';
+      b.addEventListener('click', () => {
+        const target = $('#trace .step[data-phase="' + ph + '"]'); if (!target) return;
+        if (target.classList.contains('passed') && simFold) { simFold = false; applyFold(); }
+        target.scrollIntoView({ block: 'center' }); target.classList.remove('flash'); void target.offsetWidth; target.classList.add('flash');
+      });
+      li.appendChild(b); pipe.appendChild(li);
+    });
+    const end = document.createElement('li'); end.className = 'end ' + (ok ? 'ok' : 'fail');
+    end.innerHTML = '<button type="button" disabled><span class="dot"></span><span class="l">응답</span></button>';
+    end.querySelector('.dot').textContent = r.status; pipe.appendChild(end);
+    // verdict
+    const v = $('#verdict'); v.className = 'verdict ' + (ok ? 'ok' : 'fail'); v.innerHTML = '<div class="code"></div><div class="what"></div><div class="where"></div>';
+    v.querySelector('.code').textContent = r.status;
+    v.querySelector('.what').textContent = out.method + ' ' + out.path + ' → ' + (ok ? 'OK' : r.body.error.code);
+    const where = v.querySelector('.where');
+    if (reject) {
+      where.appendChild(document.createTextNode('멈춘 곳: ' + reject.title + ' · '));
+      const sl = srcLink(reject.ref); sl.classList.add('r'); where.appendChild(sl);
+      const ll = learnLink(reject.ref); if (ll) { where.appendChild(document.createTextNode(' · ')); where.appendChild(ll); }
+    } else {
+      const n = out.steps.filter(st => st.status !== 'skip').length;
+      where.textContent = '모든 관문 통과 · 거쳐 간 단계 ' + n + '개' + (r.body.share_code ? ' · 응답에 share_code 포함' : '');
+    }
+    // trace
     const tr = $('#trace'); tr.innerHTML = '';
+    let before = true;
     out.steps.forEach(st => {
-      const d = document.createElement('div'); d.className = 'step ' + st.status;
-      const chip = { pass: '통과', reject: '거절', skip: '건너뜀', info: '진행' }[st.status];
-      d.innerHTML = '<span class="chip"></span><div><div class="t"></div><div class="d"></div><div class="r"><a class="src" href="#"></a><a class="learn" href="#"></a></div></div>';
-      d.querySelector('.chip').textContent = chip; d.querySelector('.t').textContent = st.title; d.querySelector('.d').textContent = st.detail;
-      const a = d.querySelector('a.src'); const [f, l] = st.ref.split(':'); a.dataset.file = f; a.dataset.line = l; a.textContent = st.ref;
-      const sk = stageForRef(st.ref); const learn = d.querySelector('a.learn');
-      if (sk) { learn.textContent = '이 단계 배우기: ' + stageOf(sk).title; learn.addEventListener('click', e => { e.preventDefault(); state.track = 'journey'; state.stage = sk; render(null); }); } else learn.remove();
+      const d = document.createElement('div'); d.className = 'step ' + st.status; d.dataset.phase = st.phase;
+      if (st.status === 'reject') before = false; else if (before) d.classList.add('passed');
+      d.innerHTML = '<span class="chip"></span><div><div class="t"></div><div class="d"></div><div class="r"></div></div>';
+      d.querySelector('.chip').textContent = { pass: '통과', reject: '멈춤', skip: '건너뜀', info: '진행' }[st.status];
+      d.querySelector('.t').textContent = st.title; d.querySelector('.d').textContent = st.detail;
+      const rr = d.querySelector('.r'); rr.appendChild(srcLink(st.ref)); const ll = learnLink(st.ref); if (ll) rr.appendChild(ll);
       tr.appendChild(d);
     });
-    const r = out.resp;
-    const box = document.createElement('div'); box.className = 'resp ' + (r.status < 400 ? 'ok' : 'fail');
-    const stt = document.createElement('div'); stt.className = 'status'; stt.textContent = out.method + ' ' + out.path + ' → HTTP ' + r.status; box.appendChild(stt);
-    const hdr = document.createElement('div'); hdr.className = 'hdr'; hdr.textContent = Object.entries(r.headers).map(([k, v]) => k + ': ' + v).join('  ·  '); box.appendChild(hdr);
-    const pre = document.createElement('pre'); pre.textContent = JSON.stringify(r.body, null, 2); box.appendChild(pre);
+    $('#traceCount').textContent = '실행 순서 · ' + out.steps.length + '단계';
+    applyFold();
+    // response
+    const box = document.createElement('div'); box.className = 'resp';
+    box.innerHTML = '<h4>응답</h4><div class="hdr"></div><pre></pre>';
+    box.querySelector('.hdr').textContent = 'HTTP ' + r.status + '  ·  ' + Object.entries(r.headers).map(([k, val]) => k + ': ' + val).join('  ·  ');
+    box.querySelector('pre').textContent = JSON.stringify(r.body, null, 2);
     const host = $('#resp'); host.innerHTML = ''; host.appendChild(box);
+    const say = r.status + ' ' + (ok ? 'OK' : r.body.error.code) + (reject ? ', 멈춘 곳: ' + reject.title : '');
+    if ($('#simStatus').textContent !== say) $('#simStatus').textContent = say;
   }
+
+  // ---------- history ----------
+  const REPO = 'https://github.com/C-Designer/kant_project_2';
+  const KIND_LABEL = { backend: '백엔드', ml: '모델·데이터', eval: '평가', frontend: '프런트', infra: '인프라', docs: '문서' };
+  let HISTORY = null;
+  try { HISTORY = JSON.parse(($('#history') || {}).textContent || 'null'); } catch (e) { HISTORY = null; }
+  let histFilter = 'all';
+  function renderHistory() {
+    const host = $('#histBody'); if (!HISTORY) { host.textContent = '히스토리 데이터가 없습니다.'; return; }
+    if (host.dataset.built) { applyHistFilter(); return; }
+    host.dataset.built = '1';
+    const m = HISTORY.mvp;
+    const intro = document.createElement('p'); intro.textContent = m.summary; host.appendChild(intro);
+    const tbl = document.createElement('table'); tbl.className = 'thennow';
+    tbl.innerHTML = '<thead><tr><th>MVP<small></small></th><th>지금<small>main</small></th></tr></thead><tbody></tbody>';
+    tbl.querySelector('th small').textContent = m.commit + ' · ' + m.date;
+    m.then.forEach((t, i) => { const tr = document.createElement('tr'); tr.innerHTML = '<td></td><td></td>'; tr.children[0].textContent = t; tr.children[1].textContent = m.now[i] || ''; tbl.tBodies[0].appendChild(tr); });
+    host.appendChild(tbl);
+    const kinds = Object.keys(KIND_LABEL).filter(k => HISTORY.eras.some(e => e.items.some(it => it.kind === k)));
+    const bar = document.createElement('div'); bar.className = 'hist-filter'; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'PR 종류');
+    bar.innerHTML = '<span>보기</span>';
+    [['all', '전체'], ['linked', '여정과 연결된 것'], ...kinds.map(k => [k, KIND_LABEL[k]])].forEach(([k, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.dataset.k = k; b.textContent = label;
+      b.addEventListener('click', () => { histFilter = k; applyHistFilter(); });
+      bar.appendChild(b);
+    });
+    const cnt = document.createElement('span'); cnt.className = 'cnt'; bar.appendChild(cnt);
+    host.appendChild(bar);
+    HISTORY.eras.forEach((era, i) => {
+      const sec = document.createElement('section'); sec.className = 'era';
+      sec.innerHTML = '<div class="era-head"><div class="no"></div><div><h3></h3><div class="dates"></div><p></p></div></div><ol class="prs"></ol><p class="hist-empty" hidden>이 시기에는 고른 종류의 PR 이 없습니다.</p>';
+      sec.querySelector('.no').textContent = String(i + 1).padStart(2, '0');
+      sec.querySelector('h3').textContent = era.title; sec.querySelector('.dates').textContent = era.dates; sec.querySelector('.era-head p').textContent = era.summary;
+      const ol = sec.querySelector('.prs');
+      era.items.forEach(it => {
+        const li = document.createElement('li'); li.dataset.kind = it.kind; li.dataset.linked = it.stages.length ? '1' : '';
+        if (it.stages.length) li.classList.add('linked');
+        li.innerHTML = '<div class="meta"><a target="_blank" rel="noopener"></a><span class="dt"></span></div><div><h4><span class="tt"></span><span class="kind"></span></h4><p></p><div class="files"></div><div class="to"></div></div>';
+        const a = li.querySelector('.meta a');
+        if (it.pr) { a.href = REPO + '/pull/' + it.pr; a.textContent = '#' + it.pr; } else { a.href = REPO + '/commit/' + it.commit; a.textContent = it.commit; }
+        li.querySelector('.dt').textContent = it.date.slice(5);
+        li.querySelector('.tt').textContent = it.title; li.querySelector('.kind').textContent = KIND_LABEL[it.kind] || it.kind;
+        li.querySelector('p').textContent = it.added;
+        const files = li.querySelector('.files');
+        // Files are linked as they were at that commit; some were renamed or removed later.
+        it.files.forEach(f => { const fa = document.createElement('a'); fa.href = REPO + '/blob/' + it.commit + '/' + f; fa.target = '_blank'; fa.rel = 'noopener'; fa.textContent = f; files.appendChild(fa); });
+        const to = li.querySelector('.to');
+        it.stages.forEach(k => { if (stageIndex(k) < 0) return; const sa = document.createElement('a'); sa.href = '#journey/' + k; sa.textContent = stageOf(k).title; sa.addEventListener('click', e => { e.preventDefault(); state.track = 'journey'; state.stage = k; render(null); }); to.appendChild(sa); });
+        if (!to.children.length) to.remove();
+        ol.appendChild(li);
+      });
+      host.appendChild(sec);
+    });
+    applyHistFilter();
+  }
+  function applyHistFilter() {
+    let shown = 0, total = 0;
+    $$('#histBody .era').forEach(sec => {
+      let n = 0;
+      $$('.prs li', sec).forEach(li => { total++; const on = histFilter === 'all' || (histFilter === 'linked' ? !!li.dataset.linked : li.dataset.kind === histFilter); li.hidden = !on; if (on) n++; });
+      shown += n; $('.hist-empty', sec).hidden = n > 0;
+    });
+    $$('#histBody .hist-filter button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === histFilter)));
+    const c = $('#histBody .hist-filter .cnt'); if (c) c.textContent = shown + ' / ' + total;
+  }
+
+  // Sticky offsets follow the real header height, which grows when the title or tabs wrap.
+  function measureChrome() {
+    const root = document.documentElement; const sw = $('#stepperWrap');
+    root.style.setProperty('--hdr-h', $('header.top').offsetHeight + 'px');
+    root.style.setProperty('--step-h', (sw.classList.contains('hidden') ? 0 : sw.offsetHeight) + 'px');
+  }
+  if (window.ResizeObserver) new ResizeObserver(measureChrome).observe($('header.top'));
 
   // ---------- wiring ----------
   buildStageBodies();

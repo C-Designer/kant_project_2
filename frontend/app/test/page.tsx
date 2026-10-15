@@ -144,26 +144,6 @@ export default function Test() {
           </h1>
           <p>두 사람의 정보를 한 화면에 적어 주세요. 입력한 정보는 서비스 DB에 저장하지 않아요.</p>
         </div>
-        <aside className="notice">
-          <strong>
-            {checking && (
-              <span className="loading-circle loading-circle-small" aria-hidden="true" />
-            )}
-            {checking
-              ? '분석 서비스를 준비하고 있어요'
-              : ready
-                ? '어떤 결과인지 먼저 볼까요?'
-                : '실제 분석은 아직 준비 중이에요'}
-          </strong>
-          <p>
-            {ready
-              ? '입력 없이 예시 결과를 살펴볼 수 있어요.'
-              : '지금은 예시 결과를 살펴볼 수 있어요.'}
-          </p>
-          <button type="button" className="text-button" disabled={busy} onClick={demo}>
-            {busy && operation === 'demo' ? '예시 여는 중…' : '입력 없이 예시 결과 보기 →'}
-          </button>
-        </aside>
         <form onSubmit={submit} aria-busy={busy} className="pair-form">
           <p className="small-note">
             양력·한국 표준시 기준이에요. 태어난 시각을 모르면 ‘몰라요’를 선택해 주세요.
@@ -184,9 +164,11 @@ export default function Test() {
             </button>
           </div>
           <p className="small-note">
-            {ready
-              ? '요청이 몰리면 잠시 대기해요. 분석에 최대 2분 정도 걸릴 수 있어요.'
-              : '실제 분석이 준비되면 이용할 수 있어요. 지금은 위의 예시 결과를 살펴보세요.'}
+            {checking
+              ? '분석 서비스를 확인하고 있어요.'
+              : ready
+                ? '요청이 몰리면 잠시 대기해요. 분석에 최대 2분 정도 걸릴 수 있어요.'
+                : '실제 분석은 아직 준비 중이에요. 준비되면 이용할 수 있어요.'}
           </p>
         </form>
       </div>
