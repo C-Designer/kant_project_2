@@ -4,7 +4,7 @@
 | --- | --- |
 | 문서 ID / 버전 | LC-SPICY / 0.1 (검토용 초안) |
 | 작성일 | 2026-10-15, Asia/Seoul |
-| 상태 | 검토 완료 (2026-10-15), 구현 대기 |
+| 상태 | 구현 완료 (2026-10-15), 실제 LLM 품질 평가 전 |
 | 브랜치 | `c-designer/feat-spicy-custom-prompt` |
 | 영향 문서 | [PRD](./PRD.md) §2 제외 범위, [테크스펙](./TECH_SPEC.md) §5·§12, [데이터 스키마](./DATA_SCHEMA.md), [디자인 시스템](./DESIGN_SYSTEM.md) |
 
