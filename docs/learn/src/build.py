@@ -13,7 +13,7 @@ from pathlib import Path
 
 TOUR = Path(__file__).resolve().parent
 ROOT = TOUR.parents[2]
-PARTS = ["fastapi-1-2", "fastapi-3ab", "fastapi-3cd", "fastapi-share", "langchain-1-2", "langchain-3ab", "langchain-3cd"]
+PARTS = ["fastapi-1-2", "fastapi-3ab", "fastapi-3cd", "fastapi-share", "langchain-1-2", "langchain-3ab", "langchain-3cd", "infra-cicd", "infra-runtime"]
 OUT = ROOT / "docs/learn/fastapi-langchain.html"
 
 KEYWORDS = {
@@ -255,7 +255,7 @@ def check_history(data):
 
 def main():
     shell = (TOUR / "shell.html").read_text(encoding="utf-8")
-    tracks = {"fastapi": [], "langchain": []}
+    tracks = {"fastapi": [], "langchain": [], "infra": []}
     seen = set()
     for part in PARTS:
         p = TOUR / "parts" / f"{part}.html"
@@ -271,12 +271,12 @@ def main():
         text = QUIZ_RE.sub(lambda m: check_quiz(m, part), text)
         if "<code-block" in text:
             problems.append(f"[{part}] unparsed <code-block> remains")
-        track = "fastapi" if part.startswith("fastapi") else "langchain"
+        track = part.split("-")[0]  # fastapi, langchain or infra
         text = inject_summaries(text, part)
         tracks[track].append(text)
-    out = shell.replace("{{FASTAPI}}", "\n".join(tracks["fastapi"])).replace(
-        "{{LANGCHAIN}}", "\n".join(tracks["langchain"])
-    )
+    out = shell
+    for track, texts in tracks.items():
+        out = out.replace("{{" + track.upper() + "}}", "\n".join(texts))
     glossary = TOUR / "glossary.json"
     if glossary.exists():
         data = json.loads(glossary.read_text(encoding="utf-8"))

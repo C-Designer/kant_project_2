@@ -1,0 +1,427 @@
+<section class="lesson" id="infra-1-instances" data-track="infra" data-depth="1">
+  <h2>서버 한 대가 아니라 인스턴스들</h2>
+  <p class="lead">배포된 API 는 어느 "서버" 에서 돌고, 그 서버의 메모리에는 무엇이 들어 있습니까?</p>
+  <p>로컬에서는 uvicorn 프로세스 하나가 앱 하나를 띄웁니다. 배포본은 다릅니다. <code>deploy/vercel</code> 을 Root Directory 로 둔 Vercel 프로젝트 <code>kant-lovecode-api</code> 가 앱을 받아 갑니다(README.md:57). <a href="https://vercel.com/docs/frameworks/backend/fastapi" target="_blank" rel="noopener">Vercel 의 FastAPI 문서</a>(2026-10-15 확인)는 배포된 FastAPI 앱이 Vercel Function 하나가 되고, 기본으로 Fluid compute 위에서 트래픽에 맞춰 늘어난다고 설명합니다. 이 함수를 실제로 실행하는 단위가 인스턴스입니다.</p>
+  <p><a href="https://vercel.com/docs/fundamentals/what-is-compute" target="_blank" rel="noopener">Vercel 의 compute 설명</a>(2026-10-15 확인)에 따르면 Fluid compute 는 돌고 있는 인스턴스에 여유가 없을 때만 새 인스턴스를 띄우고, 그 전까지는 인스턴스 하나가 여러 호출을 동시에 처리합니다. Python 런타임도 여기에 포함됩니다. 인스턴스 수는 트래픽에 따라 자동으로 조절되고, 같은 인스턴스에서 도는 호출들은 메모리 캐시 같은 전역 상태를 함께 씁니다. 저장소의 <code>vercel.json</code> 에는 Fluid 설정 키가 없어 코드만 보고는 알 수 없지만, 2026-10-15 에 Vercel 프로젝트 설정을 조회한 결과 API 프로젝트의 <code>resourceConfig.fluid</code> 는 켜져 있습니다. 이 설정은 저장소가 아니라 Vercel 대시보드에 있으므로, 바뀌어도 코드 리뷰에 드러나지 않는다는 점을 기억해 둘 만합니다. README 가 API 에 쓴다고 적은 Large Functions(README.md:44)도 <a href="https://vercel.com/docs/functions/limitations" target="_blank" rel="noopener">Vercel 함수 한도 문서</a>상 Fluid compute 를 요구합니다.</p>
+  <div class="flow">
+    <div><b>1 · 브라우저</b>같은 출처의 <code>/api/v1/...</code> 로만 요청합니다.</div>
+    <div><b>2 · 프런트 프로젝트</b>Next.js rewrite 가 요청을 <code>API_INTERNAL_ORIGIN</code>(API 프로젝트 주소)으로 넘깁니다.</div>
+    <div class="fa"><b>3 · API 함수</b><code>main.py</code> 를 진입점으로 한 함수 하나입니다. <code>iad1</code> 리전, 호출당 최대 120초.</div>
+    <div class="fa"><b>4 · 인스턴스들</b>트래픽에 따라 늘고 줄며, 각자 앱 하나와 그 메모리를 따로 가집니다.</div>
+  </div>
+  <p>인스턴스 하나에는 Python 프로세스 하나가 있고, 그 프로세스가 <code>main.py</code> 를 import 할 때 앱이 만들어집니다. <code>api.py</code> 맨 아래의 <code>app = create_app()</code>(224행)가 import 시점에 실행되므로, 아래 객체들은 인스턴스마다 정확히 한 벌씩 생깁니다.</p>
+  <code-block file="backend/lovecode/api.py" lines="37-43">
+def create_app(analysis_service=None, share_codec=None):
+    service = analysis_service or AnalysisService()
+    shares = share_codec or ShareCodec.from_settings()
+    # Bound total in-flight work; the service independently limits each expensive stage.
+    analysis_admission = threading.BoundedSemaphore(settings().analysis_capacity)
+    budget_lock = threading.Lock()
+    budget = {"day": "", "count": 0}
+</code-block>
+  <ol class="notes">
+    <li data-line="37">앱을 만드는 팩토리 함수입니다. 테스트는 인자로 가짜 서비스를 넣고, 배포본은 인자 없이 import 시점에 한 번 부릅니다.</li>
+    <li data-line="38"><code>AnalysisService</code> 안에 BERT·해설 단계 슬롯과, 처음 쓸 때 로딩되는 분류기가 들어 있습니다.</li>
+    <li data-line="39">공유 링크 서명 키를 든 코덱입니다. 요청마다 바뀌는 값은 없습니다.</li>
+    <li data-line="41">지금 진행 중인 분석 수를 세는 세마포어입니다(기본 20). 이 20은 인스턴스 하나의 한도입니다.</li>
+    <li data-line="43">오늘 분석한 수를 세는 dict 입니다. DB 가 아니라 이 프로세스의 메모리에 있어서 다른 인스턴스는 이 값을 모릅니다.</li>
+  </ol>
+  <p>51-53행의 IP 버킷과 salt, <code>settings()</code> 의 캐시도 같은 처지입니다. 그래서 한 사용자의 연속된 두 요청이 서로 다른 인스턴스에 도착하면, 두 번째 인스턴스는 첫 요청을 모르는 상태에서 한도를 판단합니다. 위 compute 설명은 트래픽을 "부하와 가용성에 따라" 인스턴스로 보낸다고 할 뿐, 같은 사용자를 같은 인스턴스로 보낸다는 설명은 없습니다.</p>
+  <p>함수 자체의 설정은 <code>vercel.json</code> 몇 줄입니다.</p>
+  <code-block file="deploy/vercel/vercel.json" lines="4-11">
+  "functions": {
+    "main.py": {
+      "maxDuration": 120
+    }
+  },
+  "regions": [
+    "iad1"
+  ],
+</code-block>
+  <ol class="notes">
+    <li data-line="5">키가 진입점 파일 이름입니다. FastAPI 앱 전체가 이 함수 하나로 빌드되므로 설정도 한 곳에만 둡니다.</li>
+    <li data-line="6">호출 하나가 실행될 수 있는 최대 시간(초)입니다. 이 값이 다른 시간 제한과 어떻게 맞물리는지는 원리 파고들기의 타임아웃 사다리에서 계산합니다.</li>
+    <li data-line="10">함수는 미국 동부 <code>iad1</code> 한 리전에서 실행됩니다.</li>
+  </ol>
+  <p>이 단계의 나머지는 이 그림을 하나씩 풉니다. 파일 따라가기에서는 인스턴스 메모리에 든 상태 전부와 인스턴스가 처음 뜰 때의 비용을, 원리 파고들기에서는 한 인스턴스 안의 스레드풀, 요청 하나에 걸린 시간 제한들, 인스턴스가 여럿일 때 실제로 남는 한도를 봅니다.</p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="37">backend/lovecode/api.py:37</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="224">backend/lovecode/api.py:224</a>, <a class="src" data-file="deploy/vercel/vercel.json" data-line="5">deploy/vercel/vercel.json:5</a>, <a class="src" data-file="deploy/vercel/main.py" data-line="10">deploy/vercel/main.py:10</a>, <a class="src" data-file="frontend/next.config.ts" data-line="6">frontend/next.config.ts:6</a>, <a class="src" data-file="README.md" data-line="57">README.md:57</a>, <a href="https://vercel.com/docs/fundamentals/what-is-compute" target="_blank" rel="noopener">Vercel: What is Compute?</a>, <a href="https://vercel.com/docs/frameworks/backend/fastapi" target="_blank" rel="noopener">Vercel: FastAPI</a> (2026-10-15 확인)</p>
+</section>
+
+<section class="lesson" id="infra-2-state" data-track="infra" data-depth="2">
+  <h2>인스턴스별 상태 지도</h2>
+  <p class="lead">API 프로세스가 메모리에 들고 있는 상태는 모두 몇 가지이고, 각각 무엇을 지키며, 인스턴스가 여럿이면 어떻게 됩니까?</p>
+  <p>배포본 API 프로세스의 메모리 상태를 모두 모으면 아래 표가 됩니다. 각 한도의 응답 코드와 검사 순서는 <a href="#journey/handler/fa-3-limits-map">네 겹의 제한</a> 섹션에 있으니, 여기서는 상태가 어디에 있고 어느 스레드가 만지며 인스턴스가 늘면 어떻게 되는지에 집중합니다.</p>
+  <table>
+    <thead><tr><th>상태</th><th>위치</th><th>지키는 것</th><th>만지는 스레드</th><th>인스턴스가 N 개면</th></tr></thead>
+    <tbody>
+      <tr><td>입장 세마포어</td><td>api.py:41</td><td>동시에 진행 중인 분석 수. 기본 20, 상한 32</td><td>워커 스레드. 기다리지 않는 <code>acquire(blocking=False)</code></td><td>인스턴스마다 20. 합치면 동시 20×N</td></tr>
+      <tr><td>일일 예산 <code>budget</code> + <code>budget_lock</code></td><td>api.py:42-43, 174-182</td><td>UTC 하루 분석 시도 수. 기본 20</td><td>워커 스레드. 락 아래에서 비교·증가</td><td>인스턴스마다 따로 세고, 새로 뜬 인스턴스는 0 에서 시작</td></tr>
+      <tr><td>IP 버킷 <code>buckets</code> + <code>salt</code>·<code>salt_time</code></td><td>api.py:51-53, 74-106</td><td>IP 별 요청 빈도. 분석은 10분 5회</td><td>이벤트 루프 스레드(<code>boundary</code> 미들웨어). 락 없음</td><td>같은 IP 라도 인스턴스마다 따로 셈. salt 를 만든 지 10분이 지난 뒤 첫 요청 때 전부 비워짐</td></tr>
+      <tr><td>BERT 슬롯 <code>StageLimit(2)</code></td><td>service.py:19</td><td>동시 BERT 추론 수(CPU)</td><td>워커 스레드. <code>threading.Condition</code></td><td>인스턴스마다 자기 CPU 에서 2</td></tr>
+      <tr><td>해설 슬롯 <code>StageLimit(5)</code></td><td>service.py:20</td><td>동시 OpenAI 해설 호출 수</td><td>워커 스레드. <code>threading.Condition</code></td><td>인스턴스마다 5. 같은 OpenAI 계정으로 동시 5×N 호출</td></tr>
+      <tr><td>분류기 <code>classifier</code> + <code>_classifier_lock</code></td><td>service.py:17-18, 37-41</td><td>BERT 모델을 한 번만 로딩</td><td>첫 <code>ready()</code> 를 부른 워커 스레드</td><td>새 인스턴스마다 처음부터 다시 로딩</td></tr>
+      <tr><td>설정 캐시 <code>settings()</code></td><td>settings.py:29-31</td><td>환경변수를 한 번 읽어 고정</td><td>import 때 만들고 이후 읽기만</td><td>모두 같은 프로젝트 환경변수를 읽음. 값을 바꾸면 새 배포부터 반영</td></tr>
+      <tr><td>공유 코덱 <code>ShareCodec</code></td><td>api.py:39, share.py:72-75</td><td>링크 서명 키. 바뀌지 않음</td><td>여러 스레드가 읽기만</td><td>모든 인스턴스의 키가 같아야 서로 만든 링크를 엶</td></tr>
+      <tr><td>LangChain 기본 HTTP 클라이언트</td><td>langchain_openai/chat_models/_client_utils.py:481-487</td><td>OpenAI 연결 재사용</td><td>해설을 호출하는 워커 스레드들</td><td>인스턴스마다 연결 풀 하나</td></tr>
+    </tbody>
+  </table>
+  <p>마지막 행은 코드에 드러나지 않는 상태입니다. <code>make_llm</code> 은 호출마다 <code>ChatOpenAI</code> 를 새로 만들지만(generator.py:198), langchain-openai 는 타임아웃 값이 해시 가능하면 기본 httpx 클라이언트를 <code>lru_cache</code> 로 재사용합니다(_client_utils.py:499-513). <code>timeout=45</code> 는 해시 가능하므로 한 프로세스의 해설 호출은 연결 풀 하나를 나눠 씁니다. 반면 openai 분류 모드의 라벨 호출은 호출마다 <code>httpx.Client</code> 를 열고 닫습니다(provider.py:70-72). 이 동작은 로컬 <code>.venv</code> 의 langchain-openai 1.7.0 기준이고, 배포본은 <code>&gt;=0.3,&lt;2</code> 범위를 빌드 때 새로 고릅니다(deploy/vercel/pyproject.toml:8).</p>
+  <p>IP 버킷은 정해진 시각이 아니라 요청이 들어올 때 오래된 salt 를 갈아 끼웁니다.</p>
+  <code-block file="backend/lovecode/api.py" lines="74-81">
+        if settings().rate_limit_enabled:
+            import hashlib
+
+            now = time.monotonic()
+            if now - salt_time > 600:
+                buckets.clear()
+                salt = secrets.token_bytes(32)
+                salt_time = now
+</code-block>
+  <ol class="notes">
+    <li data-line="74">레이트리밋 스위치입니다. 테스트 픽스처는 이 값을 꺼 두고 시작합니다(tests/conftest.py:18).</li>
+    <li data-line="77">벽시계가 아니라 <code>monotonic()</code> 을 씁니다. 서버 시계가 조정되어도 경과 시간 계산이 뒤로 가지 않습니다.</li>
+    <li data-line="78">별도 타이머 스레드가 없습니다. salt 를 만든 지 600초가 지난 뒤 처음 들어온 요청이 회전을 일으킵니다.</li>
+    <li data-line="79">버킷 전체를 비웁니다. 회전 직전에 분석 5회를 다 쓴 IP 도 회전 직후 다시 5회를 쓸 수 있어, 회전을 사이에 두고 짧은 시간에 최대 10회가 가능합니다.</li>
+    <li data-line="80">키는 <code>sha256(salt + IP)</code> 입니다(93-98행). 메모리에 IP 원문이 남지 않고, salt 가 바뀌면 이전 키와도 이어지지 않습니다.</li>
+  </ol>
+  <p>단계 슬롯과 분류기는 <code>AnalysisService</code> 생성자에서 만들어집니다.</p>
+  <code-block file="backend/lovecode/service.py" lines="17-20">
+        self.classifier = classifier
+        self._classifier_lock = threading.Lock()
+        self._bert_slots = StageLimit(settings().bert_concurrency)
+        self._explanation_slots = StageLimit(settings().explanation_concurrency)
+</code-block>
+  <ol class="notes">
+    <li data-line="17">배포본에서는 <code>None</code> 으로 시작합니다. 첫 <code>ready()</code> 가 채우며, 그 비용은 다음 섹션에서 봅니다.</li>
+    <li data-line="18">분류기 로딩을 한 스레드만 하도록 하는 락입니다. 로딩이 끝난 뒤에는 쓰이지 않습니다.</li>
+    <li data-line="19">BERT 슬롯 수를 생성자에서 한 번 읽습니다. 프로세스가 사는 동안 바뀌지 않으므로, 값을 바꾸려면 새 배포의 새 인스턴스가 필요합니다.</li>
+    <li data-line="20">해설 슬롯도 같습니다. 인스턴스가 N 개면 OpenAI 로 가는 동시 해설 호출은 최대 5×N 입니다.</li>
+  </ol>
+  <p>모든 인스턴스가 같아야 하는 값은 설정 파일이 직접 적어 둡니다.</p>
+  <code-block file="backend/lovecode/settings.py" lines="24-31">
+    # Signs stateless share links (32+ random characters). Empty turns sharing off.
+    # Every instance must use the same value; changing it invalidates links already sent.
+    share_secret: str = ""
+
+
+@lru_cache
+def settings():
+    return Settings()
+</code-block>
+  <ol class="notes">
+    <li data-line="25">공유 링크는 저장소 없이 서명만으로 검증하므로, A 인스턴스가 서명한 링크를 B 인스턴스가 열려면 키가 같아야 합니다. Vercel 환경변수는 프로젝트 단위로 설정되어 같은 배포의 인스턴스들이 같은 값을 읽습니다.</li>
+    <li data-line="29"><code>lru_cache</code> 라 <code>Settings()</code> 는 프로세스마다 한 번 만들어지고, 이후 <code>settings()</code> 는 같은 객체를 돌려줍니다.</li>
+    <li data-line="31">이 객체가 만들어지는 시점이 <code>create_app()</code> 안, 곧 import 시점입니다. 다음 섹션에서 이 순서가 왜 중요한지 봅니다.</li>
+  </ol>
+  <p><a href="https://vercel.com/docs/environment-variables" target="_blank" rel="noopener">Vercel 환경변수 문서</a>(2026-10-15 확인)는 환경변수 변경이 이전 배포에는 적용되지 않고 새 배포에만 적용된다고 적습니다. 대시보드에서 <code>LC_ANALYSIS_CAPACITY</code> 를 바꾸더라도 다시 배포하기 전까지는 돌고 있는 인스턴스의 세마포어 크기가 그대로입니다.</p>
+  <aside class="principle"><h4>원리 노트: 누가 만지느냐가 락을 정한다</h4><p>같은 프로세스 안의 상태라도 락이 필요한지는 그 상태를 만지는 스레드 수로 갈립니다. IP 버킷은 <code>async def boundary</code> 미들웨어 안에서만 바뀌고, 미들웨어는 이벤트 루프 스레드 하나에서 돌기 때문에 <code>buckets</code> 와 <code>salt</code> 를 락 없이 고칩니다. 다만 스레드가 하나라는 것만으로는 부족합니다. 이벤트 루프는 <code>await</code> 지점에서만 다른 코루틴으로 넘어가므로, 검사와 갱신 사이에 <code>await</code> 가 있으면 그 틈에 다른 요청이 같은 버킷을 고칠 수 있습니다. 74-106행에는 <code>await</code> 가 없어(본문을 읽는 <code>async for</code> 는 68행으로 그 앞, <code>await call_next</code> 는 107행으로 그 뒤) 회전·검사·<code>append</code> 가 끊기지 않고 한 번에 실행됩니다. 이 구간에 <code>await</code> 를 넣으면 <code>asyncio.Lock</code> 이 필요해집니다. 일일 예산은 <code>def analyse</code> 안에서 바뀌고, <code>def</code> 엔드포인트는 여러 워커 스레드에서 동시에 돌기 때문에 날짜 비교와 증가를 <code>budget_lock</code> 아래에서 한 번에 합니다. 분류기는 한 번 쓰고 나면 읽기만 하므로 로딩할 때만 락을 잡습니다. 상태를 추가할 때는 "이 값을 몇 개의 스레드가 쓰는가" 를 먼저 묻고, async 코드라면 "검사와 갱신 사이에 await 가 있는가" 를 이어서 묻습니다.</p></aside>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="41">backend/lovecode/api.py:41</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="74">backend/lovecode/api.py:74</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="17">backend/lovecode/service.py:17</a>, <a class="src" data-file="backend/lovecode/settings.py" data-line="24">backend/lovecode/settings.py:24</a>, <a class="src" data-file="backend/lovecode/share.py" data-line="72">backend/lovecode/share.py:72</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_openai/chat_models/_client_utils.py" data-line="481">langchain_openai/chat_models/_client_utils.py:481</a>, <a href="https://vercel.com/docs/environment-variables" target="_blank" rel="noopener">Vercel: Environment variables</a> (2026-10-15 확인)</p>
+</section>
+
+<section class="lesson" id="infra-2-coldstart" data-track="infra" data-depth="2">
+  <h2>인스턴스가 처음 뜰 때</h2>
+  <p class="lead">새 인스턴스가 첫 분석을 처리하기까지 어떤 일이 어떤 순서로 일어나고, 왜 모델은 import 때가 아니라 첫 요청 때 올립니까?</p>
+  <p>콜드 스타트는 요청이 왔는데 데워진 인스턴스가 없어서 새로 준비하는 지연입니다. 러브코드 API 에서 새 인스턴스의 첫 분석이 겪는 지연은 두 층으로 나뉩니다. 플랫폼이 콜드 스타트로 보는 프로세스 시작과 앱 import, 그리고 플랫폼이 보지 못하는 앱 안의 지연인 첫 <code>ready()</code> 의 BERT 모델 로딩입니다.</p>
+  <div class="flow">
+    <div><b>1 · 환경변수</b><code>main.py</code> 가 모델 경로와 스레드 수 1 을 정합니다.</div>
+    <div><b>2 · 앱 import</b><code>settings()</code> 를 처음 읽고 <code>create_app()</code> 이 상태를 만듭니다. torch 는 아직 없습니다.</div>
+    <div class="fa"><b>3 · 첫 ready()</b>health 나 analyses 가 락 아래에서 가중치 해시를 확인하고 모델을 올립니다.</div>
+    <div><b>4 · 데워진 상태</b>이후 <code>ready()</code> 는 락 없이 지나가고 요청마다 추론만 합니다.</div>
+  </div>
+  <code-block file="deploy/vercel/main.py" lines="5-10">
+os.environ["LC_MODELS_DIR"] = str(Path(__file__).parent / "model")
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+from lovecode.api import app  # noqa: F401
+</code-block>
+  <ol class="notes">
+    <li data-line="5">빌드 명령 <code>build_model.py</code> 가 이 파일 옆 <code>model</code> 폴더에 가중치를 풀어 둡니다(build_model.py:33). 그 경로를 환경변수로 넘겨 <code>settings().models_dir</code> 이 읽게 합니다.</li>
+    <li data-line="6">이 줄은 10행의 import 보다 앞이므로, torch 가 언제 import 되든 스레드 수 설정이 먼저입니다. 실제로 torch 는 첫 모델 로딩 때에야 들어옵니다.</li>
+    <li data-line="10">여기서 <code>lovecode.api</code> 가 import 되며 <code>create_app()</code> 이 실행됩니다.</li>
+  </ol>
+  <p>환경변수를 import 앞에 두는 이유(<code>lru_cache</code>)는 <a href="#journey/start/fa-1-app">앱과 요청</a> 섹션에서 다뤘습니다. 덧붙이면 설정 검증도 이 import 안에서 일어납니다. <code>LC_ANALYSIS_CAPACITY=40</code> 처럼 범위(<code>le=32</code>)를 벗어난 값을 주면 <code>Settings()</code> 가 <code>ValidationError</code> 를 내고 <code>import lovecode.api</code> 자체가 실패합니다(로컬에서 확인). 잘못된 값이 요청을 처리하는 도중이 아니라 인스턴스가 뜨는 순간에 드러납니다.</p>
+  <p>두 번째 층은 <code>ready()</code> 안의 지연 로딩입니다.</p>
+  <code-block file="backend/lovecode/service.py" lines="37-43">
+        if self.classifier is None:
+            try:
+                with self._classifier_lock:
+                    if self.classifier is None:
+                        self.classifier = Classifier(s.models_dir)
+            except (OSError, ValueError, KeyError):
+                return False
+</code-block>
+  <ol class="notes">
+    <li data-line="37">락 없이 먼저 봅니다. 데워진 인스턴스에서는 여기서 바로 지나가므로 요청마다 락을 잡지 않습니다.</li>
+    <li data-line="39">첫 로딩이 진행되는 동안 같은 인스턴스로 들어온 다른 health·analyses 요청은 이 줄에서 기다립니다. 기다리는 동안 각자 워커 스레드를 붙잡고, 기한은 없습니다.</li>
+    <li data-line="40">락을 얻은 뒤 한 번 더 확인합니다. 앞선 스레드가 로딩을 끝냈다면 여기서 빠져나갑니다.</li>
+    <li data-line="41">실제 로딩입니다. 아래 두 발췌가 이 생성자 안에서 일어납니다.</li>
+    <li data-line="42">파일 누락이나 해시 불일치는 <code>False</code> 가 되고 <code>classifier</code> 는 <code>None</code> 으로 남습니다. 그러면 락에서 기다리던 요청들이 차례로 같은 로딩을 처음부터 다시 시도하고, 이후의 <code>ready()</code> 도 마찬가지입니다.</li>
+  </ol>
+  <code-block file="backend/lovecode/inference.py" lines="31-37">
+        filename = files[selected]
+        if hashlib.sha256((root / filename).read_bytes()).hexdigest() != self.report.get(
+            "artifact_sha256", {}
+        ).get(filename):
+            raise ArtifactError("MODEL_DIGEST_MISMATCH")
+        if selected in ("klue_bert", "klue_bert_axes"):
+            from .bert import BertModel
+</code-block>
+  <ol class="notes">
+    <li data-line="32">가중치 파일 전체를 메모리로 읽어 SHA-256 을 계산하고 <code>report.json</code> 의 값과 비교합니다. 이 저장소의 <code>klue_bert_axes/model.safetensors</code> 는 442,505,216 바이트(약 422 MiB)입니다.</li>
+    <li data-line="35">다르면 <code>ArtifactError</code>(<code>ValueError</code> 의 하위 클래스)로 멈추고, <code>ready()</code> 가 이것을 <code>False</code> 로 바꿉니다.</li>
+    <li data-line="37"><code>BertModel</code> 을 모듈 맨 위가 아니라 여기서 import 합니다. openai 분류 모드나 테스트처럼 분류기를 올리지 않는 경로는 transformers 와 torch 를 건드리지 않습니다.</li>
+  </ol>
+  <code-block file="backend/lovecode/bert.py" lines="231-237">
+    def __init__(self, directory, max_length=512):
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+        self.tokenizer = AutoTokenizer.from_pretrained(directory, local_files_only=True)
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            directory, local_files_only=True
+        ).to(_device())
+</code-block>
+  <ol class="notes">
+    <li data-line="232">transformers 와, 그 모델·토크나이저 클래스가 의존하는 torch 가 이 줄에서 처음 import 됩니다(<code>import transformers</code> 만으로는 torch 가 올라오지 않고, 클래스를 꺼낼 때 함께 올라옵니다).</li>
+    <li data-line="234"><code>local_files_only=True</code> 라 빌드가 풀어 둔 파일만 읽고, 실행 중에 모델을 내려받으러 가지 않습니다.</li>
+    <li data-line="235">가중치를 다시 읽어 모델을 만듭니다. 해시용으로 한 번, 모델용으로 한 번, 같은 파일을 두 번 읽는 셈입니다.</li>
+    <li data-line="237"><code>_device()</code>(15-19행)가 CUDA 여부를 보고 장치를 고릅니다. 안의 <code>import torch</code> 는 232행에서 이미 올라온 모듈을 다시 가져올 뿐입니다. 배포본은 CPU 빌드 torch(deploy/vercel/pyproject.toml:7)를 설치하므로 CPU 가 됩니다.</li>
+  </ol>
+  <p>비용은 이 저장소에서 직접 쟀습니다(2026-10-15, Apple M3 Pro, <code>OMP_NUM_THREADS=1</code>, torch 2.14.1, 가중치 파일이 이미 디스크 캐시에 있는 상태). <code>import lovecode.api</code> 약 0.7초(이 시점에 torch·transformers 는 메모리에 없음), <code>Classifier()</code> 약 6.3초(두 라이브러리 import, 해시, 로딩 포함), 이후 추론 한 번 0.10~0.15초, 프로세스 최대 메모리(RSS) 약 1.2 GB 였습니다. Vercel 의 CPU 에서는 재지 않았으므로 순서와 비율만 참고합니다. <a href="https://vercel.com/docs/functions/limitations" target="_blank" rel="noopener">Vercel 함수 한도 문서</a>(2026-10-15 확인)는 Hobby 함수의 메모리·CPU 를 2 GB / 1 vCPU 로 적습니다. 로컬에서 잰 프로세스 최대 메모리 1.2 GB 는 이 크기의 절반을 넘습니다.</p>
+  <p>모델을 import 때 올리지 않는 이유는 세 가지입니다. 첫째, taxonomy·demo·shared 는 모델 없이 바로 답할 수 있습니다(health 는 <code>ready()</code> 를 부르므로 새 인스턴스의 첫 health 가 로딩을 시작합니다). 둘째, 테스트와 CI 가 torch 를 설치하지도 import 하지도 않습니다(ci.yml:55 의 주석이 이 사실에 기대어 torch·CUDA 패키지를 빼고 설치합니다). 셋째, 가중치 파일이 없거나 해시가 맞지 않아도 인스턴스는 뜹니다. 모델을 import 때 그대로 올렸다면 파일 누락의 <code>OSError</code> 나 해시 불일치의 <code>ArtifactError</code>(<code>ValueError</code> 의 하위 클래스)가 import 자체를 깨뜨려 health·demo·shared 도 답하지 못합니다. 지금은 <code>ready()</code> 가 이 예외를 <code>False</code> 로 바꾸고(service.py:42), 분석만 503 <code>ANALYSIS_UNAVAILABLE</code> 로 안내합니다(api.py:155). 스레드 수 환경변수가 torch 보다 먼저라는 점은 지연 로딩이 아니라 <code>main.py</code> 의 줄 순서(6-7행이 10행 import 보다 앞)가 보장합니다. 대가는 첫 요청이 로딩 시간을 치른다는 것이고, 이 시간은 30초 대기 기한(service.py:48)에도 입장 세마포어에도 잡히지 않습니다.</p>
+  <p>프런트는 이 로딩을 의도치 않게 미리 깨우기도 합니다.</p>
+  <code-block file="frontend/app/test/page.tsx" lines="36-47">
+  useEffect(() => {
+    api<{
+      analysis_ready: boolean;
+      verification_mode: boolean;
+    }>('health')
+      .then((h) => {
+        setReady(h.analysis_ready);
+        setVerification(h.verification_mode);
+      })
+      .catch(() => setReady(false))
+      .finally(() => setChecking(false));
+  }, []);
+</code-block>
+  <ol class="notes">
+    <li data-line="40"><code>/test</code> 페이지가 열리면 health 를 부릅니다. 그 요청이 새 인스턴스의 첫 요청이면 health 의 <code>ready()</code>(api.py:130)가 모델 로딩을 시작합니다.</li>
+    <li data-line="42">서버가 알려 준 <code>analysis_ready</code> 를 화면 상태에 담습니다.</li>
+    <li data-line="45">health 의 시간 제한은 30초입니다(frontend/lib/api.ts:20). 그 안에 답이 없거나 오류면 준비되지 않은 것으로 표시하므로, 콜드 로딩은 사실상 30초 안에 끝나야 합니다.</li>
+  </ol>
+  <p>다만 health 와 그다음 analyses 가 같은 인스턴스로 간다는 보장은 없으므로, health 가 데운 인스턴스가 분석을 받는다고 기대할 수는 없습니다. 플랫폼 쪽 사정도 있습니다. <a href="https://vercel.com/docs/fundamentals/what-is-compute" target="_blank" rel="noopener">Vercel compute 설명</a>은 인스턴스 재사용·바이트코드 캐싱·사전 예열로 콜드 스타트를 줄이지만 트래픽이 적을 때 등에는 여전히 생길 수 있다고 적고, <a href="https://vercel.com/changelog/python-function-bundles-now-include-precompiled-bytecode" target="_blank" rel="noopener">2026-07-21 변경 기록</a>은 사전 예열 인스턴스를 유료 플랜의 프로덕션 배포에 한정해 설명합니다. 다만 사전 예열이 줄여 주는 것은 첫 번째 층뿐입니다. Vercel 파이썬 런타임은 앱 모듈 import 가 끝나면 uvicorn 을 돌리기 전에 인스턴스가 준비됐다고 알리고, 상태 확인 경로 <code>/_vercel/ping</code> 에는 앱을 부르지 않고 바로 200 으로 답합니다(<a href="https://github.com/vercel/vercel/blob/c628be7835/python/vercel-runtime/src/vercel_runtime/vc_init.py#L1225-L1253" target="_blank" rel="noopener">vercel-runtime vc_init.py</a>). 러브코드에는 lifespan 도 없으므로, 새로 예열된 인스턴스도 첫 health·analyses 의 <code>ready()</code> 에서 모델을 올리고, 그동안 같은 인스턴스로 온 health·analyses 는 39행 락에서 기다립니다. 한 번 모델을 올린 인스턴스가 재사용되는 동안에는 로딩이 다시 일어나지 않습니다. 두 프로젝트는 Hobby 라 사전 예열도 없으므로(README.md:44), 사용자가 뜸한 시간 뒤의 첫 분석은 프로세스 시작·import 와 모델 로딩을 함께 치를 가능성이 높습니다. <a href="https://vercel.com/docs/functions/runtimes" target="_blank" rel="noopener">런타임 문서</a>는 프로덕션 함수가 2주 동안 호출되지 않으면 보관(archive)되고, 그 뒤 첫 콜드 스타트가 평소보다 최소 1초 길어질 수 있다고 적습니다(모두 2026-10-15 확인).</p>
+  <aside class="principle"><h4>원리 노트: 지연 로딩과 이중 확인 잠금</h4><p>비싼 객체를 처음 필요할 때 만드는 지연 로딩은 "여러 스레드가 동시에 처음을 맞으면 누가 만드는가" 문제를 낳습니다. 락 하나로 감싸면 안전하지만, 로딩이 끝난 뒤에도 모든 요청이 락을 거쳐야 합니다. 이중 확인 잠금은 락 밖에서 한 번 보고(빠른 길), 락 안에서 한 번 더 보는(안전한 길) 방식으로 둘을 함께 얻습니다. 41행은 생성자가 끝난 뒤에야 속성에 대입하므로, 락 밖에서 읽는 스레드가 반쯤 만들어진 분류기를 보는 일은 없습니다. 대신 로딩이 실패했을 때의 동작(재시도할지, 실패를 기억할지)은 따로 정해야 하며, 러브코드는 실패를 기억하지 않고 다음 호출에서 다시 시도합니다.</p></aside>
+  <p class="ref">확인: <a class="src" data-file="deploy/vercel/main.py" data-line="5">deploy/vercel/main.py:5</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="37">backend/lovecode/service.py:37</a>, <a class="src" data-file="backend/lovecode/inference.py" data-line="32">backend/lovecode/inference.py:32</a>, <a class="src" data-file="backend/lovecode/bert.py" data-line="232">backend/lovecode/bert.py:232</a>, <a class="src" data-file="backend/lovecode/settings.py" data-line="19">backend/lovecode/settings.py:19</a>, <a class="src" data-file="frontend/app/test/page.tsx" data-line="36">frontend/app/test/page.tsx:36</a>, <a class="src" data-file=".github/workflows/ci.yml" data-line="55">.github/workflows/ci.yml:55</a>, <a href="https://vercel.com/docs/functions/limitations" target="_blank" rel="noopener">Vercel: Functions Limits</a>, <a href="https://vercel.com/docs/functions/runtimes" target="_blank" rel="noopener">Vercel: Runtimes</a>, <a href="https://github.com/vercel/vercel/blob/c628be7835/python/vercel-runtime/src/vercel_runtime/vc_init.py" target="_blank" rel="noopener">vercel-runtime vc_init.py</a> (2026-10-15 확인)</p>
+</section>
+
+<section class="lesson" id="infra-3-threadpool" data-track="infra" data-depth="3">
+  <h2>스레드 토큰 40, 입장 20, 그리고 기다리는 스레드</h2>
+  <p class="lead">입장 한도 20 과 anyio 의 스레드 토큰 40 은 어떤 관계이고, 그 사이에서 무엇이 스레드를 오래 붙잡습니까?</p>
+  <p><code>def</code> 엔드포인트가 <code>run_in_threadpool</code> 을 거쳐 anyio 워커 스레드에서 돌고, 기본 리미터 CapacityLimiter(40)(anyio/_backends/_asyncio.py:3162)의 토큰을 나눠 쓴다는 경로는 <a href="#journey/handler/fa-3-sync">def 엔드포인트는 어디서 실행되는가</a> 섹션에서, 단계 슬롯의 FIFO 대기는 <a href="#journey/service/fa-3-stagelimit">StageLimit</a> 섹션에서 봤습니다. 여기서는 둘을 한 인스턴스 안에 겹쳐 놓고, 토큰을 누가 얼마나 오래 쥐는지 봅니다. 토큰은 워커 스레드에 일을 넘기는 이 블록에서 얻고, 일이 끝날 때까지 돌려주지 않습니다.</p>
+  <code-block file=".venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py" lines="2670-2676">
+        async with limiter or cls.current_default_thread_limiter():
+            with CancelScope(shield=not abandon_on_cancel) as scope:
+                future = asyncio.Future[T_Retval]()
+                root_task = find_root_task()
+                if not idle_workers:
+                    worker = WorkerThread(root_task, workers, idle_workers)
+                    worker.start()
+</code-block>
+  <ol class="notes">
+    <li data-line="2670">토큰을 얻어야 블록 안으로 들어갑니다. 40개가 모두 쓰이면 다음 동기 호출은 이 줄에서 기다립니다. 이 기다림은 스레드가 아니라 이벤트 루프 위의 비동기 대기라서, 그동안에도 미들웨어(IP 제한, 본문 크기 검사)는 다른 요청을 처리합니다.</li>
+    <li data-line="2671"><code>abandon_on_cancel</code> 의 기본값이 <code>False</code>(anyio/to_thread.py:30)라 <code>shield=True</code> 입니다. 결과를 기다리던 쪽이 취소되어도 스레드의 일이 끝날 때까지 이 블록을 나가지 않으므로, 토큰도 그때 돌아옵니다.</li>
+    <li data-line="2674">쉬는 워커가 없을 때만 새 스레드를 만듭니다. 동시에 일하는 스레드는 토큰 수를 넘지 않습니다.</li>
+  </ol>
+  <p>토큰을 쥐는 쪽을 한 인스턴스 기준으로 늘어놓으면 이렇습니다.</p>
+  <table>
+    <thead><tr><th>무엇</th><th>토큰을 쥐는 동안</th><th>앞에서 막는 한도</th></tr></thead>
+    <tbody>
+      <tr><td>analyses, 데워진 인스턴스</td><td>핸들러 시작부터 응답 dict 반환까지. 단계 슬롯 대기(<code>Condition.wait</code>, 공통 기한 30초), BERT 추론, LLM 호출 최대 2회</td><td>입장 세마포어 20(상한 32)</td></tr>
+      <tr><td>analyses·health, 콜드 로딩 중</td><td><code>_classifier_lock</code> 대기와 모델 로딩 전체</td><td>없음. <code>ready()</code> 가 입장보다 먼저입니다</td></tr>
+      <tr><td>health, taxonomy, demo, shared</td><td>대개 짧음</td><td>IP 버킷만</td></tr>
+      <tr><td><code>def</code> 엔드포인트의 응답 모델 검증</td><td>짧음. <code>serialize_response</code> 가 따로 <code>run_in_threadpool</code> 을 부릅니다(fastapi/routing.py:326-328)</td><td>없음</td></tr>
+    </tbody>
+  </table>
+  <p>둘째 줄이 생기는 이유는 핸들러의 순서입니다.</p>
+  <code-block file="backend/lovecode/api.py" lines="153-155">
+    @app.post("/api/v1/analyses", response_model=AnalysisResponse, response_model_exclude_none=True)
+    def analyse(body: AnalysisInput):
+        if not service.ready():
+</code-block>
+  <ol class="notes">
+    <li data-line="154"><code>def</code> 라 이 함수 전체가 워커 스레드 하나에서 돌고, 그동안 토큰 하나를 씁니다.</li>
+    <li data-line="155">준비 확인이 입장 세마포어(171행)보다 먼저입니다. 데워진 인스턴스에서는 순간이지만, 콜드 로딩 중이면 이 호출이 <code>_classifier_lock</code> 에서 기다립니다. 입장 자리를 잡기 전이므로 20의 제한을 받지 않고, 대기 기한도 없습니다.</li>
+  </ol>
+  <p>그래서 <a href="#journey/handler/fa-3-sync">fa-3-sync</a> 에서 확인한 "입장 상한 32 와 토큰 40 사이에 8개가 남는다" 는 관계는 데워진 인스턴스에서만 성립합니다. 콜드 로딩 중에는 분석과 health 요청이 토큰 40개를 모두 차지할 수 있고, 그러면 taxonomy 같은 짧은 요청도 로딩이 끝날 때까지 2670행에서 기다립니다. 이것을 막는 것은 IP 별 버킷과 플랫폼 쪽 한도뿐입니다.</p>
+  <p>데워진 인스턴스에서 스레드를 가장 오래 쥐는 것은 기다림입니다. <code>StageLimit</code> 은 <code>threading.Condition.wait</code> 로 기다리므로(concurrency.py:30) 슬롯을 기다리는 요청도 워커 스레드와 토큰을 하나씩 차지합니다. 입장 20이 이 점유를 묶어 두는 역할을 합니다. LLM 응답을 기다리는 시간도 마찬가지로 스레드를 쥐지만, 소켓 대기 중에는 GIL 을 놓으므로 CPU 는 다른 스레드가 씁니다.</p>
+  <p>CPU 쪽은 <code>main.py</code> 의 <code>OMP_NUM_THREADS=1</code>·<code>MKL_NUM_THREADS=1</code>(6-7행)이 맡습니다. BERT 슬롯이 2라 동시에 도는 추론은 최대 2건이고, 각 추론이 torch 의 연산 스레드 하나만 쓰면 CPU 를 쓰는 스레드는 2개로 끝납니다. 이 맥(12코어)에서 환경변수 없이 재면 <code>torch.get_num_threads()</code> 가 6, <code>OMP_NUM_THREADS=1</code> 이면 1 이었습니다. 기본값이 기계가 보여 주는 코어 수에 따라 달라지므로, Hobby 함수의 1 vCPU(<a href="https://vercel.com/docs/functions/limitations" target="_blank" rel="noopener">Vercel 함수 한도 문서</a>, 2026-10-15 확인)에서는 1 로 고정해 두는 편이 결과를 예측하기 쉽습니다.</p>
+  <p>마지막으로 2671행의 <code>shield</code> 는 타임아웃과 이어집니다. 브라우저가 요청을 포기하더라도 이미 시작된 <code>analyse</code> 는 멈추지 않습니다. Python 스레드는 밖에서 죽일 수 없고, <code>analyse</code> 안에는 연결이 끊겼는지 확인하는 코드가 없으며, anyio 는 그 스레드가 끝날 때까지 토큰을 쥡니다. 입장 자리와 해설 슬롯도 LLM 호출이 끝날 때까지 그대로입니다. 이것이 다음 섹션의 최악 계산에서 중요해집니다.</p>
+  <p>버전 주의: 위 라이브러리 줄 번호와 40 이라는 기본값은 로컬 <code>.venv</code>(anyio 4.15.1, FastAPI 0.143.0)에서 확인한 것입니다. 배포본은 FastAPI 0.135.1 을 고정하고 lock 파일이 없어 anyio·starlette 버전을 빌드 때 고르므로(deploy/vercel/pyproject.toml:6), 운영의 정확한 값은 이 저장소만으로 확인할 수 없습니다.</p>
+  <aside class="principle"><h4>원리 노트: 블로킹 대기는 자리를 차지한다</h4><p>스레드 기반 동기화(<code>threading.Condition</code>, <code>Lock</code>)로 기다리는 동안에는 OS 스레드 하나가 통째로 멈춰 있습니다. asyncio 의 <code>Semaphore</code>·<code>Condition</code> 으로 기다리면 코루틴만 멈추고 스레드는 다른 일을 합니다. 그래서 "기다리는 요청 1000개" 는 asyncio 에서는 가볍고 스레드 모델에서는 스레드 1000개가 필요합니다. 러브코드는 BERT 추론과 동기 SDK 호출 때문에 핸들러를 <code>def</code> 로 두었고(fa-3-sync), 그 대가로 대기도 스레드를 쓰게 되었습니다. 입장 세마포어를 논블로킹으로 두어 대기자 수 자체를 20으로 묶은 것이 이 대가를 감당 가능한 크기로 줄이는 장치입니다.</p></aside>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="155">backend/lovecode/api.py:155</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="171">backend/lovecode/api.py:171</a>, <a class="src" data-file="backend/lovecode/concurrency.py" data-line="30">backend/lovecode/concurrency.py:30</a>, <a class="src" data-file="deploy/vercel/main.py" data-line="6">deploy/vercel/main.py:6</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py" data-line="2670">anyio/_backends/_asyncio.py:2670</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py" data-line="3162">anyio/_backends/_asyncio.py:3162</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/anyio/to_thread.py" data-line="30">anyio/to_thread.py:30</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="326">fastapi/routing.py:326</a></p>
+</section>
+
+<section class="lesson" id="infra-3-timeouts" data-track="infra" data-depth="3">
+  <h2>타임아웃 사다리: 브라우저에서 OpenAI 까지</h2>
+  <p class="lead">분석 요청 하나에 걸린 시간 제한은 몇 개이고, 최악의 경우 어느 것이 먼저 끊깁니까?</p>
+  <p>분석 요청은 브라우저, 프런트 프로젝트의 rewrite, API 함수, 단계 슬롯, OpenAI 를 차례로 지나고, 층마다 따로 정한 시간 제한이 있습니다. 바깥에서 안쪽 순으로 놓으면 이렇습니다.</p>
+  <table>
+    <thead><tr><th>층</th><th>값</th><th>정한 곳</th><th>넘으면</th></tr></thead>
+    <tbody>
+      <tr><td>브라우저 fetch</td><td>analyses 110초, health·shared 30초, 그 밖 8초</td><td>frontend/lib/api.ts:20</td><td>요청을 끊고 "응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요." 표시</td></tr>
+      <tr><td>프런트 rewrite(외부 목적지 프록시)</td><td>최대 120초</td><td>Vercel 플랫폼 한도</td><td>502 <code>ROUTER_EXTERNAL_TARGET_ERROR</code></td></tr>
+      <tr><td>API 함수 실행</td><td>120초</td><td>deploy/vercel/vercel.json:6</td><td>504 <code>FUNCTION_INVOCATION_TIMEOUT</code></td></tr>
+      <tr><td>단계 슬롯 대기</td><td>요청당 공통 기한 30초(설정 범위 0 초과 45 이하)</td><td>settings.py:18, service.py:48</td><td>429 <code>ANALYSIS_BUSY</code>, <code>Retry-After: 5</code></td></tr>
+      <tr><td>LLM 호출 하나</td><td>45초, 재시도 0</td><td>generator.py:171-172(해설), provider.py:71(openai 분류 모드의 라벨, 연결 5초)</td><td>502 <code>PROVIDER_UNAVAILABLE</code></td></tr>
+      <tr><td>순차 LLM 호출 수</td><td>local 모드 최대 2(초안, 재작성 1회), openai 모드 최대 3(라벨 추가)</td><td>.env.example:11-12</td><td>-</td></tr>
+    </tbody>
+  </table>
+  <p>둘째·셋째 줄은 플랫폼 문서가 근거입니다. <a href="https://vercel.com/docs/limits" target="_blank" rel="noopener">Vercel 한도 문서</a>는 외부 목적지로 가는 rewrite 요청을 최대 120초까지 처리하고 그 안에 외부 서버가 답하지 않으면 <code>ROUTER_EXTERNAL_TARGET_ERROR</code> 를 낸다고 적고(<a href="https://vercel.com/docs/errors/ROUTER_EXTERNAL_TARGET_ERROR" target="_blank" rel="noopener">오류 문서</a>상 502), 같은 문서는 Next.js 가 rewrites 설정으로 Vercel 라우트를 만든다고 설명합니다. 프런트의 <code>/api/:path*</code> rewrite 는 API 프로젝트의 공개 주소를 가리키므로(next.config.ts:6, README.md:79) 이 한도 아래에 있다고 읽힙니다. <a href="https://vercel.com/docs/functions/limitations" target="_blank" rel="noopener">함수 한도 문서</a>는 maxDuration 안에 끝나지 않은 호출에 504 <code>FUNCTION_INVOCATION_TIMEOUT</code> 을 돌려준다고 적고, Hobby 의 기본·최대값을 300초로 둡니다. 120초는 플랜 한계가 아니라 이 프로젝트가 고른 값입니다(모두 2026-10-15 확인).</p>
+  <code-block file="frontend/lib/api.ts" lines="16-41">
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    path === 'analyses' ? 110000 : path === 'health' || path === 'shared' ? 30000 : 8000,
+  );
+  try {
+    const r = await fetch('/api/v1/' + path, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (!r.ok) {
+      const e = await r.json().catch(() => null);
+      throw new Error(e?.error?.message || '연결하지 못했어요. 잠시 후 다시 시도해 주세요.');
+    }
+    return r.status === 204 ? (undefined as T) : await r.json();
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError')
+      throw new Error('응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+</code-block>
+  <ol class="notes">
+    <li data-line="17">요청마다 AbortController 를 하나 만듭니다. <code>abort()</code> 를 부르면 진행 중인 fetch 가 <code>AbortError</code> 로 끝납니다.</li>
+    <li data-line="20">경로별 제한입니다. analyses 의 110초는 바깥 두 겹의 120초보다 10초 짧아서, 정상적이라면 사용자는 Vercel 의 502·504 대신 앱의 문구를 먼저 봅니다.</li>
+    <li data-line="23">같은 출처의 <code>/api/v1/...</code> 로만 요청합니다. 이 요청이 rewrite 를 거쳐 API 프로젝트로 갑니다.</li>
+    <li data-line="31">오류 응답에서는 <code>error.message</code> 만 읽습니다. 서버가 붙인 <code>Retry-After</code>(5, 60, 600초)는 보지 않으므로 자동 재시도도 없습니다.</li>
+    <li data-line="36">시간 초과로 끊긴 경우의 문구입니다. 이 화면은 서버 쪽 작업이 어떻게 되었는지 알 수 없습니다.</li>
+  </ol>
+  <code-block file="backend/lovecode/generator.py" lines="168-173">
+        return ChatOpenAI(
+            model=model,
+            api_key=kwargs.pop("api_key", s.api_key),
+            timeout=45,
+            max_retries=0,
+            max_tokens=2000,
+</code-block>
+  <ol class="notes">
+    <li data-line="171"><code>timeout=45</code> 는 openai SDK 를 거쳐 httpx 타임아웃이 됩니다. httpx 의 값은 연결·읽기·쓰기 단계마다 따로 적용되어 호출 전체의 엄밀한 상한은 아니지만, 스트리밍하지 않는 이 호출은 대부분의 시간을 응답 대기에 쓰므로 아래 계산에서는 45초로 둡니다.</li>
+    <li data-line="172">SDK 기본값(재시도 2회)을 끕니다. 재시도가 있었다면 호출 하나가 45초의 몇 배가 될 수 있습니다. 실패 처리는 <a href="#journey/prompt/lc-3-failure-modes">실패 모드</a> 섹션에서 다룹니다.</li>
+  </ol>
+  <p>두 번의 LLM 호출이 모두 45초를 채우는 경로가 어느 것인지는 재작성 조건이 정합니다.</p>
+  <code-block file="backend/lovecode/generator.py" lines="269-276">
+    def _review_step(self, state):
+        if state["meta"]["error"] == "PROVIDER_REQUEST_FAILED":
+            problems = []  # network or provider failure: a second call would likely fail too
+        elif state["parsed"] is None:
+            problems = [("schema", SCHEMA_FIX)]
+        else:
+            problems = find_problems(state["parsed"], state["type_id"], state["text"])
+        return {**state, "problems": problems}
+</code-block>
+  <ol class="notes">
+    <li data-line="270">초안 호출 자체가 실패(타임아웃·연결 실패·OpenAI 오류 응답)하면 문제 목록을 비워 재작성을 건너뜁니다. 그래서 45초 타임아웃이 연달아 두 번 나는 경로는 없고, 타임아웃이면 초안을 보낸 뒤 약 45초 만에, 연결 실패나 429·5xx 같은 오류 응답이면 재시도 없이(<code>max_retries=0</code>) 곧바로 502 로 끝납니다.</li>
+    <li data-line="273">형식이 깨진 응답은 재작성 대상입니다.</li>
+    <li data-line="275">답이 왔지만 규칙 검사에 걸려도 재작성 1회를 합니다. 최악은 이쪽입니다. 초안이 45초 가까이 걸려 돌아왔는데 규칙에 걸리고, 재작성도 45초 가까이 걸리는 경우입니다.</li>
+  </ol>
+  <p>이제 최악을 더합니다. 대기 기한은 <code>service.analyse</code> 첫 줄에서 정한 절대 시각 하나이고(service.py:48), BERT 슬롯 대기와 해설 슬롯 대기에만 걸립니다. BERT 실행은 끊지 않습니다. 또 줄 맨 앞이고 빈자리가 있으면 while 조건이 처음부터 거짓이라 기한을 보지 않으므로(concurrency.py:26), 기한이 지난 뒤에 BERT 가 끝나도 해설 슬롯이 비어 있으면 그대로 LLM 호출로 갑니다. 그래서 LLM 앞 구간의 상한은 "30초 + BERT 실행 시간" 이고, 아래 표는 이것을 "대기 30 가까이 + BERT" 로 적습니다. 해설 슬롯을 잡은 뒤에는 기한이 더는 개입하지 않습니다.</p>
+  <table>
+    <thead><tr><th>경우</th><th>계산</th><th>합</th><th>바깥 한도와 비교</th></tr></thead>
+    <tbody>
+      <tr><td>배포본(local), 데워진 인스턴스, 대기 없음</td><td>BERT 약 0.1 + 초안 45 + 재작성 45</td><td>약 90초</td><td>110·120 안</td></tr>
+      <tr><td>배포본, 기한 직전에 슬롯을 얻음</td><td>대기 30 가까이 + BERT + 45 + 45</td><td>약 120초</td><td>브라우저 110 을 넘고, Vercel 의 두 120 에 닿음</td></tr>
+      <tr><td>배포본, <code>LC_ANALYSIS_WAIT_SECONDS=45</code></td><td>대기 45 가까이 + BERT + 45 + 45</td><td>약 135초</td><td>모두 넘음</td></tr>
+      <tr><td>콜드 스타트</td><td>위 각 경우 + 모델 로딩(로컬 약 6초, Vercel 미측정)</td><td>위보다 김</td><td>로딩은 대기 기한 밖에서 더해짐</td></tr>
+      <tr><td>openai 분류 모드(코드 기본값, 배포에는 쓰지 않음)</td><td>대기 30 가까이 + 라벨 45(연결 최대 5 별도) + 45 + 45</td><td>약 165~170초</td><td>대기가 없어도 약 135초로 120 을 넘음</td></tr>
+    </tbody>
+  </table>
+  <p>정직하게 말하면 이 사다리는 엄격하게 포개져 있지 않습니다. 110 &lt; 120 이라는 순서가 보장하는 것은 "Vercel 이 끊기 전에 브라우저가 먼저 포기한다" 뿐이고, "서버가 그 안에 끝난다" 는 아닙니다. 배포 설정(<code>LC_CLASSIFIER_MODE=local</code>, README.md:70)에서도 대기가 기한 직전까지 이어져 겨우 슬롯을 얻고(기한을 넘기면 429 <code>ANALYSIS_BUSY</code> 로 끝나 LLM 호출이 없습니다) 초안과 재작성이 모두 오래 걸리면 합이 120초에 닿습니다. 그때 벌어지는 일은 이렇습니다.</p>
+  <ul>
+    <li>사용자는 110초에 "응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요." 를 봅니다.</li>
+    <li>일일 예산은 분석을 시작하기 전에 이미 1 올라가 있습니다(api.py:182).</li>
+    <li>서버의 작업 스레드는 멈추지 않고(앞 섹션의 <code>shield</code>), 입장 자리와 해설 슬롯을 LLM 호출이 끝날 때까지 쥡니다. 110~120초 사이에 결과가 나오면 받을 사람이 없습니다.</li>
+    <li>120초를 넘으면 문서상 그 호출은 504 로 끝납니다. 이때 공유 인스턴스 안의 Python 스레드가 어떻게 정리되는지는 이 저장소와 위 문서만으로는 알 수 없습니다.</li>
+    <li>사용자가 다시 누르면 새 요청은 IP 버킷 한 칸과 예산 한 칸을 또 씁니다.</li>
+  </ul>
+  <p>openai 분류 모드는 대기가 없어도 120초를 넘을 수 있으므로, 이 모드로 배포한다면 이 표부터 다시 계산해야 합니다.</p>
+  <aside class="principle"><h4>원리 노트: 바깥 제한은 안쪽 최악의 합보다 길어야 한다</h4><p>층마다 타임아웃을 따로 정하면, 안쪽 단계들의 최악을 더한 값이 바깥 제한보다 길어지는 순간 바깥은 포기했는데 안쪽은 계속 일하는 상황이 생깁니다. 결과는 버려지고 자원(스레드, 슬롯, 유료 호출)은 그대로 쓰입니다. 이를 다루는 대표적인 방법이 기한 전파(deadline propagation)로, 바깥에서 받은 남은 시간을 안쪽 호출의 타임아웃으로 넘겨 남은 시간보다 오래 기다리지 않게 합니다. 러브코드는 대기 단계에만 절대 기한 하나를 공유하고(service.py:48), LLM 호출에는 고정 45초를 씁니다. 면접에서는 "각 층의 값" 보다 "합이 바깥 제한 안에 들어오는가" 를 먼저 확인하는 습관을 보여 주면 됩니다.</p></aside>
+  <p class="ref">확인: <a class="src" data-file="frontend/lib/api.ts" data-line="20">frontend/lib/api.ts:20</a>, <a class="src" data-file="deploy/vercel/vercel.json" data-line="6">deploy/vercel/vercel.json:6</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="48">backend/lovecode/service.py:48</a>, <a class="src" data-file="backend/lovecode/concurrency.py" data-line="26">backend/lovecode/concurrency.py:26</a>, <a class="src" data-file="backend/lovecode/generator.py" data-line="171">backend/lovecode/generator.py:171</a>, <a class="src" data-file="backend/lovecode/generator.py" data-line="270">backend/lovecode/generator.py:270</a>, <a class="src" data-file="backend/lovecode/provider.py" data-line="71">backend/lovecode/provider.py:71</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="182">backend/lovecode/api.py:182</a>, <a href="https://vercel.com/docs/limits" target="_blank" rel="noopener">Vercel: Limits</a>, <a href="https://vercel.com/docs/functions/limitations" target="_blank" rel="noopener">Vercel: Functions Limits</a> (2026-10-15 확인)</p>
+</section>
+
+<section class="lesson" id="infra-3-scale" data-track="infra" data-depth="3">
+  <h2>인스턴스가 N 개일 때의 진짜 한도</h2>
+  <p class="lead">인스턴스가 늘면 하루 20건, IP 당 10분 5회, 동시 20건은 각각 무엇이 되고, 정말로 전체에 걸리는 한도는 무엇입니까?</p>
+  <p><a href="https://vercel.com/docs/fundamentals/what-is-compute" target="_blank" rel="noopener">Vercel compute 설명</a>(2026-10-15 확인)대로 인스턴스 수는 트래픽에 따라 플랫폼이 정하고, 앱 코드는 그 수를 정하지도 알지도 못합니다. 그래서 코드에 적힌 숫자는 모두 "인스턴스 하나" 기준입니다.</p>
+  <table>
+    <thead><tr><th>한도</th><th>코드 값</th><th>인스턴스 N 개일 때</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td>일일 예산</td><td>UTC 하루 20</td><td>하루 합계는 최대 20 × (그날 살았던 인스턴스 수). 스케일 인 뒤 새로 뜬 인스턴스, 재시작, main 머지마다의 재배포(README.md:51)가 모두 0 부터 다시 세므로 고정 상한이 없음</td><td>실패한 시도도 셈</td></tr>
+      <tr><td>IP 분석 제한</td><td>10분 5회</td><td>같은 IP 가 도착한 인스턴스(프로세스)마다 10분 5회, salt 회전을 끼면 짧은 시간에 10회</td><td>salt 회전 때 비워짐</td></tr>
+      <tr><td>입장</td><td>20(상한 32)</td><td>최대 동시 20×N. 요청이 N 개 인스턴스에 고르게 퍼질 때의 값</td><td>넘으면 즉시 429. 플랫폼은 이 한도를 모름</td></tr>
+      <tr><td>BERT 슬롯</td><td>2</td><td>2×N, 각자 자기 CPU</td><td>CPU 보호이므로 N 배가 자연스러움</td></tr>
+      <tr><td>해설 슬롯</td><td>5</td><td>동시 OpenAI 호출 5×N</td><td>모두 한 OpenAI 계정으로 모임</td></tr>
+    </tbody>
+  </table>
+  <p>README 도 이 두 가지를 직접 적어 둡니다.</p>
+  <code-block file="README.md" lines="48-49">
+- 같은 IP의 분석 5회/10분 제한은 유지합니다. 같은 사무실 NAT에서 20명이 접속하는 경우 이 제한이 먼저 걸릴 수 있습니다. 해설 5건 동시 호출은 OpenAI 계정의 RPM/TPM 한도에 따라 실패할 수 있으며 재시도하지 않습니다. 로컬 20건 성공은 운영 환경의 성능 보장이 아닙니다.
+- `LC_DAILY_ANALYSIS_LIMIT=20`은 인스턴스별 제한입니다. DB를 쓰지 않으므로 재시작·다중 인스턴스를 합친 비용 상한은 아닙니다. Vercel 무료 한도와 OpenAI 사용료는 별개입니다.
+</code-block>
+  <ol class="notes">
+    <li data-line="48">동시 해설 호출은 OpenAI 계정의 분당 요청·토큰 한도(RPM/TPM)에 걸릴 수 있고 재시도하지 않습니다. 인스턴스가 늘면 이 계정 한도에 닿는 호출 수도 늘어납니다.</li>
+    <li data-line="49">일일 20건은 인스턴스별이며, 재시작과 여러 인스턴스를 합친 비용 상한이 아니라고 밝힙니다.</li>
+  </ol>
+  <p>표의 N 은 앱이 아니라 플랫폼이 정합니다. Vercel 이 Fluid compute 의 구조를 설명한 글(<a href="https://vercel.com/blog/fluid-how-we-built-serverless-servers" target="_blank" rel="noopener">Fluid: How we built serverless servers</a>, 2026-10-15 확인)은 인스턴스가 요청을 더 받을 수 있는지를 CPU·메모리 사용량, 남은 수명, 파일 디스크립터, 이전 요청의 오류·타임아웃 같은 지표로 판단하고, 자원이 가장 많이 남고 동시 요청이 가장 적은 인스턴스로 요청을 보낸다고 적습니다. 이 목록에 앱의 입장 세마포어는 없고, 저장소에도 그 값을 플랫폼에 알리는 코드가 없습니다. 자리가 없으면 앱은 기다리지 않고 바로 429 <code>ANALYSIS_BUSY</code> 를 돌려주는데(api.py:171-172), 이 응답이 위 목록의 "오류" 에 드는지는 문서에 없습니다. 게다가 분석 시간의 대부분은 LLM 응답을 기다리는 소켓 대기라 CPU 지표로는 인스턴스가 한가해 보일 수 있습니다. 그래서 20×N 은 인스턴스가 이미 N 개이고 요청이 고르게 퍼졌을 때의 상한입니다. 인스턴스가 하나인 상태에서 21번째 동시 분석이 같은 인스턴스로 오면, 새 인스턴스가 뜨는 대신 429 를 받을 수 있습니다.</p>
+  <p>그렇다면 정말로 전체에 한 번만 걸리는 한도는 무엇일까요. 앱 바깥의 것들뿐입니다.</p>
+  <ul>
+    <li><b>OpenAI 계정 한도.</b> 모든 인스턴스의 해설 호출이 같은 키(<code>LC_API_KEY</code>)를 쓰므로 계정 한도는 전역입니다. 넘으면 그 호출은 실패하고, 재시도가 없으므로 502 <code>PROVIDER_UNAVAILABLE</code> 이 됩니다.</li>
+    <li><b>Vercel 플랜 한도.</b> <a href="https://vercel.com/docs/functions/concurrency-scaling" target="_blank" rel="noopener">동시성 확장 문서</a>는 Hobby·Pro 에서 함수의 동시성이 최대 30,000 까지 자동 확장되고, 확장은 리전마다 10초당 1,000 동시 실행이라는 버스트 한도를 따르며, 넘으면 503 <code>FUNCTION_THROTTLED</code> 가 난다고 적습니다. 인스턴스 하나의 크기는 Hobby 에서 2 GB / 1 vCPU 로 고정입니다(<a href="https://vercel.com/docs/functions/limitations" target="_blank" rel="noopener">함수 한도 문서</a>, 모두 2026-10-15 확인). 이 규모에서 30,000 동시성보다 먼저 닿는 것은 Hobby 팀의 월간 포함 사용량입니다. <a href="https://vercel.com/docs/plans/hobby" target="_blank" rel="noopener">Hobby 플랜 문서</a>는 Active CPU 4 CPU-hrs, Provisioned Memory 360 GB-hrs, 함수 호출 100만 회를 적고, 넘으면 대부분 30일이 지나야 다시 쓸 수 있다고 적습니다. <a href="https://vercel.com/docs/limits" target="_blank" rel="noopener">한도 문서</a>상 이 할당량은 팀 단위라 화면·API 두 프로젝트가 함께 씁니다(README.md:40). <a href="https://vercel.com/docs/functions/usage-and-pricing" target="_blank" rel="noopener">Fluid compute 가격 문서</a>에 따르면 LLM 응답을 기다리는 시간은 Active CPU 에 잡히지 않지만, Provisioned Memory 는 인스턴스에 진행 중인 요청이 하나라도 있는 동안 계속 쌓입니다. 2 GB 인스턴스라면 360 GB-hrs 는 요청을 처리 중인 시간으로 180시간입니다. 앞에서 본 것처럼 브라우저가 포기한 뒤에도 스레드가 LLM 호출을 쥐고 있으면 그 시간도 여기에 들어갑니다(모두 2026-10-15 확인).</li>
+    <li><b>프로젝트 환경변수.</b> 한도는 아니지만 전역으로 하나인 값입니다. 모든 인스턴스가 같은 <code>LC_SHARE_SECRET</code> 을 읽기 때문에 공유 링크는 어느 인스턴스에서 열어도 검증됩니다.</li>
+  </ul>
+  <p>하나 더 운영에서 확인할 점이 있습니다. IP 버킷의 키는 <code>request.client.host</code> 입니다(api.py:95). 러브코드 코드에는 <code>X-Forwarded-For</code> 를 읽는 부분이 없지만, 이 값을 채우는 서버 쪽은 이 헤더를 읽습니다. <a href="https://uvicorn.dev/settings/" target="_blank" rel="noopener">uvicorn 설정 문서</a>대로 <code>proxy_headers</code> 는 기본으로 켜져 있고, 연결이 신뢰 주소(기본 <code>127.0.0.1</code>)에서 왔으면 client 주소를 <code>X-Forwarded-For</code> 의 값으로 바꿉니다. Vercel 의 Python 런타임(vercel/vercel 저장소의 <code>vercel-runtime</code> <code>vc_init.py</code>)은 ASGI 앱을 <code>127.0.0.1</code> 에 바인딩한 자체 uvicorn 으로 기본 설정 그대로 띄우므로, 배포본의 <code>client.host</code> 는 Vercel 이 API 프로젝트에 넘긴 <code>X-Forwarded-For</code> 값입니다. <a href="https://vercel.com/docs/headers/request-headers" target="_blank" rel="noopener">Vercel 요청 헤더 문서</a>는 Vercel 앞에 프록시가 있으면 이 헤더를 덮어쓰고 외부 IP 를 넘기지 않는다고 적습니다(모두 2026-10-15 확인). 브라우저 요청은 프런트 프로젝트의 rewrite 를 거쳐 들어오므로, 이 값이 방문자 IP 인지 rewrite 를 수행한 쪽의 주소인지는 저장소만으로 확인할 수 없습니다. 후자라면 여러 방문자가 한 버킷을 나눠 쓰게 되므로 운영 로그로 확인할 항목입니다.</p>
+  <p>이 구조는 무저장 설계의 결과입니다. 각 한도의 기준과 응답은 <a href="#journey/handler/fa-3-limits-map">네 겹의 제한</a> 에서, 저장소 없이 링크를 공유하는 방법은 <a href="#journey/share/fa-1-share">공유 링크</a> 단계에서 봤습니다. 얻은 것은 운영할 저장소가 없고, 어느 인스턴스든 어느 요청이든 받을 수 있으며(공유 링크도 서명만 확인하면 됩니다), 인스턴스가 사라져도 잃는 사용자 데이터가 없다는 점(진행 중이던 요청만 실패합니다)입니다. 내준 것은 한도가 인스턴스 수에 비례해 늘어나 전체 비용 상한이 되지 못하고, 재시작하면 카운트와 대기열이 사라지며, 대기열이 인스턴스마다 따로라 먼저 온 요청이 먼저 처리된다는 보장도 인스턴스 안에서만 성립한다는 점입니다. README 는 이 대가를 적고 받아들였습니다(README.md:47-49).</p>
+  <p>면접에서 한 번에 답한다면 이렇게 정리할 수 있습니다. "API 는 Vercel Function 하나로 배포되고, Fluid compute 가 트래픽에 따라 인스턴스를 늘리고 줄입니다. 인스턴스 하나가 여러 요청을 동시에 받기 때문에 프로세스 안의 세마포어, FIFO 슬롯, 락이 의미가 있습니다. 하지만 인스턴스끼리는 메모리를 공유하지 않아서 동시 20건, IP 당 10분 5회, 하루 20건은 모두 인스턴스별 한도입니다. 동시 20건은 N 개면 동시 20×N 이 상한이지만, 하루 20건과 IP 당 10분 5회는 그 기간에 살았던 인스턴스 수만큼 늘어나 고정된 상한이 없습니다. main 머지마다 재배포되면 카운트도 0 으로 돌아갑니다. 또 N 은 플랫폼이 CPU·메모리 같은 자기 지표로 정하고 앱의 입장 한도 20 은 모릅니다. 그래서 21번째 동시 요청이 다른 인스턴스로 간다는 보장은 없고, 같은 인스턴스로 오면 429 를 받습니다. 전체에 한 번만 걸리는 것은 OpenAI 계정 한도와 Vercel Hobby 팀의 월간 사용량 한도(넘으면 대부분 30일 정지)이고, 공유 링크는 서명으로 검증하므로 어느 인스턴스에서나 열립니다. 저장소를 두지 않는 대신 이 관계를 문서에 적고 받아들였습니다."</p>
+  <aside class="principle"><h4>원리 노트: 공유하지 않는 설계와 수평 확장</h4><p>인스턴스끼리 아무것도 공유하지 않는 설계(shared-nothing)는 인스턴스를 늘리기만 하면 처리량이 늘고, 어느 인스턴스가 죽어도 나머지가 영향을 받지 않는다는 장점이 있습니다. 대신 "전체에서 몇 번" 같은 전역 불변식은 지킬 수 없습니다. 각 인스턴스가 자기 몫만 보기 때문입니다. 그래서 수평 확장을 설계할 때는 한도마다 "인스턴스당이어도 되는가, 전역이어야 하는가" 를 먼저 나눕니다. CPU 보호(BERT 슬롯)는 인스턴스당이 맞고, 비용 상한(일일 예산)은 본래 전역이어야 의미가 완전해지는 종류입니다. 러브코드는 이 구분을 알고 비용 상한을 인스턴스당 근사치로 두었습니다.</p></aside>
+  <p class="ref">확인: <a class="src" data-file="README.md" data-line="40">README.md:40</a>, <a class="src" data-file="README.md" data-line="48">README.md:48</a>, <a class="src" data-file="README.md" data-line="49">README.md:49</a>, <a class="src" data-file="README.md" data-line="51">README.md:51</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="95">backend/lovecode/api.py:95</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="171">backend/lovecode/api.py:171</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="20">backend/lovecode/service.py:20</a>, <a class="src" data-file="backend/lovecode/settings.py" data-line="25">backend/lovecode/settings.py:25</a>, <a class="src" data-file="docs/CODE_GUIDE.md" data-line="35">docs/CODE_GUIDE.md:35</a>, <a href="https://vercel.com/docs/functions/concurrency-scaling" target="_blank" rel="noopener">Vercel: Concurrency scaling</a>, <a href="https://vercel.com/docs/functions/limitations" target="_blank" rel="noopener">Vercel: Functions Limits</a>, <a href="https://vercel.com/docs/plans/hobby" target="_blank" rel="noopener">Vercel: Hobby Plan</a>, <a href="https://vercel.com/docs/functions/usage-and-pricing" target="_blank" rel="noopener">Vercel: Fluid compute pricing</a>, <a href="https://vercel.com/blog/fluid-how-we-built-serverless-servers" target="_blank" rel="noopener">Vercel: Fluid, how we built serverless servers</a>, <a href="https://vercel.com/docs/headers/request-headers" target="_blank" rel="noopener">Vercel: Request headers</a>, <a href="https://uvicorn.dev/settings/" target="_blank" rel="noopener">uvicorn: Settings</a> (2026-10-15 확인)</p>
+</section>
+
+<script type="application/json" class="quiz" data-track="infra" data-depth="1" data-part="runtime">
+[
+  {"q": "한 사용자의 두 번째 분석 요청이 첫 요청과 다른 인스턴스에 도착했습니다. 두 번째 인스턴스의 일일 예산 카운트에 대해 맞는 것은?", "options": ["Vercel 이 인스턴스 사이의 메모리를 동기화하므로 첫 요청이 이미 반영되어 있다", "budget 은 각 프로세스의 메모리에 있는 dict 라서 첫 요청은 두 번째 인스턴스의 카운트에 들어 있지 않다", "두 번째 인스턴스는 카운트를 모르므로 요청을 429 로 거절한다", "일일 예산은 프런트 프로젝트가 세므로 인스턴스와 상관없다"], "answer": 1, "explain": "create_app() 이 import 시점에 인스턴스마다 한 번 실행되어 budget dict 를 따로 만듭니다. 인스턴스끼리는 메모리를 공유하지 않으므로 각자 자기 몫만 셉니다.", "ref": "backend/lovecode/api.py:43"},
+  {"q": "create_app() 은 배포본에서 언제, 몇 번 실행됩니까?", "options": ["요청이 올 때마다 한 번", "배포(빌드) 때 한 번 실행되고 그 결과가 모든 인스턴스에 복사된다", "인스턴스(프로세스)마다 main.py 가 lovecode.api 를 import 할 때 한 번", "하루에 한 번, UTC 자정에"], "answer": 2, "explain": "api.py 맨 아래의 app = create_app() 이 모듈 import 시점에 실행됩니다. 그래서 세마포어·예산·버킷은 인스턴스마다 정확히 한 벌씩 생깁니다.", "ref": "backend/lovecode/api.py:224"},
+  {"q": "deploy/vercel/vercel.json 의 \"main.py\": {\"maxDuration\": 120} 이 뜻하는 것으로 맞는 것은?", "options": ["인스턴스가 120초 동안 요청을 받지 못하면 종료된다", "main.py 를 120초마다 다시 import 한다", "Hobby 플랜이 허용하는 최대값이 120초라 그대로 적었다", "FastAPI 앱 전체가 빌드된 함수 하나의 호출이 최대 120초까지 실행될 수 있다"], "answer": 3, "explain": "Python 프레임워크 앱은 진입점 파일 하나로 함수가 만들어지고, functions 항목의 키도 그 파일입니다. Vercel 문서상 Hobby 의 최대값은 300초이므로 120초는 이 프로젝트가 고른 값입니다.", "ref": "deploy/vercel/vercel.json:6"}
+]
+</script>
+
+<script type="application/json" class="quiz" data-track="infra" data-depth="2" data-part="runtime">
+[
+  {"q": "IP 버킷의 salt 회전(api.py:78-81)이 일어나면 어떤 일이 생깁니까?", "options": ["buckets 전체가 비워져, 직전에 분석 5회를 다 쓴 IP 도 바로 다시 5회를 쓸 수 있다", "회전은 별도 타이머 스레드가 정각마다 실행한다", "기존 버킷의 키를 새 salt 로 다시 계산해 옮긴다", "회전 중에는 모든 요청이 429 를 받는다"], "answer": 0, "explain": "회전은 600초가 지난 뒤 첫 요청에서 일어나고 buckets.clear() 로 모든 창을 지웁니다. 그래서 회전을 사이에 두고 짧은 시간에 최대 10회가 가능합니다.", "ref": "backend/lovecode/api.py:79"},
+  {"q": "로컬 분류기 모드의 새 인스턴스에서 첫 /api/v1/health 가 오래 걸리는 이유는?", "options": ["health 는 OpenAI 에 연결을 시험하는 요청을 보내기 때문에", "IP 버킷이 처음 만들어지면서 해시 계산이 오래 걸리기 때문에", "health 가 service.ready() 를 부르고, 첫 ready() 가 락 아래에서 가중치 파일 해시 확인과 BERT 로딩을 하기 때문에", "uvicorn 이 health 경로를 마지막에 등록하기 때문에"], "answer": 2, "explain": "분류기는 import 때가 아니라 첫 ready() 에서 올립니다. 422 MiB 가중치를 읽어 SHA-256 을 확인하고 transformers·torch 를 import 해 모델을 만들며, 로컬 측정으로 약 6초가 걸렸습니다.", "ref": "backend/lovecode/service.py:41"},
+  {"q": "LC_SHARE_SECRET 이 인스턴스마다 달라서는 안 되는 이유로 가장 정확한 것은?", "options": ["키가 다르면 분석 응답에 share_code 가 붙지 않기 때문에", "Vercel 이 인스턴스마다 다른 환경변수를 허용하지 않기 때문에", "키가 다르면 일일 예산이 공유되지 않기 때문에", "링크는 저장소 없이 서명으로만 검증하므로, A 인스턴스가 서명한 링크를 B 인스턴스가 열면 서명 검사에 실패하기 때문에"], "answer": 3, "explain": "ShareCodec 은 바뀌지 않는 키 하나만 들고 있고, 링크를 열 때 그 키로 서명을 다시 계산해 비교합니다. settings.py 주석이 모든 인스턴스가 같은 값을 써야 한다고 적어 둡니다.", "ref": "backend/lovecode/settings.py:25"}
+]
+</script>
+
+<script type="application/json" class="quiz" data-track="infra" data-depth="3" data-part="runtime">
+[
+  {"q": "배포본(local 모드)에서 해설 슬롯을 30초 대기 기한 직전에야 얻었고, 초안과 재작성이 각각 45초 가까이 걸렸습니다. 사용자가 보는 것은?", "options": ["Vercel 의 504 FUNCTION_INVOCATION_TIMEOUT 오류 페이지", "110초에 브라우저가 요청을 끊고 '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.' 문구", "429 ANALYSIS_BUSY 와 5초 뒤 자동 재시도", "결과가 정상으로 표시된다"], "answer": 1, "explain": "합이 약 120초로 브라우저의 110초를 넘습니다. 110 < 120 이므로 브라우저가 먼저 포기하고, 서버 스레드는 계속 일하며 예산은 이미 소모된 상태입니다. 프런트는 Retry-After 를 보지 않아 자동 재시도도 없습니다. 기한을 실제로 넘겼다면 AnalysisBusy 로 429 ANALYSIS_BUSY 가 되어 LLM 호출 자체가 없었을 것입니다.", "ref": "frontend/lib/api.ts:20"},
+  {"q": "콜드 로딩 중에 들어온 분석 요청들이 입장 세마포어(20)에 막히지 않고 워커 스레드를 붙잡는 이유는?", "options": ["입장 세마포어가 콜드 스타트 동안 꺼져 있기 때문에", "_classifier_lock 을 기다리는 동안에는 잡았던 입장 자리를 잠시 반납하기 때문에", "analyse 가 service.ready() 를 입장 획득보다 먼저 부르고, ready() 가 _classifier_lock 에서 기한 없이 기다리기 때문에", "anyio 가 콜드 스타트 중에는 토큰을 무제한으로 주기 때문에"], "answer": 2, "explain": "api.py:155 의 ready() 가 171행의 acquire 보다 앞에 있습니다. 그래서 데워진 인스턴스에서 성립하는 '32 와 40 사이 8개 여유' 가 콜드 로딩 중에는 성립하지 않습니다.", "ref": "backend/lovecode/api.py:155"},
+  {"q": "인스턴스가 3개로 늘었을 때 하루 실제 분석 수에 대해 맞는 것은?", "options": ["세 인스턴스가 하루 내내 그대로라면 합쳐 60까지 받지만, 그날 새로 뜨거나 교체된 인스턴스(재시작·재배포 포함)는 0 부터 세므로 하루 합계는 60을 넘을 수 있다", "Vercel 이 카운트를 합쳐 주므로 여전히 20이다", "인스턴스 수와 상관없이 OpenAI 가 하루 20건으로 막는다", "20 을 3으로 나눠 인스턴스마다 약 6건이다"], "answer": 0, "explain": "budget 은 프로세스마다 따로 있는 메모리 dict 이고 새 프로세스는 0 에서 시작하므로, 하루 합계는 최대 그날 뜬 인스턴스 수 × 20 입니다. main 에 머지될 때마다 재배포되어 새 인스턴스가 0 부터 셉니다(README.md:51). README 도 이것이 재시작·여러 인스턴스를 합친 비용 상한이 아니라고 밝힙니다. 전역으로 걸리는 것은 OpenAI 계정 한도와 Vercel Hobby 의 월간 사용량입니다.", "ref": "README.md:49"}
+]
+</script>

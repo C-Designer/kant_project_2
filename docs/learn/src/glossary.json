@@ -263,5 +263,95 @@
     "term": "JWT",
     "match": ["JWT"],
     "def": "헤더·클레임·서명 세 조각을 base64url 로 적어 점으로 이은 서명 토큰 표준이며, HS256 은 그 서명을 HMAC-SHA256 으로 만드는 방식입니다."
+  },
+  {
+    "term": "룰셋",
+    "match": ["룰셋"],
+    "def": "GitHub 저장소에서 브랜치나 태그에 거는 규칙 묶음으로, PR 필수·필수 상태 체크·force push 금지 같은 조건을 관리자까지 포함해 강제할 수 있습니다."
+  },
+  {
+    "term": "lockfile",
+    "match": ["lockfile"],
+    "def": "의존성마다 설치할 정확한 버전과 해시를 적어 둔 파일(uv.lock, package-lock.json)로, 어디서 설치해도 같은 버전이 깔리게 합니다."
+  },
+  {
+    "term": "Root Directory",
+    "match": ["Root Directory"],
+    "def": "Vercel 프로젝트가 저장소 안에서 빌드 기준으로 삼는 폴더로, 따로 설정하지 않으면 그 밖의 파일에는 접근할 수 없습니다."
+  },
+  {
+    "term": "rewrite",
+    "match": ["rewrite"],
+    "def": "브라우저 주소는 그대로 두고 서버 쪽에서 요청을 다른 경로나 다른 서버로 넘기는 설정으로, 여기서는 Next.js 가 /api 요청을 백엔드(로컬은 127.0.0.1:8100, 배포에서는 API_INTERNAL_ORIGIN 이 가리키는 API 프로젝트)로 전달합니다."
+  },
+  {
+    "term": "스크립트 인젝션",
+    "match": ["스크립트 인젝션"],
+    "def": "워크플로가 PR 제목·브랜치 이름 같은 외부 입력을 셸 스크립트 본문에 그대로 끼워 넣어, 입력에 숨긴 명령이 실행되는 공격입니다."
+  },
+  {
+    "term": "GITHUB_TOKEN",
+    "match": ["GITHUB_TOKEN"],
+    "def": "GitHub Actions 가 워크플로 실행마다 자동으로 발급하는 저장소 접근 토큰으로, 워크플로의 permissions 로 권한 범위를 정합니다."
+  },
+  {
+    "term": "CI/CD",
+    "match": ["CI/CD"],
+    "def": "변경마다 자동으로 검사하는 지속적 통합(CI)과, 검사를 통과한 코드를 자동으로 운영에 올리는 지속적 배포(CD)를 함께 부르는 말입니다."
+  },
+  {
+    "term": "fail fast",
+    "match": ["fail fast"],
+    "def": "잘못된 설정이나 입력을 가능한 한 이른 단계에서 원인이 적힌 오류로 멈춰, 비싼 작업이 헛돌거나 엉뚱한 곳에서 실패하지 않게 하는 설계 원칙입니다."
+  },
+  {
+    "term": "공급망",
+    "match": ["공급망"],
+    "def": "내 코드가 가져다 쓰는 외부 패키지·모델·도구가 만들어져 전달되는 경로 전체로, 그 중간에서 내용이 바뀌지 않았는지 확인하는 것을 공급망 검사라고 합니다."
+  },
+  {
+    "term": "콜드 스타트",
+    "match": ["콜드 스타트"],
+    "def": "요청이 왔는데 데워진 인스턴스가 없어 새 인스턴스를 띄우고 앱을 준비하느라 생기는 첫 응답 지연입니다."
+  },
+  {
+    "term": "Fluid compute",
+    "match": ["Fluid compute"],
+    "def": "Vercel 의 함수 실행 방식으로, 인스턴스 하나가 여러 요청을 동시에 처리하고 여유가 없을 때만 인스턴스를 늘립니다."
+  },
+  {
+    "term": "이중 확인 잠금",
+    "match": ["이중 확인 잠금"],
+    "def": "락 밖에서 한 번, 락 안에서 한 번 더 확인해 비싼 객체를 한 번만 만들면서 이후 호출은 락 없이 지나가게 하는 지연 초기화 방식입니다."
+  },
+  {
+    "term": "AbortController",
+    "match": ["AbortController"],
+    "def": "브라우저 fetch 요청을 도중에 취소할 수 있게 해 주는 Web API 로, abort() 를 부르면 요청이 AbortError 로 끝납니다."
+  },
+  {
+    "term": "maxDuration",
+    "match": ["maxDuration"],
+    "def": "Vercel Function 호출 하나가 실행될 수 있는 최대 시간(초)으로, 넘으면 504 FUNCTION_INVOCATION_TIMEOUT 이 됩니다."
+  },
+  {
+    "term": "Retry-After",
+    "match": ["Retry-After"],
+    "def": "429·503 같은 응답에 붙여 몇 초 뒤에 다시 시도하라고 알려 주는 HTTP 응답 헤더입니다."
+  },
+  {
+    "term": "CapacityLimiter",
+    "match": ["CapacityLimiter"],
+    "def": "anyio 가 동시에 실행할 수 있는 작업 수를 토큰으로 제한하는 객체이며, 로컬 .venv 의 anyio 에서 기본 스레드 리미터는 토큰 40개입니다."
+  },
+  {
+    "term": "기한 전파",
+    "match": ["기한 전파", "deadline propagation"],
+    "def": "바깥 요청에 남은 시간을 안쪽 호출의 타임아웃으로 넘겨, 바깥이 포기한 뒤에도 안쪽이 계속 일하는 낭비를 막는 설계 방식입니다."
+  },
+  {
+    "term": "GIL",
+    "match": ["GIL"],
+    "def": "CPython 에서 한 번에 한 스레드만 파이썬 바이트코드를 실행하게 하는 전역 인터프리터 락으로, 소켓 대기 같은 I/O 중에는 풀립니다."
   }
 ]

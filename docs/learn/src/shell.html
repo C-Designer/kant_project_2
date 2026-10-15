@@ -459,7 +459,7 @@ figure.code .line.hit { cursor: pointer; }
 <header class="top">
   <div class="brand">
     <h1>러브코드로 배우는 FastAPI와 LangChain</h1>
-    <p>요청 한 건이 지나는 순서대로, backend/lovecode 코드를 한 줄씩</p>
+    <p>요청 한 건이 지나는 순서대로 코드를 한 줄씩, 그리고 그 코드가 배포되어 도는 곳까지</p>
   </div>
   <nav class="tracks" role="tablist" aria-label="보기">
     <button data-track="map">지도</button>
@@ -482,15 +482,15 @@ figure.code .line.hit { cursor: pointer; }
   <main>
     <div id="view-map" class="view map">
       <h2>지도</h2>
-      <p class="lead-text">이 페이지는 러브코드 백엔드의 실제 코드를 교재로 씁니다. 요청 한 건이 서버를 지나는 순서대로 10단계를 따라가며, 각 단계의 관문과 소개를 먼저 보고 필요하면 파일 단위, 원리 단위로 더 깊이 내려갑니다.</p>
+      <p class="lead-text">이 페이지는 러브코드 백엔드의 실제 코드를 교재로 씁니다. 요청 한 건이 서버를 지나는 순서대로 10단계를 따라간 뒤, 그 코드가 배포되어 운영 인스턴스에서 도는 모습까지 2단계 더, 모두 12단계를 따라가며, 각 단계의 관문과 소개를 먼저 보고 필요하면 파일 단위, 원리 단위로 더 깊이 내려갑니다.</p>
       <ol class="map-stages" id="mapStages"></ol>
       <h3>읽는 법</h3>
       <div class="legend">
         <div><b>이 섹션에서 알 것</b>: 각 섹션 머리의 세 줄. 이것만 읽어도 무엇을 배우는지 알 수 있습니다. 끝의 "한 줄 정리"는 면접에서 그대로 말할 수 있는 문장입니다.</div>
         <div><b>한 줄씩 따라가기</b>: 코드 블록 아래 "다음 줄"을 누르면 실행 순서대로 줄이 강조되고 설명이 바로 아래 붙습니다. 키보드 ←/→ 도 됩니다.</div>
-        <div><b>더 깊이</b>: "한눈에" 섹션이 있는 단계(시작, 해설 체인: 구조, 공유 링크)는 "파일 따라가기", "원리 파고들기"가 모두 접혀 있고, 나머지 단계는 가장 얕은 묶음(대개 "파일 따라가기", 테스트 단계는 "원리 파고들기")이 펼쳐진 채 시작합니다. 단계 머리의 관문과 소개만 읽고 다음 단계로 넘어가도 전체 흐름이 이어집니다.</div>
+        <div><b>더 깊이</b>: "한눈에" 섹션이 있는 단계(시작, 해설 체인: 구조, 공유 링크, CI/CD, 배포와 인스턴스)는 "파일 따라가기", "원리 파고들기"가 모두 접혀 있고, 나머지 단계는 가장 얕은 묶음(대개 "파일 따라가기", 테스트 단계는 "원리 파고들기")이 펼쳐진 채 시작합니다. 단계 머리의 관문과 소개만 읽고 다음 단계로 넘어가도 전체 흐름이 이어집니다.</div>
         <div><b>용어</b>: 점선 밑줄이 있는 용어에 마우스를 올리거나 탭하면 한 문장 정의가 뜹니다.</div>
-        <div><b>개념 체크</b>: 트랙·깊이별 퀴즈 6세트. 단계 끝의 "관련 퀴즈"에서 바로 갈 수 있습니다.</div>
+        <div><b>개념 체크</b>: 트랙·깊이별 퀴즈 9세트. 단계 끝의 "관련 퀴즈"에서 바로 갈 수 있습니다.</div>
       </div>
     </div>
 
@@ -544,6 +544,7 @@ figure.code .line.hit { cursor: pointer; }
     <div id="sections-pool" hidden>
 {{FASTAPI}}
 {{LANGCHAIN}}
+{{INFRA}}
     </div>
   </main>
 </div>
@@ -568,11 +569,14 @@ figure.code .line.hit { cursor: pointer; }
     { key: 'response', title: '응답', gate: 'PublicResult → response_model 직렬화 → 보안 헤더', intro: '결과 dict 가 AnalysisResponse 로 검증되어 JSON 이 되고, 오류일 때는 항상 같은 모양의 error 객체가 나갑니다.', sections: ['fa-2-errors', 'fa-3-response-model'], quiz: ['fastapi-2', 'fastapi-3'] },
     { key: 'share', title: '공유 링크', gate: 'share_code → /r#코드 → X-Share-Code → GET /shared', intro: '분석 결과를 저장하지 않고 공유하는 방법입니다. 결과를 압축하고 HMAC 으로 서명해 링크 자체에 담고, 링크를 열 때 서명을 확인한 뒤 출력 규칙을 다시 검사해 돌려줍니다.', sections: ['fa-1-share', 'fa-2-share', 'fa-3-share'], quiz: ['fastapi-2', 'fastapi-3'] },
     { key: 'tests', title: '테스트', gate: 'TestClient + 모의 HTTP', intro: '위 모든 단계를 네트워크 없이 검증하는 방법입니다. TestClient 가 앱을 직접 호출하고, 외부 API 는 모의 전송으로 격리합니다.', sections: ['fa-3-tests-client', 'fa-3-tests-contract', 'fa-3-tests-concurrency', 'fa-3-tests-share', 'lc-3-tests'], quiz: ['fastapi-3', 'langchain-3'] },
+    { key: 'cicd', title: 'CI/CD: PR에서 배포까지', gate: 'PR → CI 4개 job → 룰셋 필수 체크 → main 병합 → Vercel 빌드', intro: '코드가 운영에 닿기까지의 길입니다. PR 마다 GitHub Actions 가 네 가지 검사를 돌리고, 룰셋이 네 검사 통과와 PR 을 강제하며, main 에 병합되면 Vercel 프로젝트 두 개가 각각 빌드·배포됩니다. API 빌드는 GitHub Release 의 모델을 체크섬으로 확인한 뒤에만 씁니다.', sections: ['infra-1-pipeline', 'infra-2-ci', 'infra-2-deploy', 'infra-3-ci-design', 'infra-3-build'], quiz: ['infra-1', 'infra-2', 'infra-3'] },
+    { key: 'instances', title: '배포와 인스턴스', gate: '서버리스 인스턴스 → 인스턴스별 상태 → 스레드풀 → 타임아웃 사다리', intro: '배포된 API 는 서버 한 대가 아니라 필요할 때 뜨고 사라지는 인스턴스들 위에서 돕니다. 세마포어·예산·IP 버킷·모델이 인스턴스마다 따로라는 것, 동기 핸들러가 도는 스레드풀과 입장 한도의 관계, 프런트부터 OpenAI 까지 이어지는 타임아웃이 어떻게 맞물리는지 봅니다.', sections: ['infra-1-instances', 'infra-2-state', 'infra-2-coldstart', 'infra-3-threadpool', 'infra-3-timeouts', 'infra-3-scale'], quiz: ['infra-1', 'infra-2', 'infra-3'] },
   ];
   const DEPTH_LABEL = { 1: '한눈에', 2: '파일 따라가기', 3: '원리 파고들기' };
   const QUIZ_SETS = [
     ['fastapi-1', 'FastAPI · 하'], ['fastapi-2', 'FastAPI · 중'], ['fastapi-3', 'FastAPI · 상'],
     ['langchain-1', 'LangChain · 하'], ['langchain-2', 'LangChain · 중'], ['langchain-3', 'LangChain · 상'],
+    ['infra-1', '인프라 · 하'], ['infra-2', '인프라 · 중'], ['infra-3', '인프라 · 상'],
   ];
 
   const state = Object.assign({ track: 'map', stage: 'start', quizSet: 'fastapi-1', progress: {}, open: {}, visited: {} }, load());
