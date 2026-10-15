@@ -9,6 +9,7 @@ import json
 
 from .contracts import Person
 from .saju import ManseInputError, build_pair, build_person
+from .saju.spicy import spicy_signals
 
 GENDER = {"male": "M", "female": "F", "unspecified": "U"}
 VERSION = "lovecode-saju-v1/kst-dst-sect1"
@@ -84,6 +85,8 @@ def analysis_inputs(a: Person, b: Person) -> dict:
         "compact": _compact(first, second),
         "narrative": _narrative(first, second, seed),
         "limitations": limitations(sa, sb),
+        # Couple-level flags only; which person has a 신살 is never passed on.
+        "spicy_signals": spicy_signals(first, second),
     }
 
 

@@ -14,17 +14,21 @@ import json
 import os
 import re
 import time
+from typing import Literal
 
 from langchain_core.runnables import RunnableBranch, RunnableLambda, RunnablePassthrough
 from langsmith import tracing_context
 from pydantic import BaseModel, Field
 
-from .checks import HARD, find_problems
+from .checks import HARD, find_problems, texts_of
 from .contracts import AXIS_KEYS, AXIS_LABELS, AXIS_VALUES, TAXONOMY, PublicResult
 from .provider import ProviderError
 from .settings import settings
+from .spicy import Extras, extras_problems, extras_prompt, finalize_extras, split_extras
 
 PROMPT_VERSION = "explain-lc-v4"
+# Spicy titles / user question appended to the same call (docs/SPICY_SPEC.md §2.3, §3).
+EXTRAS_VERSION = "extras-v1"
 # OpenAI model comes from LC_MODEL (settings().model); no default is assumed.
 DEFAULT_MODELS = {"ollama": "qwen3:4b-instruct-2507-q4_K_M", "openai": None}
 
@@ -73,10 +77,45 @@ class Explanation(BaseModel):
     conversation_tip: str = Field(description="대화 팁 하나")
 
 
-def prompt():
+class SpicyNotes(BaseModel):
+    skinship: str
+    temptation: str
+    jealousy: str
+    reunion: str
+
+
+class ExplanationSpicy(Explanation):
+    spicy: SpicyNotes
+
+
+class ExplanationQuestion(Explanation):
+    answer_status: Literal["answered", "declined_offtopic", "declined_adult"]
+    answer: str
+
+
+class ExplanationSpicyQuestion(ExplanationSpicy, ExplanationQuestion):
+    pass
+
+
+def output_model(extras=None):
+    titles, question = bool(extras and extras.titles), bool(extras and extras.question)
+    return {
+        (False, False): Explanation,
+        (True, False): ExplanationSpicy,
+        (False, True): ExplanationQuestion,
+        (True, True): ExplanationSpicyQuestion,
+    }[titles, question]
+
+
+# The base prompt is unchanged when nothing is appended, so evaluation runs stay comparable.
+HUMAN_EXTRAS = HUMAN + "\n\n{extras}"
+
+
+def prompt(extras=None):
     from langchain_core.prompts import ChatPromptTemplate
 
-    return ChatPromptTemplate.from_messages([("system", SYSTEM), ("human", HUMAN)])
+    human = HUMAN_EXTRAS if extras else HUMAN
+    return ChatPromptTemplate.from_messages([("system", SYSTEM), ("human", human)])
 
 
 REPAIR = (
@@ -90,12 +129,13 @@ SCHEMA_FIX = (
 )
 
 
-def repair_prompt():
+def repair_prompt(extras=None):
     """Same conversation plus the first draft and what to fix (one repair only)."""
     from langchain_core.prompts import ChatPromptTemplate
 
+    human = HUMAN_EXTRAS if extras else HUMAN
     return ChatPromptTemplate.from_messages(
-        [("system", SYSTEM), ("human", HUMAN), ("ai", "{previous}"), ("human", REPAIR)]
+        [("system", SYSTEM), ("human", human), ("ai", "{previous}"), ("human", REPAIR)]
     )
 
 
@@ -108,18 +148,21 @@ def llm_text(text):
     return MBTI_RE.sub(lambda m: "·".join(MBTI_WORDS[c] for c in m.groups()), text)
 
 
-def prompt_inputs(text, type_id):
+def prompt_inputs(text, type_id, extras=None):
     axes = TAXONOMY[type_id]["axes"]
     lines = []
     for key, labels, values in zip(AXIS_KEYS, AXIS_LABELS, AXIS_VALUES, strict=True):
         pole = labels[values.index(axes[key])]
         axis_name, descriptions = POLE_GUIDE[key]
         lines.append(f"- {pole} ({axis_name}: {descriptions[pole]})")
-    return {
+    inputs = {
         "type_label": TAXONOMY[type_id]["label"],
         "axes": "\n".join(lines),
         "text": llm_text(text),
     }
+    if extras:
+        inputs["extras"] = extras_prompt(extras)
+    return inputs
 
 
 # Prompt + output stay under ~2k tokens; a small window keeps the KV cache from pushing
@@ -194,10 +237,11 @@ class LangChainExplainer:
         """True when derived chart data leaves this machine (needs user consent)."""
         return self.backend == "openai"
 
-    def chain(self, repair=False):
+    def chain(self, repair=False, extras=None):
         llm = self._llm or make_llm(self.backend, self.model)
-        return (repair_prompt() if repair else prompt()) | llm.with_structured_output(
-            Explanation, method="json_schema", include_raw=True,
+        template = repair_prompt(extras) if repair else prompt(extras)
+        return template | llm.with_structured_output(
+            output_model(extras), method="json_schema", include_raw=True,
             **({"strict": True} if self.external else {}),
         )
 
@@ -215,6 +259,8 @@ class LangChainExplainer:
             "backend": self.backend,
             "model": self.model,
             "prompt_version": PROMPT_VERSION,
+            # Set by _draft_step when titles or a question are appended to the call.
+            "extras_version": None,
             "settings": (
                 {
                     "temperature": 0.3,
@@ -263,7 +309,12 @@ class LangChainExplainer:
     # --- LCEL steps; each takes and returns a state dict -------------------------------
 
     def _draft_step(self, state):
-        parsed, meta = self._call(self.chain(), prompt_inputs(state["text"], state["type_id"]))
+        extras = state.get("extras")
+        parsed, meta = self._call(
+            self.chain(extras=extras), prompt_inputs(state["text"], state["type_id"], extras)
+        )
+        if extras:
+            meta["extras_version"] = EXTRAS_VERSION
         return {**state, "parsed": parsed, "meta": meta}
 
     def _review_step(self, state):
@@ -273,16 +324,20 @@ class LangChainExplainer:
             problems = [("schema", SCHEMA_FIX)]
         else:
             problems = find_problems(state["parsed"], state["type_id"], state["text"])
+            if extras := state.get("extras"):
+                problems += extras_problems(state["parsed"], extras, texts_of(state["parsed"]))
         return {**state, "problems": problems}
 
     def _repair_step(self, state):
         previous = state["parsed"]
-        inputs = prompt_inputs(state["text"], state["type_id"]) | {
+        extras = state.get("extras")
+        inputs = prompt_inputs(state["text"], state["type_id"], extras) | {
             "previous": json.dumps(previous, ensure_ascii=False) if previous else "(형식 오류)",
             "problems": "\n".join(f"- {fix}" for _, fix in state["problems"]),
         }
-        parsed, meta = self._call(self.chain(repair=True), inputs)
+        parsed, meta = self._call(self.chain(repair=True, extras=extras), inputs)
         first = state["meta"]
+        meta["extras_version"] = first["extras_version"]
         meta["elapsed_seconds"] += first["elapsed_seconds"]
         meta["usage"] = {
             k: first["usage"].get(k, 0) + meta["usage"].get(k, 0)
@@ -308,7 +363,8 @@ class LangChainExplainer:
         )
 
     def explain_chain(self, *, limitations=()):
-        """LCEL: revise_chain -> PublicResult. Input {"text", "type_id"}; output (result, meta)."""
+        """LCEL: revise_chain -> PublicResult. Input {"text", "type_id", optional "extras"};
+        output (result, meta). meta["answer"] holds the reply to a user question, if any."""
         return self.revise_chain() | RunnableLambda(lambda s: self._finalize(s, limitations))
 
     def _finalize(self, state, limitations):
@@ -318,9 +374,16 @@ class LangChainExplainer:
             raise ProviderError("PROVIDER_REQUEST_FAILED")
         if state["parsed"] is None or HARD & set(meta["remaining_problems"]):
             raise ProviderError("OUTPUT_REJECTED")
+        base, extra = split_extras(state["parsed"])
+        spicy, answer = finalize_extras(extra, state.get("extras") or Extras())
+        # The answer is returned beside the result, never inside it (it must not enter links).
+        meta["answer"] = answer
+        meta["spicy_dropped"] = bool(state.get("extras") and state["extras"].titles and not spicy)
         try:
             result = PublicResult(
-                **state["parsed"],
+                **base,
+                schema_version="1.1" if spicy else "1.0",
+                spicy=spicy,
                 type_id=state["type_id"],
                 axes=TAXONOMY[state["type_id"]]["axes"],
                 limitations=list(limitations),
@@ -340,11 +403,12 @@ class LangChainExplainer:
         state["meta"]["remaining_problems"] = sorted({k for k, _ in state["problems"]})
         return state["parsed"], state["meta"]
 
-    def explain(self, text, type_id, *, allow_paid=False, limitations=(), synthetic=True):
+    def explain(self, text, type_id, *, allow_paid=False, limitations=(), synthetic=True,
+                extras=None):
         self._guard(allow_paid, synthetic)
         with tracing_context(enabled=False):
             return self.explain_chain(limitations=limitations).invoke(
-                {"text": text, "type_id": type_id}
+                {"text": text, "type_id": type_id, "extras": extras}
             )
 
 

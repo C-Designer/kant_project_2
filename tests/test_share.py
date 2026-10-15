@@ -84,7 +84,7 @@ def test_link_carries_no_raw_inputs_and_stays_short(client):
     text = zlib.decompress(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)), -15).decode()
     for raw_input in ("1994-06-15", "1996-09-20", "14:30", "INTJ", "ENFP", "female"):
         assert raw_input not in text
-    assert len(analysis["share_code"]) < 1200
+    assert len(analysis["share_code"]) < 2000  # 1.1 adds four spicy titles and notes
 
 
 def random_hangul(n, rng):
