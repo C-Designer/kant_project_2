@@ -39,7 +39,7 @@
 
 | 필드 | 타입 | 필수·기본값 | 검증·의미 |
 | --- | --- | --- | --- |
-| `gender` | enum `male`, `female`, `unspecified` | 필수, 기본 선택 없음 | UI는 남성 / 여성 / 선택 안 함. 해당 계산에 성별 의존 요소가 없으면 추정·차등 적용하지 않음 |
+| `gender` | enum `male`, `female`, `unspecified` | 필수, 기본 선택 없음 | UI는 남성 / 여성만 제공(`unspecified`는 API 호환용으로만 유지). 해당 계산에 성별 의존 요소가 없으면 추정·차등 적용하지 않음 |
 | `birth_date` | string `YYYY-MM-DD` | 필수 | 유효한 양력 날짜, 1940-01-01 이상, 요청 시 KST의 오늘 이하 |
 | `birth_time` | string `HH:MM` 또는 null | 키 필수, null 허용 | 00:00~23:59. null은 생시 모름이며 00:00과 다름 |
 | `mbti` | 16개 MBTI enum | 필수 | 대문자 정규화 후 검증. 각 자리 `[EI][SN][TF][JP]` |
