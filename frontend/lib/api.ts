@@ -1,4 +1,12 @@
+export type SpicyTitle = { id: string; text: string };
+export type Spicy = { titles: Record<string, SpicyTitle>; notes: Record<string, string> };
+export type Answer = {
+  question: string;
+  status: 'answered' | 'declined_offtopic' | 'declined_adult';
+  text: string;
+};
 export type Result = {
+  schema_version: '1.0' | '1.1';
   type_id: string;
   axes: Record<string, string>;
   summary: string;
@@ -7,10 +15,13 @@ export type Result = {
   conversation_tip: string;
   limitations: string[];
   evidence_status: 'fixture' | 'ai_draft_unreviewed';
+  spicy?: Spicy;
 };
 export type Analysis = {
   analysis_id: string;
   result: Result;
+  /** Reply to the optional question. Never part of a share link. */
+  answer?: Answer;
   share_code?: string;
 };
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {

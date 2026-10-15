@@ -5,7 +5,9 @@ import SharePanel from '@/components/SharePanel';
 import ResultLoading from '@/components/ResultLoading';
 import PersonFields, { mbtiFrom } from '@/components/PersonFields';
 import { Analysis, api } from '@/lib/api';
+import { QUESTION_MAX } from '@/lib/spicy';
 export default function Test() {
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -86,6 +88,9 @@ export default function Test() {
       birth_time: f.get(id + 'unknown') ? null : f.get(id + 'time'),
       mbti: mbtiFrom(f, id),
     });
+    const question = String(f.get('question') || '').trim();
+    const adult = f.get('adult') === 'on';
+    setAdultConfirmed(adult);
     try {
       showResult(
         await api<Analysis>('analyses', {
@@ -94,6 +99,8 @@ export default function Test() {
             person_a: person('a'),
             person_b: person('b'),
             external_processing_consent: f.get('consent') === 'on',
+            question: question || null,
+            adult_confirmed: adult,
           }),
         }),
       );
@@ -120,7 +127,11 @@ export default function Test() {
       {analysis && !busy && (
         <>
           <div tabIndex={-1} ref={resultTop}>
-            <ResultView result={analysis.result} />
+            <ResultView
+              result={analysis.result}
+              answer={analysis.answer}
+              adultConfirmed={adultConfirmed}
+            />
           </div>
           <SharePanel analysis={analysis} />
           <button
@@ -152,10 +163,31 @@ export default function Test() {
             <PersonFields id="a" title="첫 번째 사람" />
             <PersonFields id="b" title="두 번째 사람" />
           </div>
+          <div className="question">
+            <label htmlFor="question">
+              궁금한 점 <small>선택 · {QUESTION_MAX}자</small>
+            </label>
+            <input
+              id="question"
+              name="question"
+              type="text"
+              maxLength={QUESTION_MAX}
+              placeholder="예: 싸우면 누가 먼저 사과해?"
+              aria-describedby="question-hint"
+              autoComplete="off"
+            />
+            <p id="question-hint" className="field-hint">
+              결과에 짧은 답을 붙여 줘요. 질문은 공유 링크에 담기지 않아요.
+            </p>
+            <label className="check">
+              <input type="checkbox" name="adult" />
+              <span aria-hidden="true">🌶</span> 매운 질문도 답해 줘 (만 19세 이상)
+            </label>
+          </div>
           <label className="check consent">
             <input type="checkbox" name="consent" required />
             {ready
-              ? '두 사람의 입력 동의를 받았고, 사주 계산 결과와 MBTI를 OpenAI로 보내 참고·오락용 해석을 만드는 데 동의해요. 생년월일·시각 원문은 보내지 않아요.'
+              ? '두 사람의 입력 동의를 받았고, 사주 계산 결과와 MBTI(궁금한 점을 적었다면 그 문장도)를 OpenAI로 보내 참고·오락용 해석을 만드는 데 동의해요. 생년월일·시각 원문은 보내지 않아요.'
               : '두 사람의 입력 동의를 받았고, 참고·오락용 해석임을 이해했어요.'}
           </label>
           <div className="form-actions">

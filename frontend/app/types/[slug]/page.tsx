@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+import SpicyGate from '@/components/SpicyGate';
 import TypeIllustration from '@/components/TypeIllustration';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import types from '@/data/relationship-types.json';
 import { AXES, AXIS_MEANINGS, oneAxisApart } from '@/lib/relationship';
+import { reachableTitles } from '@/lib/spicy';
 
 type Props = { params: Promise<{ slug: string }> };
 export const dynamicParams = false;
@@ -112,6 +114,24 @@ export default async function TypeDetail({ params }: Props) {
             ))}
           </dl>
         </section>
+        <SpicyGate title="이 유형에서 나올 수 있는 매운맛 칭호">
+          <p className="spicy-lead">
+            실제 칭호는 두 사람 사주의 도화살·홍염살과 배우자 자리의 합·충에 따라 이 중 하나로
+            정해져요.
+          </p>
+          <ul className="spicy-cards">
+            {reachableTitles(type.id).map((topic) => (
+              <li key={topic.key}>
+                <small>
+                  <span aria-hidden="true">{topic.emoji}</span> {topic.name}
+                </small>
+                {topic.titles.map((title) => (
+                  <strong key={title}>{title}</strong>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </SpicyGate>
         <section>
           <p className="eyebrow">한 가지만 다르다면</p>
           <h2>가까운 유형</h2>

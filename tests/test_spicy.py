@@ -118,3 +118,14 @@ def test_spicy_checker_rejects(text):
 )
 def test_spicy_checker_allows_topic_words_and_softened_slang(text):
     assert spicy_text_ok(text)
+
+
+def test_frontend_title_file_matches_the_rules():
+    import json
+    import runpy
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    build = runpy.run_path(str(root / "scripts/export_spicy_titles.py"))["build"]
+    on_disk = json.loads((root / "frontend/data/spicy-titles.json").read_text(encoding="utf-8"))
+    assert on_disk == build(), "run: uv run python scripts/export_spicy_titles.py"
