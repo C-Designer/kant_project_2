@@ -24,6 +24,11 @@ export type Analysis = {
   answer?: Answer;
   share_code?: string;
 };
+// Server failures carry the issue-log request id; its last segment is enough to search the logs.
+export function withErrorNumber(message: string, requestId?: string) {
+  const tail = requestId?.split(/[-:]/).filter(Boolean).pop();
+  return tail ? `${message} (오류 번호 ${tail})` : message;
+}
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(
@@ -39,7 +44,8 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     });
     if (!r.ok) {
       const e = await r.json().catch(() => null);
-      throw new Error(e?.error?.message || '연결하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      const message = e?.error?.message || '연결하지 못했어요. 잠시 후 다시 시도해 주세요.';
+      throw new Error(r.status >= 500 ? withErrorNumber(message, e?.request_id) : message);
     }
     return r.status === 204 ? (undefined as T) : await r.json();
   } catch (e) {

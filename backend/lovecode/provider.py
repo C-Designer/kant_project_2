@@ -10,7 +10,33 @@ from .spicy import Extras, extras_json_properties, extras_prompt, finalize_extra
 
 
 class ProviderError(Exception):
-    pass
+    """`args[0]` is a short code; `detail` holds allow-listed facts for the issue log."""
+
+    def __init__(self, code, **detail):
+        super().__init__(code)
+        self.code = code
+        self.detail = detail
+
+
+def http_failure_detail(exc):
+    """Classify an OpenAI HTTP failure without keeping its message, body or our request."""
+    detail = {"exception": type(exc).__name__}
+    response = getattr(exc, "response", None) if isinstance(exc, httpx.HTTPStatusError) else None
+    if response is None:
+        return detail
+    headers = response.headers
+    detail.update(
+        http_status=response.status_code,
+        provider_request_id=headers.get("x-request-id"),
+        ratelimit_remaining_requests=headers.get("x-ratelimit-remaining-requests"),
+        ratelimit_remaining_tokens=headers.get("x-ratelimit-remaining-tokens"),
+    )
+    try:  # OpenAI error objects carry enumerated `type`/`code` (e.g. insufficient_quota)
+        err = response.json().get("error") or {}
+        detail.update(provider_error_type=err.get("type"), provider_error_code=err.get("code"))
+    except (ValueError, AttributeError):
+        pass
+    return detail
 
 
 LABEL_SCHEMA = {
@@ -92,9 +118,11 @@ class OpenAIProvider:
             if len(texts) != 1:
                 raise ProviderError("INVALID_RESPONSE")
             return json.loads(texts[0]), data.get("usage", {})
-        except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
+        except httpx.HTTPError as e:
             # No response bodies, credentials, request payloads, or URLs in errors.
-            raise ProviderError("PROVIDER_REQUEST_FAILED") from None
+            raise ProviderError("PROVIDER_REQUEST_FAILED", **http_failure_detail(e)) from None
+        except (ValueError, KeyError, TypeError, AttributeError) as e:
+            raise ProviderError("PROVIDER_REQUEST_FAILED", exception=type(e).__name__) from None
 
     def label(self, text, *, allow_paid, synthetic=True):
         prompt = (

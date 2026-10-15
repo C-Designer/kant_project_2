@@ -79,6 +79,19 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 화면의 빌드 환경변수: `API_INTERNAL_ORIGIN=https://kant-lovecode-api.vercel.app`.
 모델은 빌드 시 고정 Release에서 다운로드하고 ZIP·가중치 체크섬을 검증합니다.
 
+### 이슈 로그 보기
+
+DB가 없으므로 API는 문제를 Vercel 런타임 로그에 JSON 한 줄(`"log": "lovecode.issue"`)로 남깁니다(`backend/lovecode/issues.py`).
+값을 미리 정한 필드만 기록하고, 생년월일·MBTI·질문·요청 본문·키는 남기지 않습니다. info는 분석 완료, warning은 혼잡·일일 한도, error는 사용자가 실패를 본 경우입니다.
+화면의 실패 문구 끝에 붙는 `오류 번호`는 응답 `X-Request-ID`의 끝부분이고, 같은 값이 로그의 `request_id`에 있습니다.
+
+```sh
+vercel logs --project kant-lovecode-api --scope zerocode-studio --environment production --since 1h --level error --json | grep lovecode.issue
+```
+
+OpenAI 실패는 `http_status`, `provider_error_code`(예: `insufficient_quota`=크레딧·한도 소진, `rate_limit_exceeded`=속도 제한), `provider_request_id`(OpenAI 문의용)로 구분합니다.
+Hobby 플랜의 런타임 로그는 보관 기간이 짧습니다(2026-10-16 확인: 약 1시간 전까지만 조회됨). 오래 보관하거나 알림을 받으려면 로그 드레인 같은 별도 저장소가 필요합니다. 지금은 쓰지 않습니다.
+
 ## 코드 읽기
 
 ### Release BERT를 웹 분석에 사용하기
