@@ -8,11 +8,20 @@ import hashlib
 import json
 
 from .contracts import Person
-from .saju import ManseInputError, build_pair, build_person
+from .labeler import label
+from .reading import Basis
+from .saju import ManseInputError, analyze_pair, build_pair, build_person
+from .saju.constants import ELEMENT_KO, STEM_ELEMENT, STEM_KO
 from .saju.spicy import spicy_signals
 
 GENDER = {"male": "M", "female": "F", "unspecified": "U"}
 VERSION = "lovecode-saju-v1/kst-dst-sect1"
+
+
+def day_stem_ko(person: dict) -> str:
+    """'丁' → '정화' (stem + its element), the way the narrative spells it in Hangul."""
+    c = person["saju"]["day"][0]
+    return STEM_KO[c] + ELEMENT_KO[STEM_ELEMENT[c]]
 
 
 def to_saju_person(p: Person) -> dict:
@@ -48,11 +57,10 @@ def _narrative(first: dict, second: dict, seed: int) -> str:
     return build_pair(first, second, seed=seed)["text"]
 
 
-def _compact(first: dict, second: dict) -> str:
-    from .saju import analyze_pair
+def _compact(first: dict, second: dict, pair: dict | None = None) -> str:
     from .saju.textgen import make_compact_text
 
-    return make_compact_text(first, second, analyze_pair(first, second), v5=True)
+    return make_compact_text(first, second, pair or analyze_pair(first, second), v5=True)
 
 
 def pair_text(a: Person, b: Person) -> tuple[str, list[str]]:
@@ -81,12 +89,20 @@ def analysis_inputs(a: Person, b: Person) -> dict:
     """
     sa, sb = to_saju_person(a), to_saju_person(b)
     first, second, seed = _canonical(a, b, sa, sb)
+    pair = analyze_pair(first, second)
     return {
-        "compact": _compact(first, second),
+        "compact": _compact(first, second, pair),
         "narrative": _narrative(first, second, seed),
         "limitations": limitations(sa, sb),
         # Couple-level flags only; which person has a 신살 is never passed on.
         "spicy_signals": spicy_signals(first, second),
+        # Rule signals behind each axis, for the '왜 이 유형일까' reading. The narrative
+        # names `first` A, which is the caller's person_b when the order was swapped.
+        "basis": Basis(
+            rule=label(first, second, pair),
+            swapped=first is not sa,
+            day_stems=(day_stem_ko(first), day_stem_ko(second)),
+        ),
     }
 
 

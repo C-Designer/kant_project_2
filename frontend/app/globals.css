@@ -501,6 +501,52 @@ input[type='checkbox'] {
   flex-shrink: 0;
   margin-top: 1px;
 }
+.reading-people {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.reading-people > div {
+  background: var(--soft);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+}
+.reading-people h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+.reading-people p,
+.result-section .reading-people p {
+  display: block;
+  margin-top: 12px;
+  font-size: 0.9688rem;
+  line-height: 1.75;
+}
+.reading-axes {
+  margin: 28px 0 0;
+  max-width: 42rem;
+}
+.reading-axes > div {
+  padding: 18px 0;
+  border-top: 1px solid var(--rule);
+}
+.reading-axes dt {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.reading-axes dt strong {
+  margin-left: 6px;
+  color: var(--point-text);
+  font-weight: 700;
+}
+.reading-axes dd {
+  margin: 8px 0 0;
+  font-size: 1rem;
+  line-height: 1.75;
+}
 .conversation {
   background: var(--soft);
   border-left: 3px solid var(--text);
@@ -668,6 +714,9 @@ dialog p {
   }
 }
 @media (max-width: 650px) {
+  .reading-people {
+    grid-template-columns: 1fr;
+  }
   .header {
     margin-inline: 22px;
     padding: 18px 0;

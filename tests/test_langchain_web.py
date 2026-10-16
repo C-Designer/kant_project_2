@@ -29,7 +29,7 @@ def test_langchain_web_transport(monkeypatch, status):
         body = json.loads(request.content)
         calls.append(body)
         assert request.url.path == "/v1/responses"
-        assert body["store"] is False and body["max_output_tokens"] == 2000
+        assert body["store"] is False and body["max_output_tokens"] == 3500
         assert body["text"]["format"]["strict"] is True
         assert "type_id" not in body["text"]["format"]["schema"]["properties"]
         assert "1994-06-15" not in request.content.decode()
@@ -40,6 +40,18 @@ def test_langchain_web_transport(monkeypatch, status):
         )
         if "spicy" in body["text"]["format"]["schema"]["properties"]:
             result["spicy"] = demo_result().spicy.notes
+        if "reading" in body["text"]["format"]["schema"]["properties"]:
+            # The prompt hands over the rule signals and the A/B names (T13 poles only).
+            prompt = body["input"][1]["content"]
+            assert "축별 근거" in prompt and "첫 번째 분" in prompt
+            result["reading"] = {
+                "first_person": "차분하게 계획을 세우는 분이에요.",
+                "second_person": "마음을 먼저 표현하는 분이에요.",
+                "chemistry": "서로 없는 기운을 채워 주는 보완형이에요.",
+                "temperature": "꾸준한 온기가 어울리는 안정형이에요.",
+                "distance": "함께하는 시간이 늘어나는 밀착형이에요.",
+                "conflict": "그 자리에서 대화로 푸는 바로 풀기가 맞아요.",
+            }
         if status == "invalid":
             result["summary"] = "INTJ와 ENFP"
         content = [{"type": "output_text", "text": json.dumps(result), "annotations": []}]
@@ -84,7 +96,10 @@ def test_langchain_web_transport(monkeypatch, status):
                 assert response.json()["result"]["type_id"] == "T13"
                 spicy = response.json()["result"]["spicy"]
                 assert set(spicy["titles"]) == {"skinship", "temptation", "jealousy", "reunion"}
-                assert response.json()["result"]["schema_version"] == "1.1"
+                assert response.json()["result"]["schema_version"] == "1.2"
+                reading = response.json()["result"]["reading"]
+                assert set(reading["axes"]) == {"chemistry", "temperature", "distance", "conflict"}
+                assert len(reading["people"]) == 2
             else:
                 assert response.status_code == 502
                 assert "save_ticket" not in response.text

@@ -217,3 +217,8 @@ AnalysisInput에 `external_processing_consent: boolean = false` 추가. 준비�
 - `PublicResult.spicy?: { titles: {skinship|temptation|jealousy|reunion: {id, text}}, notes: {같은 키: string} }` — 칭호 ID는 `lovecode.spicy.TITLES`에 있어야 하고 주제와 접두어(S/C/J/R)가 맞아야 한다. 칭호 문구 40자, 설명 140자 이하, 19금·욕설 원형·퍼센트·확률·등급·단정 표현 금지. 주제어(속궁합·바람기)는 이 필드에서만 허용한다.
 - `AnalysisResponse.answer?: { question, status: answered|declined_offtopic|declined_adult, text(≤200) }` — 공유 링크에 담지 않는다.
 - 프런트 칭호 데이터 `frontend/data/spicy-titles.json`은 `scripts/export_spicy_titles.py`로 만들고, 테스트가 백엔드 규칙과의 일치를 확인한다.
+
+## 2026-10-16 '왜 이 유형일까' 풀이
+
+- `PublicResult.schema_version: "1.0" | "1.1" | "1.2"` — `reading`이 있으면 1.2(이때 `spicy`는 있어도 없어도 된다). `reading`이 없으면 위 1.0/1.1 규칙 그대로다.
+- `PublicResult.reading?: { people: [string, string], axes: {chemistry|temperature|distance|conflict: string} }` — `people`은 입력의 person_a, person_b 순서(화면 01·02)이고 각 240자 이하, `axes`는 각 220자 이하. 결과 텍스트와 같은 금지 규칙(MBTI 네 글자, 간지 한자, 날짜·시각, URL, 주제어)을 따른다. 공유 링크에 담긴다.

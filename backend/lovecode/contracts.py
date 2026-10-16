@@ -117,9 +117,42 @@ class SpicyResult(Strict):
 TITLES_PREFIX = dict(zip(TOPICS, "SCJR"))
 
 
+BANNED_RESULT_TEXT = re.compile(
+    r"https?://|[<>]|[EI][SN][TF][JP]|\d{2,4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}:\d{2}"
+    r"|[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]|바람기|불륜|속궁합"
+)
+
+
+def result_text_ok(t, max_len):
+    return 1 <= len(t) <= max_len and not BANNED_RESULT_TEXT.search(t)
+
+
+READING_PERSON_MAX = 240
+READING_AXIS_MAX = 220
+
+
+class Reading(Strict):
+    """'왜 이 유형일까': each person's chart read in plain words (person_a, person_b order)
+    and, per axis, why the couple landed on its pole (lovecode.reading)."""
+
+    people: list[str] = Field(min_length=2, max_length=2)
+    axes: dict[str, str]
+
+    @model_validator(mode="after")
+    def consistent(self):
+        if set(self.axes) != set(AXIS_KEYS):
+            raise ValueError("풀이 축 불일치")
+        if not all(result_text_ok(t, READING_PERSON_MAX) for t in self.people) or not all(
+            result_text_ok(t, READING_AXIS_MAX) for t in self.axes.values()
+        ):
+            raise ValueError("허용되지 않는 풀이 텍스트")
+        return self
+
+
 class PublicResult(Strict):
-    # 1.1 adds the spicy section; 1.0 results (and links) stay valid without it.
-    schema_version: Literal["1.0", "1.1"] = "1.0"
+    # 1.1 adds the spicy section, 1.2 the reading (spicy optional there); 1.0 and 1.1
+    # results (and links) stay valid without the newer sections.
+    schema_version: Literal["1.0", "1.1", "1.2"] = "1.0"
     type_id: str
     taxonomy_version: Literal["love-code-v1"] = "love-code-v1"
     axes: dict[str, str]
@@ -136,22 +169,21 @@ class PublicResult(Strict):
     # Public results must never imply human approval.
     evidence_status: Literal["fixture", "ai_draft_unreviewed"]
     spicy: SpicyResult | None = None
+    reading: Reading | None = None
 
     @model_validator(mode="after")
     def consistent(self):
-        if (self.schema_version == "1.1") != (self.spicy is not None):
+        if (self.schema_version == "1.2") != (self.reading is not None):
+            raise ValueError("스키마 버전과 풀이 불일치")
+        if self.schema_version != "1.2" and (self.schema_version == "1.1") != (self.spicy is not None):
             raise ValueError("스키마 버전과 매운맛 불일치")
         if self.type_id not in TAXONOMY or self.axes != TAXONOMY[self.type_id]["axes"]:
             raise ValueError("유형과 축 불일치")
         if len(set(self.limitations)) != len(self.limitations):
             raise ValueError("중복 제한")
         texts = [self.summary, *self.strengths, *self.adjustments, self.conversation_tip]
-        for t in texts:
-            if not 1 <= len(t) <= 180 or re.search(
-                r"https?://|[<>]|[EI][SN][TF][JP]|\d{2,4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}:\d{2}|[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]|바람기|불륜|속궁합",
-                t,
-            ):
-                raise ValueError("허용되지 않는 결과 텍스트")
+        if not all(result_text_ok(t, 180) for t in texts):
+            raise ValueError("허용되지 않는 결과 텍스트")
         return self
 
 
@@ -171,7 +203,32 @@ def demo_result():
         conversation_tip="“오늘 우리 둘 다 편안했던 순간은 언제였어?”라고 물어보세요.",
         limitations=["missing_hour_a"],
         evidence_status="fixture",
-        schema_version="1.1",
+        schema_version="1.2",
+        reading=Reading(
+            people=[
+                (
+                    "봄에 태어난 을목 일간이라 덩굴처럼 유연하게 주변과 어울리며 자라는 기운이에요. "
+                    "자기 기운이 강한 신강이라 중심이 단단하고, 외향적이고 감정을 중시하는 성향이 "
+                    "더해져 연애에서도 마음을 먼저 표현하는 편이에요."
+                ),
+                (
+                    "가을에 태어난 정화 일간이라 촛불처럼 은은하게 오래 타는 기운이에요. 기운이 약한 "
+                    "신약이라 나무 기운의 도움이 반갑고, 내향적이고 꼼꼼하게 계획하는 성향이라 "
+                    "연애에서도 천천히 믿음을 쌓아 가는 편이에요."
+                ),
+            ],
+            axes={
+                "chemistry": "두 분의 오행 구성이 많이 다르고, 첫 번째 분의 나무 기운이 두 번째 분에게 "
+                "필요한 기운을 많이 채워 줘요. 나무가 불을 살리듯 서로 없는 부분을 채워 주는 "
+                "보완형으로 나왔어요.",
+                "temperature": "두 분 사이에 육합이 있고 강하게 부딪치는 충은 없어요. 감정의 큰 파도보다 "
+                "꾸준한 온기가 어울리는 안정형이에요.",
+                "distance": "두 분의 월지와 일지 사이에 육합이 있어요. 육합은 서로 끌어당겨 하나로 "
+                "묶이는 관계라, 함께하는 시간이 자연스럽게 늘어나는 밀착형으로 나왔어요.",
+                "conflict": "일지끼리 원진이 있어 서운함이 쌓였다가 늦게 드러나기 쉬운 구조예요. 두 번째 "
+                "분이 신중한 성향이라, 감정을 가라앉힌 뒤 대화하는 시간 두기가 잘 맞아요.",
+            },
+        ),
         spicy=SpicyResult(
             titles={t: SpicyTitle(id=i, text=TITLES[i]) for t, i in zip(TOPICS, ("S3", "C3", "J3", "R4"))},
             notes={

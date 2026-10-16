@@ -42,7 +42,13 @@ def find_problems(parsed, type_id, input_text):
         for v in values:
             if len(v) > limit:
                 problems.append(("length", f"{field}가 {len(v)}자다. {limit}자 이하로 줄인다."))
-    joined = " ".join(texts_of(parsed))
+    return problems + text_problems(texts_of(parsed), type_id, input_text)
+
+
+def text_problems(texts, type_id, input_text):
+    """Wording rules shared by every explainer section (no length limits)."""
+    problems = []
+    joined = " ".join(texts)
     if MBTI_CODE.search(joined):
         problems.append(("mbti_code", "MBTI 유형 이름(영문 네 글자)을 쓰지 말고 '외향적인 성향'처럼 풀어 쓴다."))
     if HANJA.search(joined):

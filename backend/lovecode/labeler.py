@@ -135,7 +135,18 @@ def _decide(axis, s0, s1, m0, m1, final):
     return final(), "final"
 
 
+SPOT_KO = {"day": "두 사람 일지(배우자 자리)끼리", "month": "월지와 일지 사이", "other": "다른 기둥 사이"}
+
+
+def _where(x):
+    if x["day_stems"]:
+        return f"두 사람 일간끼리 {x['type']}"
+    return f"{SPOT_KO[x['spot']]} {x['type']}"
+
+
 def label(A, B, F):
+    """Also returns `signals`: per axis, the Korean reasons behind each pole's points
+    (saju lists and MBTI lists, index 0/1 = pole), used to tell the explainer *why*."""
     a, b = A["analysis"], B["analysis"]
     ma, mb = A["mbti"], B["mbti"]
     rels = _relations(A, B, F)
@@ -145,22 +156,48 @@ def label(A, B, F):
     spouse = sp_a or sp_b
     day_hap = any(x["day_stems"] and x["type"] == "천간합" for x in rels)
     out, scores = {}, {}
+    why = {ax: ([], []) for ax in AXES}
+    mbti_why = {ax: ([], []) for ax in AXES}
+
+    def add(ax, pole, points, reason):
+        """Points unchanged; a reason is kept only when the signal actually scored."""
+        if points and reason not in why[ax][pole]:
+            why[ax][pole].append(reason)
+        return points
+
+    def mbti(ax, pole, hit, reason):
+        if hit:
+            mbti_why[ax][pole].append(reason)
+        return hit
 
     # 케미: 닮은꼴(0) / 보완형(1)
     s0 = s1 = 0.0
     sim = F["element_similarity"]
-    s0 += sim >= 0.85
-    s0 += F["same_day_element"]
-    s0 += F["same_season"]
+    s0 += add("케미", 0, sim >= 0.85, "두 사람의 오행 구성이 많이 닮았다")
+    s0 += add("케미", 0, F["same_day_element"], "두 사람 일간의 오행이 같다")
+    s0 += add("케미", 0, F["same_season"], "같은 계절에 태어났다")
     na, nb = set(a["needs"]), set(b["needs"])
-    s0 += 1.0 if na and na == nb else (0.5 if na & nb else 0)
-    s1 += sim < 0.65
-    s1 += 2 * F["opposite_climate"]
+    s0 += add(
+        "케미", 0, 1.0 if na and na == nb else (0.5 if na & nb else 0),
+        "필요한 기운이 같다" if na and na == nb else "필요한 기운이 일부 겹친다",
+    )
+    s1 += add("케미", 1, sim < 0.65, "두 사람의 오행 구성이 많이 다르다")
+    s1 += add("케미", 1, 2 * F["opposite_climate"], "한 사람은 뜨겁고 한 사람은 차가운, 정반대 사주 온도다")
     la, lb = F["supply_b_to_a"]["level"], F["supply_a_to_b"]["level"]
-    s1 += 2 if la == lb == "많음" else (0.5 if "많음" in (la, lb) else 0)
+    s1 += add(
+        "케미", 1, 2 if la == lb == "많음" else (0.5 if "많음" in (la, lb) else 0),
+        "서로에게 필요한 기운을 많이 채워 준다"
+        if la == lb == "많음"
+        else "한 사람이 상대에게 필요한 기운을 많이 채워 준다",
+    )
     sa, sb = A["analysis"]["surface"], B["analysis"]["surface"]
-    s1 += 1 if any(sb[e] for e in a["lacking"]) or any(sa[e] for e in b["lacking"]) else 0
-    m0, m1 = same >= 3, same <= 1
+    s1 += add(
+        "케미", 1,
+        1 if any(sb[e] for e in a["lacking"]) or any(sa[e] for e in b["lacking"]) else 0,
+        "한 사람 사주에 없는 오행을 상대가 가지고 있다",
+    )
+    m0 = mbti("케미", 0, same >= 3, f"MBTI 네 글자 중 {same}개가 같다")
+    m1 = mbti("케미", 1, same <= 1, f"MBTI 네 글자 중 {same}개만 같다" if same else "MBTI 네 글자가 모두 다르다")
     out["케미"] = _decide("케미", s0, s1, m0, m1, lambda: 0 if sim >= 0.75 else 1)
     scores["케미"] = (s0, s1)
 
@@ -168,17 +205,29 @@ def label(A, B, F):
     s0 = s1 = 0.0
     for x in rels:
         if x["day_stems"] and x["type"] in ("천간합", "천간충"):
-            s0 += 0.5 if (x["type"] == "천간충" and not x["tags"]["tagged"]) else 2
+            s0 += add(
+                "온도", 0, 0.5 if (x["type"] == "천간충" and not x["tags"]["tagged"]) else 2, _where(x)
+            )
         elif x["kind"] == "clash" and x["rank"] >= 2:
-            s0 += _clash_temp_weight(x["tags"])
-    s0 += spouse
-    s0 += F["combined_climate"] == "뜨거움" or "뜨거움" in (a["climate"], b["climate"])
+            s0 += add("온도", 0, _clash_temp_weight(x["tags"]), f"{_where(x)}이 강하게 부딪친다")
+    s0 += add("온도", 0, spouse, "상대 일간이 배우자를 뜻하는 글자다")
+    s0 += add(
+        "온도", 0, F["combined_climate"] == "뜨거움" or "뜨거움" in (a["climate"], b["climate"]),
+        "사주 온도가 뜨거운 편이다",
+    )
     strong_clash = any(x["kind"] == "clash" and x["rank"] >= 2 for x in rels)
-    s1 += any(x["type"] in HAP for x in rels) and not strong_clash
-    s1 += F["a_sees_b"] in SUPPORT_GODS or F["b_sees_a"] in SUPPORT_GODS
-    s1 += F["combined_climate"] == "차가움"
-    s1 += a["climate"] == b["climate"] == "온화"
-    m0, m1 = both("F") + both("E"), both("T") + both("I")
+    s1 += add(
+        "온도", 1, any(x["type"] in HAP for x in rels) and not strong_clash,
+        "합이 있고 강한 충은 없다",
+    )
+    s1 += add(
+        "온도", 1, F["a_sees_b"] in SUPPORT_GODS or F["b_sees_a"] in SUPPORT_GODS,
+        "상대 일간이 나를 받쳐 주는 관계(비견·겁재·인성)다",
+    )
+    s1 += add("온도", 1, F["combined_climate"] == "차가움", "둘을 합친 사주 온도가 차가운 편이다")
+    s1 += add("온도", 1, a["climate"] == b["climate"] == "온화", "두 사람 모두 사주 온도가 온화하다")
+    m0 = mbti("온도", 0, both("F"), "둘 다 감정형") + mbti("온도", 0, both("E"), "둘 다 외향형")
+    m1 = mbti("온도", 1, both("T"), "둘 다 사고형") + mbti("온도", 1, both("I"), "둘 다 내향형")
     fam = FAMILY[ten_god(A["saju"]["day"][0], B["saju"]["day"][0])]
     out["온도"] = _decide(
         "온도", s0, s1, m0, m1, lambda: 0 if (day_hap or spouse or fam in ("재성", "관성")) else 1
@@ -190,26 +239,33 @@ def label(A, B, F):
     day = [x for x in rels if x["spot"] == "day" and not x["stem"]]
     day_hap_b = any(x["kind"] == "hap" for x in day)
     day_bad = any(x["kind"] in ("clash", "hidden") for x in day)
-    s0 += 2 * day_hap_b
-    s1 += 2 * day_bad
+    s0 += add("거리", 0, 2 * day_hap_b, "두 사람 일지(배우자 자리)끼리 합을 이룬다")
+    s1 += add("거리", 1, 2 * day_bad, "두 사람 일지(배우자 자리)끼리 충이나 원진처럼 부딪친다")
     if day_hap_b and day_bad:
-        s0 += 0.5
+        s0 += add("거리", 0, 0.5, "일지끼리 합과 부딪힘이 함께 있다")
     if not day:
-        s1 += 1
+        s1 += add("거리", 1, 1, "두 사람 일지(배우자 자리)끼리 맺는 관계가 없다")
     for x in rels:
         if x["spot"] == "month" and not x["stem"]:
             if x["kind"] == "hap":
-                s0 += 1
+                s0 += add("거리", 0, 1, f"월지 쪽에 {x['type']}이 있다")
             elif x["kind"] == "clash":
-                s1 += 1
+                s1 += add("거리", 1, 1, f"월지 쪽에 {x['type']}이 있다")
             else:
-                s1 += 0.5
-    s0 += spouse or day_hap
-    s0 += (a["strength"] == "신약" and la == "많음") or (b["strength"] == "신약" and lb == "많음")
-    s1 += a["strength"] == b["strength"] == "신강"
+                s1 += add("거리", 1, 0.5, f"월지 쪽에 {x['type']}이 있다")
+    s0 += add("거리", 0, spouse or day_hap, "배우자 글자이거나 일간끼리 합을 이룬다")
+    s0 += add(
+        "거리", 0, (a["strength"] == "신약" and la == "많음") or (b["strength"] == "신약" and lb == "많음"),
+        "기운이 약한(신약) 사람이 상대에게서 필요한 기운을 많이 받는다",
+    )
+    s1 += add("거리", 1, a["strength"] == b["strength"] == "신강", "두 사람 모두 자기 기운이 강한 신강이다")
     ei = both("E") - both("I")
     jp = both("J") - both("P")
     m0, m1 = (ei > 0, ei < 0) if ei else (jp > 0, jp < 0)
+    if ei:
+        mbti("거리", 0 if ei > 0 else 1, True, "둘 다 외향형" if ei > 0 else "둘 다 내향형")
+    elif jp:
+        mbti("거리", 0 if jp > 0 else 1, True, "둘 다 판단형(계획형)" if jp > 0 else "둘 다 인식형(즉흥형)")
     out["거리"] = _decide("거리", s0, s1, m0, m1, lambda: 1)
     scores["거리"] = (s0, s1)
 
@@ -226,36 +282,39 @@ def label(A, B, F):
     has_clash = bool(clashes)
     tc = [x for x in clashes if x["tags"]["tagged"]]
     th = [x for x in hidden if x["tags"]["tagged"]]
-    s0 += 0.5 * any(not x["tags"]["tagged"] for x in clashes)
-    s1 += 0.5 * any(not x["tags"]["tagged"] for x in hidden)
+    s0 += add("갈등", 0, 0.5 * any(not x["tags"]["tagged"] for x in clashes), "충이 있다")
+    s1 += add("갈등", 1, 0.5 * any(not x["tags"]["tagged"] for x in hidden), "원진·해·형 같은 숨은 부딪힘이 있다")
     strong_c = any(x["spot"] == "day" and not x["stem"] for x in tc) or any(
         x["day_stems"] for x in tc
     )
     strong_h = any(x["spot"] == "day" and not x["stem"] for x in th)
-    s0 += 2 * strong_c
-    s1 += 2 * strong_h
+    s0 += add("갈등", 0, 2 * strong_c, "일지나 일간끼리 정면으로 부딪치는 충이 있다")
+    s1 += add("갈등", 1, 2 * strong_h, "일지끼리 원진·해·형 같은 숨은 부딪힘이 있다")
     if not (strong_c or strong_h):
         if not has_clash:
-            s1 += 1  # 충이 없다
+            s1 += add("갈등", 1, 1, "정면으로 부딪치는 충이 없다")
         elif tc:
             rc = max(x["rank"] for x in tc)
             rh = max((x["rank"] for x in th), default=0)
+            heavier_c = "드러난 충이 숨은 부딪힘보다 무게가 크다"
+            heavier_h = "숨은 부딪힘(원진·해·형)이 충보다 무게가 크다"
             if rc > rh:
-                s0 += 1
+                s0 += add("갈등", 0, 1, heavier_c)
             elif rh > rc:
-                s1 += 1
+                s1 += add("갈등", 1, 1, heavier_h)
             else:  # 6절: same importance → tags before counts
                 c_press = any(x["tags"]["press"] for x in tc)
                 h_block = any(x["tags"]["block"] for x in th)
                 if c_press and h_block:
-                    s0 += 1
+                    s0 += add("갈등", 0, 1, heavier_c)
                 elif not c_press and h_block:
-                    s1 += 1
-    s0 += any(x["tags"]["press"] for x in tc)
-    s1 += any(x["tags"]["block"] for x in th)
-    s0 += "신강" in (a["strength"], b["strength"])
-    s1 += a["strength"] == b["strength"] == "신약"
-    m0, m1 = both("T") + both("E"), both("F") + both("I")
+                    s1 += add("갈등", 1, 1, heavier_h)
+    s0 += add("갈등", 0, any(x["tags"]["press"] for x in tc), "충이 부담되는 기운(기신)을 눌러 준다")
+    s1 += add("갈등", 1, any(x["tags"]["block"] for x in th), "숨은 부딪힘이 필요한 기운을 막는다")
+    s0 += add("갈등", 0, "신강" in (a["strength"], b["strength"]), "자기 기운이 강한(신강) 사람이 있다")
+    s1 += add("갈등", 1, a["strength"] == b["strength"] == "신약", "두 사람 모두 기운이 약한 신약이다")
+    m0 = mbti("갈등", 0, both("T"), "둘 다 사고형") + mbti("갈등", 0, both("E"), "둘 다 외향형")
+    m1 = mbti("갈등", 1, both("F"), "둘 다 감정형") + mbti("갈등", 1, both("I"), "둘 다 내향형")
     out["갈등"] = _decide(
         "갈등",
         s0,
@@ -279,4 +338,5 @@ def label(A, B, F):
         "confidence": confidence,
         "decided_by": {ax: out[ax][1] for ax in AXES},
         "scores": scores,
+        "signals": {ax: {"saju": why[ax], "mbti": mbti_why[ax]} for ax in AXES},
     }
