@@ -5,8 +5,10 @@ export type Answer = {
   status: 'answered' | 'declined_offtopic' | 'declined_adult';
   text: string;
 };
+/** People in person_a / person_b order; axes keyed like Result.axes. */
+export type Reading = { people: [string, string]; axes: Record<string, string> };
 export type Result = {
-  schema_version: '1.0' | '1.1';
+  schema_version: '1.0' | '1.1' | '1.2';
   type_id: string;
   axes: Record<string, string>;
   summary: string;
@@ -16,6 +18,7 @@ export type Result = {
   limitations: string[];
   evidence_status: 'fixture' | 'ai_draft_unreviewed';
   spicy?: Spicy;
+  reading?: Reading;
 };
 export type Analysis = {
   analysis_id: string;

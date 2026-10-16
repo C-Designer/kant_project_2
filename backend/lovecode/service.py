@@ -67,7 +67,7 @@ class AnalysisService:
         with self._explanation_slots.acquire(deadline):
             result, explanation_meta = self.explainer.explain(
                 text, type_id, allow_paid=True, synthetic=False, limitations=missing,
-                extras=extras or None,
+                extras=extras or None, basis=inputs["basis"],
             )
         return result, {
             # Returned to the caller once, beside the result; never stored or logged.

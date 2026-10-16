@@ -155,9 +155,11 @@ class OpenAIProvider:
             raise ProviderError("OUTPUT_REJECTED")
         return data, usage
 
-    def explain(self, text, type_id, *, allow_paid, limitations, synthetic=True, extras=None):
+    def explain(self, text, type_id, *, allow_paid, limitations, synthetic=True, extras=None,
+                basis=None):
         """Direct Responses call, no repair. Returns (result, meta); meta["answer"] as in
-        LangChainExplainer.explain."""
+        LangChainExplainer.explain. `basis` is accepted for the same signature; this
+        fallback path does not write the reading (results stay 1.0/1.1)."""
         extras = extras or Extras()
         prompt = (
             f"유형 {TAXONOMY[type_id]['label']}의 한국어 해설만 작성. summary 120자 이하, 나머지는 각 180자 이하. 생일, 시각, 성별, MBTI 문자열, 사주 한자, URL, HTML, Markdown은 출력 금지. 제안형 문장 사용. strengths와 adjustments는 각각 두 개.\n입력 데이터:\n"

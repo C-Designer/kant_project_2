@@ -71,11 +71,40 @@ def test_question_rejects_long_or_markup_input(question):
 
 
 def test_schema_version_must_match_the_spicy_section():
-    v = demo_result().model_dump()
-    assert v["schema_version"] == "1.1"
+    v = demo_result().model_dump() | {"reading": None, "schema_version": "1.1"}
+    PublicResult.model_validate(v)
     v["schema_version"] = "1.0"
     with pytest.raises(ValueError):
         PublicResult.model_validate(v)
-    v = demo_result().model_dump() | {"spicy": None}
+    v = demo_result().model_dump() | {"reading": None, "schema_version": "1.1", "spicy": None}
+    with pytest.raises(ValueError):
+        PublicResult.model_validate(v)
+
+
+def test_schema_version_must_match_the_reading_section():
+    v = demo_result().model_dump()
+    assert v["schema_version"] == "1.2"
+    # 1.2 is about the reading; the spicy section is optional there.
+    PublicResult.model_validate(v | {"spicy": None})
+    for version in ("1.0", "1.1"):
+        with pytest.raises(ValueError):
+            PublicResult.model_validate(v | {"schema_version": version})
+    with pytest.raises(ValueError):
+        PublicResult.model_validate(v | {"reading": None})
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda r: r["axes"].pop("conflict"),                   # missing axis
+        lambda r: r["people"].append("세 번째 사람"),           # three people
+        lambda r: r["people"].__setitem__(0, "INTJ 성향"),      # MBTI code
+        lambda r: r["axes"].update(distance="정화 丁卯 일주"),   # hanja pillar
+        lambda r: r["axes"].update(chemistry="가" * 221),       # too long
+    ],
+)
+def test_reading_follows_the_output_rules(change):
+    v = demo_result().model_dump()
+    change(v["reading"])
     with pytest.raises(ValueError):
         PublicResult.model_validate(v)

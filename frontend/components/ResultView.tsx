@@ -1,4 +1,5 @@
 'use client';
+import ReadingSection from './ReadingSection';
 import SpicyCards from './SpicyCards';
 import SpicyGate from './SpicyGate';
 import TypeIllustration from './TypeIllustration';
@@ -59,6 +60,7 @@ export default function ResultView({
             ))}
           </dl>
         </div>
+        {result.reading && <ReadingSection reading={result.reading} axes={result.axes} />}
         <section className="result-section">
           <h2>함께라서 좋은 점</h2>
           {result.strengths.map((t, i) => (

@@ -214,7 +214,7 @@ def test_rotating_the_secret_invalidates_old_links():
 
 def test_links_without_the_spicy_section_still_open_as_1_0(client):
     fields = demo_fields()
-    del fields["spicy"]
+    del fields["spicy"], fields["reading"]
     r = open_link(client, payload_code({"v": 1, "iat": NOW, "r": fields}))
     assert r.status_code == 200
     assert r.json()["result"]["schema_version"] == "1.0"
@@ -223,6 +223,7 @@ def test_links_without_the_spicy_section_still_open_as_1_0(client):
 
 def test_spicy_section_round_trips_as_1_1_and_keeps_its_wording(client):
     fields = demo_fields()
+    del fields["reading"]
     fields["spicy"]["titles"]["skinship"]["text"] = "링크를 만들 때의 예전 칭호 문구"
     r = open_link(client, payload_code({"v": 1, "iat": NOW, "r": fields}))
     assert r.status_code == 200
@@ -243,4 +244,19 @@ def test_spicy_section_round_trips_as_1_1_and_keeps_its_wording(client):
 def test_signed_but_invalid_spicy_content_is_refused(client, change):
     fields = demo_fields()
     change(fields["spicy"])
+    assert open_link(client, payload_code({"v": 1, "iat": NOW, "r": fields})).status_code == 400
+
+
+def test_reading_round_trips_as_1_2_in_the_callers_order(client):
+    fields = demo_fields()
+    r = open_link(client, payload_code({"v": 1, "iat": NOW, "r": fields}))
+    assert r.status_code == 200
+    result = r.json()["result"]
+    assert result["schema_version"] == "1.2"
+    assert result["reading"] == demo_result().reading.model_dump()
+
+
+def test_signed_but_invalid_reading_is_refused(client):
+    fields = demo_fields()
+    fields["reading"]["axes"]["chemistry"] = "ENFP와 ISTJ의 만남"
     assert open_link(client, payload_code({"v": 1, "iat": NOW, "r": fields})).status_code == 400

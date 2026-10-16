@@ -1,7 +1,7 @@
 // A share link carries the signed result itself after '#'. Browsers never send the fragment
 // to a server, so it stays out of access logs; the shared page passes it in a header instead.
 // Mirrors CODE in backend/lovecode/share.py.
-const CODE = /^[A-Za-z0-9_-]{1,6000}\.[A-Za-z0-9_-]{22}$/;
+const CODE = /^[A-Za-z0-9_-]{1,10000}\.[A-Za-z0-9_-]{22}$/;
 
 export function shareUrl(origin: string, code: string): string {
   return origin + '/r#' + code;
