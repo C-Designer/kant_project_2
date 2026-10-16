@@ -4,9 +4,10 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+import anyio.to_thread
 import pytest
 from fastapi.testclient import TestClient
-from lovecode.api import create_app
+from lovecode.api import THREAD_HEADROOM, create_app
 from lovecode.concurrency import AnalysisBusy, StageLimit
 from lovecode.contracts import demo_result
 from lovecode.service import AnalysisService
@@ -25,7 +26,8 @@ def configure(monkeypatch):
 
 
 class Classifier:
-    def __init__(self):
+    def __init__(self, expected=20):
+        self.expected = expected
         self.report = {"dataset": {"text_format": "compact-v5"}}
         self.lock = threading.Lock()
         self.active = self.peak = self.calls = 0
@@ -39,7 +41,7 @@ class Classifier:
         with self.lock:
             self.active -= 1
             self.calls += 1
-            if self.calls == 20:
+            if self.calls == self.expected:
                 self.all_called.set()
         return "T13"
 
@@ -64,6 +66,9 @@ class Explainer:
 
 def test_twenty_requests_release_bert_before_explanation_and_reject_overflow(monkeypatch):
     configure(monkeypatch)
+    # Pinned below the defaults so explanation slots, not admission, are the bottleneck.
+    monkeypatch.setattr(settings(), "analysis_capacity", 20)
+    monkeypatch.setattr(settings(), "explanation_concurrency", 5)
     classifier, explainer = Classifier(), Explainer()
     service = AnalysisService(classifier=classifier, explainer=explainer)
     monkeypatch.setattr(service, "ready", lambda: True)
@@ -84,6 +89,63 @@ def test_twenty_requests_release_bert_before_explanation_and_reject_overflow(mon
             explainer.release.set()
         assert [f.result().status_code for f in futures] == [200] * 20
         assert client.post("/api/v1/analyses", json=request_body()).status_code == 200
+
+
+def test_default_fifty_requests_wait_on_openai_together_and_reject_overflow(monkeypatch):
+    configure(monkeypatch)
+    monkeypatch.setattr(settings(), "daily_analysis_limit", 100)
+    assert settings().analysis_capacity == settings().explanation_concurrency == 50
+    assert settings().bert_concurrency == 2
+    classifier, explainer = Classifier(expected=50), Explainer()
+    service = AnalysisService(classifier=classifier, explainer=explainer)
+    monkeypatch.setattr(service, "ready", lambda: True)
+    with TestClient(create_app(analysis_service=service)) as client, ThreadPoolExecutor(50) as pool:
+        futures = [
+            pool.submit(client.post, "/api/v1/analyses", json=request_body()) for _ in range(50)
+        ]
+        try:
+            # Needs 50 worker threads at once: anyio's default 40 would leave 10 queued.
+            assert classifier.all_called.wait(5)
+            deadline = time.monotonic() + 3
+            while explainer.active < 50 and time.monotonic() < deadline:
+                time.sleep(0.005)
+            assert explainer.active == 50
+            response = client.post("/api/v1/analyses", json=request_body())
+            assert response.status_code == 429
+            assert response.json()["error"]["code"] == "ANALYSIS_BUSY"
+            # Spare threads keep cheap endpoints answering while every slot is held.
+            assert client.get("/api/v1/health").status_code == 200
+            assert classifier.peak == 2
+            assert explainer.peak == 50
+        finally:
+            explainer.release.set()
+        assert [f.result().status_code for f in futures] == [200] * 50
+
+
+def thread_tokens(client):
+    return client.portal.call(lambda: anyio.to_thread.current_default_thread_limiter().total_tokens)
+
+
+def test_lifespan_sizes_thread_pool_above_admission(monkeypatch):
+    with TestClient(create_app()) as client:
+        assert thread_tokens(client) == settings().analysis_capacity + THREAD_HEADROOM == 60
+    monkeypatch.setattr(settings(), "analysis_capacity", 4)
+    with TestClient(create_app()) as client:
+        # Never shrinks below anyio's own default of 40.
+        assert thread_tokens(client) == 40
+
+
+def test_concurrency_bounds_accept_fifty_and_reject_beyond_ceiling():
+    from lovecode.settings import Settings
+    from pydantic import ValidationError
+
+    ok = Settings(analysis_capacity=50, explanation_concurrency=50, _env_file=None)
+    assert (ok.analysis_capacity, ok.explanation_concurrency) == (50, 50)
+    for field in ("analysis_capacity", "explanation_concurrency"):
+        with pytest.raises(ValidationError):
+            Settings(**{field: 65}, _env_file=None)
+    with pytest.raises(ValidationError):
+        Settings(bert_concurrency=3, _env_file=None)
 
 
 def test_fifo_timeout_and_exception_release():

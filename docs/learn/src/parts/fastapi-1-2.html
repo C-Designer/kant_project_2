@@ -52,7 +52,7 @@ dependencies = [
   <h2>create_app 팩토리와 모듈 끝의 app = create_app()</h2>
   <p class="lead">앱 객체는 어디서 어떻게 만들어지고, uvicorn 과 Vercel 은 어떤 이름으로 그것을 찾습니까?</p>
   <p><code>api.py</code> 는 앱을 모듈 전역에서 바로 만들지 않고 <code>create_app()</code> 이라는 팩토리 함수(factory function) 안에서 만듭니다. 함수 안에서 서비스 객체, 공유 링크 코덱, 입장 세마포어, 일일 예산, 레이트리밋 버킷처럼 "앱 한 개당 하나"여야 하는 상태를 지역 변수로 만들고, 그 아래에서 정의하는 미들웨어와 핸들러가 클로저(closure)로 이 변수들을 붙잡습니다. 함수가 끝나도 변수들은 핸들러와 함께 살아남습니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="37-53">
+  <code-block file="backend/lovecode/api.py" lines="54-71">
 def create_app(analysis_service=None, share_codec=None):
     service = analysis_service or AnalysisService()
     shares = share_codec or ShareCodec.from_settings()
@@ -66,30 +66,32 @@ def create_app(analysis_service=None, share_codec=None):
         version="0.2.0",
         openapi_url="/api/v1/openapi.json",
         docs_url="/api/docs",
+        lifespan=lifespan,
     )
     buckets = defaultdict(deque)
     salt = secrets.token_bytes(32)
     salt_time = time.monotonic()
 </code-block>
   <ol class="notes">
-    <li data-line="37">두 인자 <code>analysis_service</code>, <code>share_codec</code> 은 테스트가 가짜 객체를 주입하는 통로입니다. 기본값 <code>None</code> 이면 다음 두 줄에서 실제 객체를 만듭니다.</li>
-    <li data-line="41">동시 분석 입장권입니다. <code>settings()</code> 를 여기서 한 번 읽어 세마포어 크기를 고정하므로, 테스트가 이 값을 바꾸려면 <code>create_app()</code> 호출 전에 바꿔야 합니다.</li>
-    <li data-line="43">일일 예산은 날짜 문자열과 카운트를 담은 사전 하나입니다. DB 가 없으므로 프로세스가 재시작되면 0 으로 돌아갑니다.</li>
-    <li data-line="45">앱 객체를 만드는 순간입니다. <code>title</code> 과 <code>version</code> 은 OpenAPI <code>info</code> 에 들어가고, <code>title</code> 은 Swagger UI·ReDoc 페이지 제목에도 쓰입니다(<code>applications.py:1168, 1192</code>). 라우팅이나 검증에는 영향이 없습니다.</li>
-    <li data-line="48">기본값 <code>/openapi.json</code> 과 <code>/docs</code> 를 <code>/api/v1/openapi.json</code>, <code>/api/docs</code> 로 옮겼습니다. 백엔드 경로를 모두 <code>/api</code> 아래 모아야 Next.js 프록시가 한 규칙으로 넘길 수 있습니다.</li>
-    <li data-line="52">레이트리밋 해시에 섞을 32 바이트 난수와 그 생성 시각입니다. 타이머는 없고, 레이트리밋이 켜진 요청이 들어왔을 때 마지막 교체로부터 600 초가 지났으면 미들웨어가 버킷을 비우며 교체합니다(<code>api.py:77-81</code>).</li>
+    <li data-line="54">두 인자 <code>analysis_service</code>, <code>share_codec</code> 은 테스트가 가짜 객체를 주입하는 통로입니다. 기본값 <code>None</code> 이면 다음 두 줄에서 실제 객체를 만듭니다.</li>
+    <li data-line="58">동시 분석 입장권입니다. <code>settings()</code> 를 여기서 한 번 읽어 세마포어 크기를 고정하므로, 테스트가 이 값을 바꾸려면 <code>create_app()</code> 호출 전에 바꿔야 합니다.</li>
+    <li data-line="60">일일 예산은 날짜 문자열과 카운트를 담은 사전 하나입니다. DB 가 없으므로 프로세스가 재시작되면 0 으로 돌아갑니다.</li>
+    <li data-line="62">앱 객체를 만드는 순간입니다. <code>title</code> 과 <code>version</code> 은 OpenAPI <code>info</code> 에 들어가고, <code>title</code> 은 Swagger UI·ReDoc 페이지 제목에도 쓰입니다(<code>applications.py:1168, 1192</code>). 라우팅이나 검증에는 영향이 없습니다.</li>
+    <li data-line="65">기본값 <code>/openapi.json</code> 과 <code>/docs</code> 를 <code>/api/v1/openapi.json</code>, <code>/api/docs</code> 로 옮겼습니다. 백엔드 경로를 모두 <code>/api</code> 아래 모아야 Next.js 프록시가 한 규칙으로 넘길 수 있습니다.</li>
+    <li data-line="67"><code>lifespan</code> 은 앱이 요청을 받기 전에 한 번 도는 시작·종료 훅입니다. 러브코드는 여기서 anyio 스레드 풀을 입장 한도 + 10개(기본 60)로 늘립니다(<code>api.py:41-51</code>). 기본 40개로는 동시 분석 50건이 다 돌지 못합니다.</li>
+    <li data-line="70">레이트리밋 해시에 섞을 32 바이트 난수와 그 생성 시각입니다. 타이머는 없고, 레이트리밋이 켜진 요청이 들어왔을 때 마지막 교체로부터 600 초가 지났으면 미들웨어가 버킷을 비우며 교체합니다(<code>api.py:77-81</code>).</li>
   </ol>
   <p><code>FastAPI(...)</code> 생성자는 받은 <code>openapi_url</code> 과 <code>docs_url</code> 에 라우트를 직접 등록합니다. 설치 소스의 <code>setup()</code> 을 보면 <code>openapi_url</code> 에는 스키마 JSON 을 돌려주는 라우트를, <code>docs_url</code> 에는 CDN 의 Swagger UI 를 불러오는 HTML 라우트를 <code>add_route</code> 로 붙입니다. 프로젝트가 건드리지 않은 <code>redoc_url</code> 은 기본값 <code>/redoc</code> 그대로라서, 실제 앱에 <code>GET /redoc</code> 을 보내면 200 이 돌아옵니다. 문서 경로 두 개만 바꾸고 세 번째를 잊은 셈인데, 노출을 막고 싶다면 <code>redoc_url=None</code> 을 넘겨야 합니다.</p>
   <p>함수의 마지막 줄과 모듈의 마지막 줄을 같이 봅니다. 팩토리는 완성된 앱을 돌려주고, 모듈 끝에서 그 결과를 전역 이름 <code>app</code> 에 담습니다. README 의 실행 명령에 적힌 <code>lovecode.api:app</code> 은 "<code>lovecode.api</code> 모듈을 import 해서 <code>app</code> 속성을 꺼내라"는 uvicorn 의 표기이므로, 이 한 줄이 없으면 서버가 뜨지 않습니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="221-224">
+  <code-block file="backend/lovecode/api.py" lines="237-240">
     return app
 
 
 app = create_app()
 </code-block>
   <ol class="notes">
-    <li data-line="221">미들웨어와 핸들러가 모두 등록된 앱을 돌려줍니다. 호출할 때마다 새 세마포어·새 버킷을 가진 독립된 앱이 나옵니다.</li>
-    <li data-line="224">모듈이 import 되는 순간 실행됩니다. 그 안에서 <code>settings()</code> 가 처음 호출되어 환경변수를 읽으므로, 환경변수는 이 import 보다 먼저 준비돼 있어야 합니다.</li>
+    <li data-line="237">미들웨어와 핸들러가 모두 등록된 앱을 돌려줍니다. 호출할 때마다 새 세마포어·새 버킷을 가진 독립된 앱이 나옵니다.</li>
+    <li data-line="240">모듈이 import 되는 순간 실행됩니다. 그 안에서 <code>settings()</code> 가 처음 호출되어 환경변수를 읽으므로, 환경변수는 이 import 보다 먼저 준비돼 있어야 합니다.</li>
   </ol>
   <p>Vercel 배포 진입점은 그 순서를 이용합니다. <code>deploy/vercel/main.py</code> 는 모델 디렉터리와 스레드 수 환경변수를 먼저 고정한 뒤에야 같은 <code>app</code> 을 import 합니다. <code>settings()</code> 가 <code>lru_cache</code> 로 첫 결과를 붙잡아 두기 때문에, import 뒤에 환경변수를 바꿔도 앱은 알아채지 못합니다.</p>
   <code-block file="deploy/vercel/main.py" lines="1-10">
@@ -111,13 +113,13 @@ from lovecode.api import app  # noqa: F401
   </ol>
   <aside class="principle"><h4>원리 노트: 앱 팩토리와 생성자 인자</h4><p>모듈 전역에 <code>app = FastAPI()</code> 를 두고 전역 변수로 상태를 들고 있는 구조가 가장 흔하지만, 그러면 테스트마다 상태가 공유됩니다. 팩토리 함수는 호출할 때마다 새 앱과 새 상태를 만들어 주고, 인자로 의존성을 바꿔 끼울 수 있습니다. FastAPI 0.143.0 의 생성자는 <code>openapi_url</code>(기본 <code>/openapi.json</code>), <code>docs_url</code>(기본 <code>/docs</code>), <code>redoc_url</code>(기본 <code>/redoc</code>)을 받아 <code>setup()</code> 에서 라우트로 등록하며, <code>None</code> 을 넘긴 것만 빠집니다.</p></aside>
   <p>왜 팩토리일까요. <code>tests/test_analysis_concurrency.py</code> 는 <code>create_app(analysis_service=service)</code> 로 가짜 분류기와 해설기를 끼운 앱을 테스트마다 새로 만들고, <code>tests/conftest.py</code> 도 <code>TestClient(create_app())</code> 로 매번 새 앱을 씁니다. 세마포어·예산·버킷이 앱마다 독립이라 테스트가 서로를 오염시키지 않습니다. 한 가지 주의할 점은 배포본 <code>deploy/vercel/pyproject.toml</code> 이 fastapi 0.135.1 을 고정하고 있어, 이 페이지가 인용하는 라이브러리 줄 번호는 로컬 <code>.venv</code> 의 0.143.0 기준이라는 것입니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="37">backend/lovecode/api.py:37</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="224">backend/lovecode/api.py:224</a>, <a class="src" data-file="deploy/vercel/main.py" data-line="10">deploy/vercel/main.py:10</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/applications.py" data-line="1142">fastapi/applications.py:1142</a>, <a class="src" data-file="tests/test_analysis_concurrency.py" data-line="70">tests/test_analysis_concurrency.py:70</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="39">backend/lovecode/api.py:39</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="240">backend/lovecode/api.py:240</a>, <a class="src" data-file="deploy/vercel/main.py" data-line="10">deploy/vercel/main.py:10</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/applications.py" data-line="1142">fastapi/applications.py:1142</a>, <a class="src" data-file="tests/test_analysis_concurrency.py" data-line="75">tests/test_analysis_concurrency.py:75</a></p>
 </section>
 
 <section class="lesson" id="fa-1-routes" data-track="fastapi" data-depth="1">
   <h2>다섯 개의 엔드포인트와 데코레이터가 하는 일</h2>
   <p class="lead">@app.get 과 @app.post 는 함수와 URL 을 어떻게 묶고, 각 엔드포인트는 무엇을 돌려줍니까?</p>
-  <p>러브코드 백엔드의 공개 엔드포인트(endpoint)는 다섯 개뿐입니다. 실제 앱의 <code>/api/v1/openapi.json</code> 을 열어 보면 <code>paths</code> 에 정확히 이 다섯 경로만 나열됩니다. 앞의 네 개가 분석 흐름을 이루고, 마지막 <code>GET /api/v1/shared</code> 는 공유 링크를 열 때만 쓰입니다. 공유 경로도 같은 <code>@app.get</code> 데코레이터로 등록되며(<a class="src" data-file="backend/lovecode/api.py" data-line="207">backend/lovecode/api.py:207</a>), 아무것도 저장하지 않고 링크에 담긴 서명과 내용만 확인합니다.</p>
+  <p>러브코드 백엔드의 공개 엔드포인트(endpoint)는 다섯 개뿐입니다. 실제 앱의 <code>/api/v1/openapi.json</code> 을 열어 보면 <code>paths</code> 에 정확히 이 다섯 경로만 나열됩니다. 앞의 네 개가 분석 흐름을 이루고, 마지막 <code>GET /api/v1/shared</code> 는 공유 링크를 열 때만 쓰입니다. 공유 경로도 같은 <code>@app.get</code> 데코레이터로 등록되며(<a class="src" data-file="backend/lovecode/api.py" data-line="223">backend/lovecode/api.py:223</a>), 아무것도 저장하지 않고 링크에 담긴 서명과 내용만 확인합니다.</p>
   <table>
     <thead><tr><th>메서드</th><th>경로</th><th>역할</th><th>응답</th></tr></thead>
     <tbody>
@@ -129,7 +131,7 @@ from lovecode.api import app  # noqa: F401
     </tbody>
   </table>
   <p>가장 단순한 두 핸들러를 봅니다. 데코레이터(decorator) 한 줄이 "이 경로로 이 메서드의 요청이 오면 이 함수를 불러라"는 등록이고, 함수가 돌려주는 dict 는 FastAPI 가 JSON 으로 바꿉니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="128-145">
+  <code-block file="backend/lovecode/api.py" lines="144-161">
     @app.get("/api/v1/health")
     def health():
         ready = service.ready()
@@ -150,13 +152,13 @@ from lovecode.api import app  # noqa: F401
         return TAXONOMY
 </code-block>
   <ol class="notes">
-    <li data-line="128">GET 메서드와 경로를 아래 함수에 묶습니다. 경로 문자열은 <code>/api/v1</code> 접두를 포함한 전체 경로입니다.</li>
-    <li data-line="129"><code>async</code> 가 없는 일반 <code>def</code> 입니다. FastAPI 는 이런 핸들러를 워커 스레드에서 실행하므로, 안에서 느린 작업을 해도 이벤트 루프가 멈추지 않습니다.</li>
-    <li data-line="130"><code>service.ready()</code> 는 설정을 확인하고 필요하면 분류기 모델을 처음 로딩합니다. 느릴 수 있는 호출이라 동기 핸들러가 적합합니다.</li>
-    <li data-line="131">dict 를 그대로 돌려줍니다. <code>response_model</code> 이 없으므로 FastAPI 는 검증 없이 JSON 으로 직렬화만 합니다.</li>
-    <li data-line="136"><code>verification_mode</code> 는 provider 에 테스트용 transport 가 꽂혀 있는지를 알려 줍니다. 운영에서는 <code>False</code> 입니다.</li>
-    <li data-line="137"><code>share_ready</code> 는 공유 링크 서명 비밀값(<code>LC_SHARE_SECRET</code>)이 32자 이상 설정됐는지를 알려 줍니다(<code>share.py:81-83</code>). 비어 있으면 공유가 꺼집니다.</li>
-    <li data-line="145"><code>contracts.py</code> 의 모듈 상수 <code>TAXONOMY</code> 를 그대로 돌려줍니다. 현재 프런트는 이 엔드포인트 대신 자체 <code>data/relationship-types.json</code> 을 쓰며, <code>tests/test_frontend_taxonomy.py</code> 가 그 파일이 이 사전과 일치하는지 검사합니다.</li>
+    <li data-line="144">GET 메서드와 경로를 아래 함수에 묶습니다. 경로 문자열은 <code>/api/v1</code> 접두를 포함한 전체 경로입니다.</li>
+    <li data-line="145"><code>async</code> 가 없는 일반 <code>def</code> 입니다. FastAPI 는 이런 핸들러를 워커 스레드에서 실행하므로, 안에서 느린 작업을 해도 이벤트 루프가 멈추지 않습니다.</li>
+    <li data-line="146"><code>service.ready()</code> 는 설정을 확인하고 필요하면 분류기 모델을 처음 로딩합니다. 느릴 수 있는 호출이라 동기 핸들러가 적합합니다.</li>
+    <li data-line="147">dict 를 그대로 돌려줍니다. <code>response_model</code> 이 없으므로 FastAPI 는 검증 없이 JSON 으로 직렬화만 합니다.</li>
+    <li data-line="152"><code>verification_mode</code> 는 provider 에 테스트용 transport 가 꽂혀 있는지를 알려 줍니다. 운영에서는 <code>False</code> 입니다.</li>
+    <li data-line="153"><code>share_ready</code> 는 공유 링크 서명 비밀값(<code>LC_SHARE_SECRET</code>)이 32자 이상 설정됐는지를 알려 줍니다(<code>share.py:81-83</code>). 비어 있으면 공유가 꺼집니다.</li>
+    <li data-line="161"><code>contracts.py</code> 의 모듈 상수 <code>TAXONOMY</code> 를 그대로 돌려줍니다. 현재 프런트는 이 엔드포인트 대신 자체 <code>data/relationship-types.json</code> 을 쓰며, <code>tests/test_frontend_taxonomy.py</code> 가 그 파일이 이 사전과 일치하는지 검사합니다.</li>
   </ol>
   <p>데코레이터가 실제로 하는 일을 설치 소스에서 확인합니다. <code>app.get(...)</code> 은 <code>self.router.get(...)</code> 으로, 다시 <code>APIRouter.api_route(...)</code> 로 위임되며, 그 안의 <code>decorator</code> 가 함수를 받아 라우터에 등록한 뒤 함수를 변형 없이 돌려줍니다.</p>
   <code-block file=".venv/lib/python3.12/site-packages/fastapi/routing.py" lines="3083-3113">
@@ -200,7 +202,7 @@ from lovecode.api import app  # noqa: F401
   </ol>
   <aside class="principle"><h4>원리 노트: 경로 연산(path operation) 등록과 동기 핸들러</h4><p>FastAPI 에서 <code>@app.get</code>, <code>@app.post</code> 는 함수의 시그니처를 읽어 어떤 인자를 경로·쿼리·본문에서 채울지 결정하고, 그 정보를 <code>APIRoute</code> 에 저장합니다. 핸들러가 <code>async def</code> 면 이벤트 루프에서 바로 <code>await</code> 하고, 일반 <code>def</code> 면 <code>run_in_threadpool</code> 을 거쳐 anyio 워커 스레드에서 실행합니다(FastAPI 0.143.0, <code>routing.py:351-364</code>). 어느 쪽이든 반환값이 <code>Response</code> 가 아니면 JSON 으로 직렬화됩니다.</p></aside>
   <p>왜 다섯 핸들러가 모두 일반 <code>def</code> 일까요. <code>analyse</code> 는 세마포어를 잡고, 단계별 슬롯이 날 때까지 스레드를 재우고(<code>threading.Condition</code>, 중 단계에서 봅니다), BERT 추론과 OpenAI 호출을 동기적으로 수행합니다. 이런 블로킹 작업을 <code>async def</code> 안에서 하면 요청 하나가 서버 전체를 멈추게 하므로, 스레드풀로 보내 주는 동기 핸들러가 맞는 선택입니다. "모든 것을 async 로" 쓰는 흔한 스타일과 다른 이유가 여기에 있으며, 스레드풀의 크기와 동작은 상 단계에서 자세히 봅니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="128">backend/lovecode/api.py:128</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="153">backend/lovecode/api.py:153</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="200">backend/lovecode/api.py:200</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="3083">fastapi/routing.py:3083</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="351">fastapi/routing.py:351</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="144">backend/lovecode/api.py:144</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="169">backend/lovecode/api.py:169</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="216">backend/lovecode/api.py:216</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="3083">fastapi/routing.py:3083</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="351">fastapi/routing.py:351</a></p>
 </section>
 
 <section class="lesson" id="fa-1-request" data-track="fastapi" data-depth="1">
@@ -244,7 +246,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     <li>돌아온 dict 를 <code>AnalysisResponse</code> 로 검증·직렬화하고, 미들웨어를 역순으로 빠져나오며 <code>response_headers</code> 가 보안 헤더를 붙입니다.</li>
   </ol>
   <p>오류가 어느 층에서 나든 모양은 하나입니다. 그 모양을 만드는 것이 <code>api.py</code> 맨 위의 <code>error()</code> 헬퍼입니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="27-34">
+  <code-block file="backend/lovecode/api.py" lines="29-36">
 def error(code, status, message="요청을 처리하지 못했어요. 다시 확인해 주세요.", field=None):
     return JSONResponse(
         {
@@ -255,30 +257,30 @@ def error(code, status, message="요청을 처리하지 못했어요. 다시 확
     )
 </code-block>
   <ol class="notes">
-    <li data-line="27">코드와 상태만 필수이고, 메시지는 기본 문구가 있으며, <code>field</code> 는 검증 오류에서만 채워집니다.</li>
-    <li data-line="30"><code>error</code> 객체 안에 <code>code</code>, <code>message</code>, <code>field</code>, <code>retryable</code> 네 키가 항상 있습니다. <code>retryable</code> 은 상태 코드가 500 이상일 때만 참입니다.</li>
-    <li data-line="31">요청마다 새 UUID 를 만듭니다. 서버는 아무것도 저장하지 않으므로 이 값은 사용자가 문의할 때 쓰는 꼬리표 역할만 합니다.</li>
-    <li data-line="33"><code>JSONResponse</code> 에 상태 코드를 실어 돌려줍니다. 핸들러가 이 객체를 그대로 반환하면 FastAPI 는 <code>response_model</code> 검증을 건너뜁니다.</li>
+    <li data-line="29">코드와 상태만 필수이고, 메시지는 기본 문구가 있으며, <code>field</code> 는 검증 오류에서만 채워집니다.</li>
+    <li data-line="32"><code>error</code> 객체 안에 <code>code</code>, <code>message</code>, <code>field</code>, <code>retryable</code> 네 키가 항상 있습니다. <code>retryable</code> 은 상태 코드가 500 이상일 때만 참입니다.</li>
+    <li data-line="33">요청마다 새 UUID 를 만듭니다. 서버는 아무것도 저장하지 않으므로 이 값은 사용자가 문의할 때 쓰는 꼬리표 역할만 합니다.</li>
+    <li data-line="35"><code>JSONResponse</code> 에 상태 코드를 실어 돌려줍니다. 핸들러가 이 객체를 그대로 반환하면 FastAPI 는 <code>response_model</code> 검증을 건너뜁니다.</li>
   </ol>
   <aside class="principle"><h4>원리 노트: 미들웨어 양파와 조기 반환</h4><p>Starlette 의 미들웨어는 양파처럼 겹쳐지며, 요청은 바깥에서 안으로, 응답은 안에서 바깥으로 흐릅니다. 안쪽 미들웨어가 <code>call_next</code> 를 부르지 않고 응답을 바로 돌려주더라도, 바깥 미들웨어에게는 그 응답이 자기 <code>call_next</code> 의 반환값일 뿐이라 뒤처리가 똑같이 적용됩니다. 실제 앱에서 <code>boundary</code> 가 403 이나 415 로 끊은 응답에도 <code>Cache-Control: no-store</code> 가 붙어 있는 것이 그 증거이며, <code>tests/test_api.py:36-40</code> 이 이를 검사합니다.</p></aside>
   <p>왜 모든 오류를 같은 모양으로 만들까요. 프런트는 <code>e?.error?.message</code> 한 곳만 읽으므로, 미들웨어의 403, 핸들러의 503, 검증 실패의 422 가 서로 다른 모양이면 프런트에 분기가 늘어납니다. 그래서 FastAPI 기본 422 형태인 <code>{"detail": [...]}</code> 대신 커스텀 핸들러가 같은 <code>error()</code> 를 쓰도록 했고, 프로젝트는 <code>HTTPException</code> 을 한 번도 raise 하지 않고 늘 <code>error()</code> 를 return 합니다. 미들웨어의 각 검사와 핸들러의 분기는 중 단계에서, 스레드풀과 ASGI 메시지 수준의 동작은 상 단계에서 봅니다.</p>
-  <p class="ref">확인: <a class="src" data-file="frontend/lib/api.ts" data-line="23">frontend/lib/api.ts:23</a>, <a class="src" data-file="frontend/next.config.ts" data-line="6">frontend/next.config.ts:6</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="27">backend/lovecode/api.py:27</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="107">backend/lovecode/api.py:107</a>, <a class="src" data-file="tests/test_api.py" data-line="36">tests/test_api.py:36</a></p>
+  <p class="ref">확인: <a class="src" data-file="frontend/lib/api.ts" data-line="23">frontend/lib/api.ts:23</a>, <a class="src" data-file="frontend/next.config.ts" data-line="6">frontend/next.config.ts:6</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="29">backend/lovecode/api.py:29</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="123">backend/lovecode/api.py:123</a>, <a class="src" data-file="tests/test_api.py" data-line="36">tests/test_api.py:36</a></p>
 </section>
 
 <script type="application/json" class="quiz" data-track="fastapi" data-depth="1">
 [
-  {"q": "러브코드를 실행하는 명령 uv run uvicorn lovecode.api:app 에서 uvicorn 이 맡는 일은 무엇입니까?", "options": ["소켓을 열고 HTTP 를 파싱한 뒤 ASGI 규약으로 FastAPI 앱 객체를 호출한다", "요청 본문을 AnalysisInput 모델로 검증한다", "OpenAPI 문서와 Swagger UI 를 생성한다", "사주 계산과 BERT 분류를 실행한다"], "answer": 0, "explain": "uvicorn 은 ASGI 서버로, 요청마다 scope 를 만들어 app(scope, receive, send) 를 호출합니다. 본문 검증은 FastAPI 와 Pydantic 이, OpenAPI 생성은 FastAPI 가, 분류는 service.py 이하가 맡습니다.", "ref": "backend/lovecode/api.py:224"},
-  {"q": "api.py 가 앱을 모듈 전역에서 바로 만들지 않고 create_app() 팩토리 안에서 만드는 직접적인 효과는 무엇입니까?", "options": ["호출할 때마다 세마포어·예산·버킷이 독립된 새 앱이 나와 테스트가 서비스를 주입하고 상태를 격리할 수 있다", "FastAPI 는 팩토리 함수 없이는 앱을 만들 수 없다", "uv run uvicorn lovecode.api:app 명령에서 uvicorn 이 create_app 을 직접 호출해 앱을 얻는다", "환경변수를 읽지 않아도 앱이 동작한다"], "answer": 0, "explain": "create_app(analysis_service=...) 로 가짜 서비스를 끼우고, 클로저에 잡힌 세마포어·예산·버킷이 앱마다 새로 만들어집니다(api.py:37-53). uvicorn 에는 --factory 옵션이 있지만 이 명령은 모듈 끝의 app = create_app() 결과(224행)를 import 할 뿐이며, 그 과정에서 settings() 가 환경변수를 읽습니다.", "ref": "backend/lovecode/api.py:37"},
+  {"q": "러브코드를 실행하는 명령 uv run uvicorn lovecode.api:app 에서 uvicorn 이 맡는 일은 무엇입니까?", "options": ["소켓을 열고 HTTP 를 파싱한 뒤 ASGI 규약으로 FastAPI 앱 객체를 호출한다", "요청 본문을 AnalysisInput 모델로 검증한다", "OpenAPI 문서와 Swagger UI 를 생성한다", "사주 계산과 BERT 분류를 실행한다"], "answer": 0, "explain": "uvicorn 은 ASGI 서버로, 요청마다 scope 를 만들어 app(scope, receive, send) 를 호출합니다. 본문 검증은 FastAPI 와 Pydantic 이, OpenAPI 생성은 FastAPI 가, 분류는 service.py 이하가 맡습니다.", "ref": "backend/lovecode/api.py:240"},
+  {"q": "api.py 가 앱을 모듈 전역에서 바로 만들지 않고 create_app() 팩토리 안에서 만드는 직접적인 효과는 무엇입니까?", "options": ["호출할 때마다 세마포어·예산·버킷이 독립된 새 앱이 나와 테스트가 서비스를 주입하고 상태를 격리할 수 있다", "FastAPI 는 팩토리 함수 없이는 앱을 만들 수 없다", "uv run uvicorn lovecode.api:app 명령에서 uvicorn 이 create_app 을 직접 호출해 앱을 얻는다", "환경변수를 읽지 않아도 앱이 동작한다"], "answer": 0, "explain": "create_app(analysis_service=...) 로 가짜 서비스를 끼우고, 클로저에 잡힌 세마포어·예산·버킷이 앱마다 새로 만들어집니다(api.py:37-53). uvicorn 에는 --factory 옵션이 있지만 이 명령은 모듈 끝의 app = create_app() 결과(224행)를 import 할 뿐이며, 그 과정에서 settings() 가 환경변수를 읽습니다.", "ref": "backend/lovecode/api.py:39"},
   {"q": "frontend/lib/api.ts 의 api() 함수는 실패 응답에서 어떤 값을 사용자에게 보여 줍니까?", "options": ["응답 JSON 의 error.message", "FastAPI 기본 형식인 detail[0].msg", "응답의 request_id", "HTTP 상태 코드 숫자"], "answer": 0, "explain": "api.ts 는 r.ok 가 거짓이면 본문을 JSON 으로 읽어 e?.error?.message 를 Error 로 던집니다. 백엔드의 error() 헬퍼와 커스텀 422 핸들러가 모든 오류를 같은 모양으로 만들기 때문에 이 한 줄로 충분합니다.", "ref": "frontend/lib/api.ts:31"},
-  {"q": "boundary 미들웨어가 Content-Type 이 JSON 이 아닌 POST 를 415 로 바로 돌려보냈을 때, 그 응답에 Cache-Control: no-store 헤더가 붙습니까?", "options": ["붙는다. response_headers 가 더 바깥 겹이라 boundary 의 조기 반환도 call_next 의 반환값으로 받아 헤더를 더한다", "붙지 않는다. boundary 가 call_next 를 부르지 않았으므로 다른 미들웨어는 실행되지 않는다", "붙지 않는다. 오류 응답에는 미들웨어가 적용되지 않는다", "500 오류가 난다. 미들웨어는 응답을 직접 돌려줄 수 없다"], "answer": 0, "explain": "나중에 등록한 response_headers 가 바깥쪽이고 boundary 가 안쪽입니다. 안쪽이 돌려준 응답은 바깥쪽 call_next 의 결과가 되므로 네 보안 헤더가 그대로 붙으며, tests/test_api.py 의 test_early_error_headers 가 이를 확인합니다.", "ref": "backend/lovecode/api.py:109"}
+  {"q": "boundary 미들웨어가 Content-Type 이 JSON 이 아닌 POST 를 415 로 바로 돌려보냈을 때, 그 응답에 Cache-Control: no-store 헤더가 붙습니까?", "options": ["붙는다. response_headers 가 더 바깥 겹이라 boundary 의 조기 반환도 call_next 의 반환값으로 받아 헤더를 더한다", "붙지 않는다. boundary 가 call_next 를 부르지 않았으므로 다른 미들웨어는 실행되지 않는다", "붙지 않는다. 오류 응답에는 미들웨어가 적용되지 않는다", "500 오류가 난다. 미들웨어는 응답을 직접 돌려줄 수 없다"], "answer": 0, "explain": "나중에 등록한 response_headers 가 바깥쪽이고 boundary 가 안쪽입니다. 안쪽이 돌려준 응답은 바깥쪽 call_next 의 결과가 되므로 네 보안 헤더가 그대로 붙으며, tests/test_api.py 의 test_early_error_headers 가 이를 확인합니다.", "ref": "backend/lovecode/api.py:125"}
 ]
 </script>
 
 <section class="lesson" id="fa-2-settings" data-track="fastapi" data-depth="2">
   <h2>settings.py: 환경변수가 Settings 객체가 되기까지</h2>
   <p class="lead">LC_ 접두사 환경변수와 .env 는 어떤 규칙으로 읽히고, 테스트는 왜 monkeypatch 한 줄로 앱 설정을 바꿀 수 있습니까?</p>
-  <p>설정 파일은 31 줄이 전부입니다. <code>BaseSettings</code> 를 상속한 클래스에 필드와 기본값을 적으면, 인스턴스를 만드는 순간 pydantic-settings 가 환경변수와 <code>.env</code> 파일을 읽어 값을 채우고 타입을 검증합니다.</p>
-  <code-block file="backend/lovecode/settings.py" lines="1-31">
+  <p>설정 파일은 33 줄이 전부입니다. <code>BaseSettings</code> 를 상속한 클래스에 필드와 기본값을 적으면, 인스턴스를 만드는 순간 pydantic-settings 가 환경변수와 <code>.env</code> 파일을 읽어 값을 채우고 타입을 검증합니다.</p>
+  <code-block file="backend/lovecode/settings.py" lines="1-33">
 from functools import lru_cache
 
 from pydantic import Field
@@ -297,14 +299,16 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://127.0.0.1:3100,http://localhost:3100"
     daily_analysis_limit: int = 20
     analysis_wait_seconds: float = Field(default=30, gt=0, le=45)
-    analysis_capacity: int = Field(default=20, ge=1, le=32)
+    analysis_capacity: int = Field(default=50, ge=1, le=64)
     bert_concurrency: int = Field(default=2, ge=1, le=2)
-    explanation_concurrency: int = Field(default=5, ge=1, le=10)
+    explanation_concurrency: int = Field(default=50, ge=1, le=64)
     demo_enabled: bool = True
     rate_limit_enabled: bool = True
     # Signs stateless share links (32+ random characters). Empty turns sharing off.
     # Every instance must use the same value; changing it invalidates links already sent.
     share_secret: str = ""
+    # Spicy titles + notes (docs/SPICY_SPEC.md). Off: results stay schema 1.0.
+    spicy_enabled: bool = True
 
 
 @lru_cache
@@ -316,8 +320,8 @@ def settings():
     <li data-line="9">문자열 <code>"true"</code>, <code>"1"</code> 같은 환경변수 값이 <code>bool</code> 로 변환됩니다. 기본값이 <code>False</code> 라 설정하지 않으면 유료 호출이 꺼져 있습니다.</li>
     <li data-line="16">허용 Origin 은 리스트가 아니라 쉼표로 이어진 문자열입니다. 미들웨어가 쓸 때 <code>split(",")</code> 으로 나눕니다.</li>
     <li data-line="18"><code>gt=0</code> 은 0 초과, <code>le=45</code> 는 45 이하입니다. 범위를 벗어난 값이 환경변수에 있으면 <code>Settings()</code> 생성 자체가 검증 오류로 실패합니다.</li>
-    <li data-line="19">동시 입장 상한은 1 이상 32 이하입니다. anyio 의 기본 워커 스레드 토큰이 40 이므로, 분석이 꽉 차도 산술적으로 스레드 8 개가 남는 수치 관계입니다(저장소에 의도 문구는 없습니다).</li>
-    <li data-line="29"><code>lru_cache</code> 가 인자 없는 호출의 결과를 하나 기억합니다. 두 번째 호출부터는 같은 <code>Settings</code> 객체가 돌아옵니다.</li>
+    <li data-line="19">동시 입장 한도는 기본 50, 1 이상 64 이하입니다. anyio 의 기본 워커 스레드 토큰은 40 이라, 앱이 lifespan 에서 토큰을 이 값 + 10 으로 늘려 50건이 실제로 동시에 돌게 합니다(api.py:41-51).</li>
+    <li data-line="31"><code>lru_cache</code> 가 인자 없는 호출의 결과를 하나 기억합니다. 두 번째 호출부터는 같은 <code>Settings</code> 객체가 돌아옵니다.</li>
   </ol>
   <p>읽는 순서에는 우선순위가 있습니다. pydantic-settings 2.15.0 의 <code>settings_customise_sources</code> 는 <code>init_settings, env_settings, dotenv_settings, file_secret_settings</code> 순으로 소스를 돌려주고, <code>_settings_build_values</code> 가 앞 소스부터 읽으면서 <code>deep_update(source_state, state)</code> 로 합치므로 먼저 쌓인 값이 이깁니다. 결국 생성자 인자 &gt; 환경변수 &gt; <code>.env</code> &gt; 시크릿 파일 순이며, 같은 키가 환경변수와 <code>.env</code> 양쪽에 있으면 환경변수가 이깁니다. 기본 설정값을 보면 왜 <code>extra="ignore"</code> 를 굳이 적었는지도 보입니다.</p>
   <code-block file=".venv/lib/python3.12/site-packages/pydantic_settings/main.py" lines="617-625">
@@ -369,7 +373,7 @@ def offline_api_boundary(monkeypatch):
     <li data-line="35"><code>httpx.HTTPTransport.handle_request</code> 를 막아 <code>provider.py</code> 의 실제 HTTP 전송을 차단합니다. <code>TestClient</code> 는 이 경로를 쓰지 않아 영향이 없는데, 그 이유는 상 단계에서 봅니다.</li>
   </ol>
   <aside class="principle"><h4>원리 노트: pydantic-settings 의 소스 우선순위와 lru_cache</h4><p>pydantic-settings 2.15.0 은 <code>BaseSettings</code> 인스턴스를 만들 때 생성자 인자, 환경변수, dotenv 파일, 시크릿 디렉터리 순으로 값을 모으고, 앞 소스가 이깁니다. 이름은 <code>env_prefix + 필드명</code> 이며 기본적으로 대소문자를 가리지 않습니다. <code>functools.lru_cache</code> 는 인자 조합을 키로 결과를 저장하므로 인자 없는 함수에 붙이면 사실상 지연 초기화 싱글턴이 되며, 같은 객체가 반환되기 때문에 속성 변경이 모든 호출자에게 보입니다.</p></aside>
-  <p>왜 모듈 전역 <code>settings = Settings()</code> 가 아니라 함수로 감쌌을까요. 함수로 감싼 실질적 효과는 두 가지입니다. (1) 테스트가 <code>settings()</code> 로 같은 인스턴스를 얻어 monkeypatch 할 수 있고, (2) <code>settings</code> 모듈을 import 하는 것만으로는 <code>.env</code> 를 읽지 않습니다. 단 <code>api.py:224</code> 가 import 시점에 <code>create_app()</code> 을 호출하고 그 안의 39 행(<code>ShareCodec.from_settings()</code>)과 41 행이 <code>settings()</code> 를 부르므로, <code>lovecode.api</code> 를 import 하는 순간에는 결국 환경변수가 읽히며, <code>deploy/vercel/main.py</code> 가 환경변수 설정을 import 앞에 두는 이유도 바로 그것입니다. 또한 <code>api.py:39, 41</code> 처럼 <code>create_app()</code> 안에서 한 번 읽어 고정하는 값(<code>share_secret</code>, <code>analysis_capacity</code>)은 뒤늦게 바꿔도 반영되지 않아, <code>tests/test_analysis_concurrency.py:123-125</code> 는 <code>create_app()</code> 전에 값을 바꿉니다. FastAPI 문서가 권하는 <code>Depends(get_settings)</code> 주입을 쓰지 않은 것은 핸들러가 동기 함수여서가 아니라(<code>Depends</code> 는 일반 <code>def</code> 핸들러에서도 동작합니다), 설정이 핸들러 바깥에서도 필요하기 때문입니다. 미들웨어(<code>api.py:60, 74</code>)와 공유 코덱·세마포어 생성(39, 41 행), 서비스 생성자(<code>service.py:19-20</code>)는 요청 컨텍스트 밖이라 <code>Depends</code> 를 쓸 수 없고, 한 곳(<code>settings()</code>)으로 통일하는 편이 단순합니다. 저장소에 이 선택을 설명하는 문구는 없으므로 코드 배치에서 읽은 추정입니다.</p>
+  <p>왜 모듈 전역 <code>settings = Settings()</code> 가 아니라 함수로 감쌌을까요. 함수로 감싼 실질적 효과는 두 가지입니다. (1) 테스트가 <code>settings()</code> 로 같은 인스턴스를 얻어 monkeypatch 할 수 있고, (2) <code>settings</code> 모듈을 import 하는 것만으로는 <code>.env</code> 를 읽지 않습니다. 단 <code>api.py:224</code> 가 import 시점에 <code>create_app()</code> 을 호출하고 그 안의 39 행(<code>ShareCodec.from_settings()</code>)과 41 행이 <code>settings()</code> 를 부르므로, <code>lovecode.api</code> 를 import 하는 순간에는 결국 환경변수가 읽히며, <code>deploy/vercel/main.py</code> 가 환경변수 설정을 import 앞에 두는 이유도 바로 그것입니다. 또한 <code>api.py:39, 41</code> 처럼 <code>create_app()</code> 안에서 한 번 읽어 고정하는 값(<code>share_secret</code>, <code>analysis_capacity</code>)은 뒤늦게 바꿔도 반영되지 않아, <code>tests/test_analysis_concurrency.py:185-125</code> 는 <code>create_app()</code> 전에 값을 바꿉니다. FastAPI 문서가 권하는 <code>Depends(get_settings)</code> 주입을 쓰지 않은 것은 핸들러가 동기 함수여서가 아니라(<code>Depends</code> 는 일반 <code>def</code> 핸들러에서도 동작합니다), 설정이 핸들러 바깥에서도 필요하기 때문입니다. 미들웨어(<code>api.py:60, 74</code>)와 공유 코덱·세마포어 생성(39, 41 행), 서비스 생성자(<code>service.py:19-20</code>)는 요청 컨텍스트 밖이라 <code>Depends</code> 를 쓸 수 없고, 한 곳(<code>settings()</code>)으로 통일하는 편이 단순합니다. 저장소에 이 선택을 설명하는 문구는 없으므로 코드 배치에서 읽은 추정입니다.</p>
   <aside class="principle"><h4>원리 노트: Depends 를 쓰지 않은 프로젝트에서의 의존성 주입</h4><p>FastAPI 의 <code>Depends</code> 는 요청마다 의존성 함수를 실행해 핸들러 인자로 넣고, 테스트는 <code>app.dependency_overrides[get_service] = fake</code> 로 바꿔 끼웁니다(<code>applications.py:986</code>). 러브코드는 핸들러 인자 대신 <code>create_app(analysis_service=...)</code> 의 지역 변수를 클로저로 붙잡는 방식을 택했고, 저장소 어디에도 <code>Depends</code> 와 <code>dependency_overrides</code> 가 없습니다. 요청마다 새로 만들 자원(DB 세션 등)이 없고 의존성이 서비스 객체와 공유 코덱처럼 앱 단위로 하나씩만 있으면 되는 객체뿐이라 <code>Depends</code> 의 요청 단위 수명 관리가 필요 없었다고 읽히지만, 저장소에 명시된 이유는 없고 코드 구조에서 읽은 것입니다. 반대로 요청마다 DB 세션을 열고 닫는 서비스라면 <code>Depends</code> + <code>yield</code> 가 정석입니다. startup/lifespan 훅도 두지 않았으며, 모델 로딩은 <code>service.ready()</code> 가 첫 호출에서 락 아래 지연 수행합니다(<code>service.py:37-41</code>).</p></aside>
   <p class="ref">확인: <a class="src" data-file="backend/lovecode/settings.py" data-line="8">backend/lovecode/settings.py:8</a>, <a class="src" data-file="backend/lovecode/settings.py" data-line="29">backend/lovecode/settings.py:29</a>, <a class="src" data-file="tests/conftest.py" data-line="18">tests/conftest.py:18</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/pydantic_settings/main.py" data-line="286">pydantic_settings/main.py:286</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/pydantic_settings/main.py" data-line="504">pydantic_settings/main.py:504</a></p>
 </section>
@@ -491,7 +495,7 @@ class AnalysisResponse(Strict):
   <h2>boundary 와 response_headers: 라우터 앞뒤의 두 겹</h2>
   <p class="lead">요청이 핸들러에 닿기 전에 boundary 는 무엇을 검사하고, 응답은 나가기 전에 어떤 헤더를 얻습니까?</p>
   <p><code>@app.middleware("http")</code> 는 설치 소스를 보면 <code>self.add_middleware(BaseHTTPMiddleware, dispatch=func)</code> 한 줄의 단축 표기이고, Starlette 의 <code>add_middleware</code> 는 목록의 맨 앞에 끼워 넣습니다. 그래서 코드상 나중에 정의한 <code>response_headers</code> 가 바깥 겹, 먼저 정의한 <code>boundary</code> 가 안쪽 겹이 되어 요청은 <code>response_headers</code> → <code>boundary</code> → 라우터 순으로 흐릅니다. 실제 앱에서 <code>app.user_middleware</code> 를 찍어 보면 <code>[response_headers, boundary]</code> 순서로 나옵니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="55-73">
+  <code-block file="backend/lovecode/api.py" lines="71-89">
     @app.middleware("http")
     async def boundary(request, call_next):
         nonlocal salt, salt_time
@@ -513,14 +517,14 @@ class AnalysisResponse(Strict):
             request._body = b"".join(chunks)
 </code-block>
   <ol class="notes">
-    <li data-line="57"><code>salt</code> 와 <code>salt_time</code> 은 바깥 함수의 지역 변수라서, 아래에서 재대입하려면 <code>nonlocal</code> 선언이 필요합니다.</li>
-    <li data-line="58">상태를 바꾸는 POST 와 DELETE 만 Origin 을 봅니다. <code>headers.get("origin")</code> 은 헤더가 없으면 <code>None</code> 이고 <code>None</code> 은 허용 튜플에 들어 있으므로, Origin 이 없는 비브라우저 요청은 통과하고 허용 목록 밖 Origin 만 403 입니다.</li>
-    <li data-line="64"><code>application/json; charset=utf-8</code> 처럼 뒤에 붙는 매개변수를 떼고 앞부분만 비교합니다. JSON 이 아니면 핸들러에 닿기 전에 415 입니다.</li>
-    <li data-line="68"><code>request.stream()</code> 으로 본문을 청크 단위로 받으며 누적 크기를 셉니다. 40,960 바이트를 넘는 순간 나머지를 읽지 않고 413 을 돌려줍니다.</li>
-    <li data-line="73">검사가 끝난 본문을 <code>request._body</code> 에 넣습니다. 미들웨어의 <code>request</code> 와 핸들러의 <code>request</code> 는 다른 객체이며, 이 속성이 있어야 Starlette 이 본문을 하류로 다시 흘려보냅니다. 이 줄이 없으면 핸들러는 빈 본문을 받아 422 를 냅니다.</li>
+    <li data-line="73"><code>salt</code> 와 <code>salt_time</code> 은 바깥 함수의 지역 변수라서, 아래에서 재대입하려면 <code>nonlocal</code> 선언이 필요합니다.</li>
+    <li data-line="74">상태를 바꾸는 POST 와 DELETE 만 Origin 을 봅니다. <code>headers.get("origin")</code> 은 헤더가 없으면 <code>None</code> 이고 <code>None</code> 은 허용 튜플에 들어 있으므로, Origin 이 없는 비브라우저 요청은 통과하고 허용 목록 밖 Origin 만 403 입니다.</li>
+    <li data-line="80"><code>application/json; charset=utf-8</code> 처럼 뒤에 붙는 매개변수를 떼고 앞부분만 비교합니다. JSON 이 아니면 핸들러에 닿기 전에 415 입니다.</li>
+    <li data-line="84"><code>request.stream()</code> 으로 본문을 청크 단위로 받으며 누적 크기를 셉니다. 40,960 바이트를 넘는 순간 나머지를 읽지 않고 413 을 돌려줍니다.</li>
+    <li data-line="89">검사가 끝난 본문을 <code>request._body</code> 에 넣습니다. 미들웨어의 <code>request</code> 와 핸들러의 <code>request</code> 는 다른 객체이며, 이 속성이 있어야 Starlette 이 본문을 하류로 다시 흘려보냅니다. 이 줄이 없으면 핸들러는 빈 본문을 받아 422 를 냅니다.</li>
   </ol>
   <p>이어지는 블록이 IP 기반 레이트리밋(rate limit)입니다. 외부 저장소 없이 프로세스 메모리의 <code>deque</code> 로 슬라이딩 윈도를 구현하며, 키에는 IP 원문 대신 솔트를 섞은 해시만 남깁니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="74-107">
+  <code-block file="backend/lovecode/api.py" lines="90-123">
         if settings().rate_limit_enabled:
             import hashlib
 
@@ -557,12 +561,12 @@ class AnalysisResponse(Strict):
         return await call_next(request)
 </code-block>
   <ol class="notes">
-    <li data-line="74">설정으로 끌 수 있습니다. <code>conftest.py:18</code> 이 테스트마다 끄고, <code>test_rate_limit</code> 만 다시 켭니다.</li>
-    <li data-line="78">마지막 교체로부터 600 초가 지나면 버킷을 비우고 솔트를 새로 뽑습니다. 같은 IP 라도 10 분 뒤에는 다른 해시가 됩니다.</li>
-    <li data-line="84"><code>str.endswith</code> 에 튜플을 주면 하나라도 맞을 때 참입니다. <code>/api/v1/analyses</code> 와 <code>/api/v1/demo-analysis</code> 는 비싼 분석이라 한 바구니 <code>"analysis"</code> 로 묶고, 나머지는 메서드 이름이 그룹입니다.</li>
-    <li data-line="94"><code>sha256(salt + ip).digest()</code> 와 그룹의 튜플이 버킷 키입니다. IP 문자열은 해시 함수의 인자로만 쓰이고 어떤 변수에도 저장되지 않습니다.</li>
-    <li data-line="100">윈도 밖으로 밀려난 타임스탬프를 앞에서 제거합니다. 남은 개수가 한도 이상이면 429 와 Retry-After 를 돌려줍니다.</li>
-    <li data-line="107">모든 검사를 통과한 요청만 안쪽(라우터)으로 넘깁니다. <code>call_next</code> 의 반환값이 곧 이 미들웨어의 응답입니다.</li>
+    <li data-line="90">설정으로 끌 수 있습니다. <code>conftest.py:18</code> 이 테스트마다 끄고, <code>test_rate_limit</code> 만 다시 켭니다.</li>
+    <li data-line="94">마지막 교체로부터 600 초가 지나면 버킷을 비우고 솔트를 새로 뽑습니다. 같은 IP 라도 10 분 뒤에는 다른 해시가 됩니다.</li>
+    <li data-line="100"><code>str.endswith</code> 에 튜플을 주면 하나라도 맞을 때 참입니다. <code>/api/v1/analyses</code> 와 <code>/api/v1/demo-analysis</code> 는 비싼 분석이라 한 바구니 <code>"analysis"</code> 로 묶고, 나머지는 메서드 이름이 그룹입니다.</li>
+    <li data-line="110"><code>sha256(salt + ip).digest()</code> 와 그룹의 튜플이 버킷 키입니다. IP 문자열은 해시 함수의 인자로만 쓰이고 어떤 변수에도 저장되지 않습니다.</li>
+    <li data-line="116">윈도 밖으로 밀려난 타임스탬프를 앞에서 제거합니다. 남은 개수가 한도 이상이면 429 와 Retry-After 를 돌려줍니다.</li>
+    <li data-line="123">모든 검사를 통과한 요청만 안쪽(라우터)으로 넘깁니다. <code>call_next</code> 의 반환값이 곧 이 미들웨어의 응답입니다.</li>
   </ol>
   <table>
     <thead><tr><th>그룹</th><th>해당 요청</th><th>한도</th><th>윈도</th></tr></thead>
@@ -575,7 +579,7 @@ class AnalysisResponse(Strict):
     </tbody>
   </table>
   <p>바깥 겹인 <code>response_headers</code> 는 요청에는 손대지 않고 응답에 네 헤더를 더합니다. 조기 반환된 403, 415, 413, 429 와 커스텀 핸들러의 422 도 모두 이 손을 거칩니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="109-116">
+  <code-block file="backend/lovecode/api.py" lines="125-132">
     @app.middleware("http")
     async def response_headers(request, call_next):
         response = await call_next(request)
@@ -586,23 +590,23 @@ class AnalysisResponse(Strict):
         return response
 </code-block>
   <ol class="notes">
-    <li data-line="111">안쪽 전체(boundary, 예외 핸들러, 라우터)를 실행하고 응답 객체를 받습니다. 어디서 만들어진 응답이든 여기로 모입니다.</li>
-    <li data-line="112"><code>Cache-Control: no-store</code> 는 브라우저와 중간 캐시가 응답을 저장하지 못하게 합니다. 분석 결과가 디스크 캐시에 남지 않습니다.</li>
-    <li data-line="113"><code>Referrer-Policy: no-referrer</code> 는 이 응답에서 출발하는 요청에 참조 URL 을 싣지 않게 합니다.</li>
-    <li data-line="114"><code>X-Content-Type-Options: nosniff</code> 는 브라우저가 선언된 Content-Type 을 무시하고 내용을 추측하는 동작을 막습니다.</li>
-    <li data-line="115"><code>X-Robots-Tag: noindex, nofollow</code> 는 검색 엔진이 API 응답을 색인하지 않도록 합니다.</li>
+    <li data-line="127">안쪽 전체(boundary, 예외 핸들러, 라우터)를 실행하고 응답 객체를 받습니다. 어디서 만들어진 응답이든 여기로 모입니다.</li>
+    <li data-line="128"><code>Cache-Control: no-store</code> 는 브라우저와 중간 캐시가 응답을 저장하지 못하게 합니다. 분석 결과가 디스크 캐시에 남지 않습니다.</li>
+    <li data-line="129"><code>Referrer-Policy: no-referrer</code> 는 이 응답에서 출발하는 요청에 참조 URL 을 싣지 않게 합니다.</li>
+    <li data-line="130"><code>X-Content-Type-Options: nosniff</code> 는 브라우저가 선언된 Content-Type 을 무시하고 내용을 추측하는 동작을 막습니다.</li>
+    <li data-line="131"><code>X-Robots-Tag: noindex, nofollow</code> 는 검색 엔진이 API 응답을 색인하지 않도록 합니다.</li>
   </ol>
   <aside class="principle"><h4>원리 노트: BaseHTTPMiddleware 와 등록 순서</h4><p>FastAPI 0.143.0 의 <code>@app.middleware("http")</code> 는 <code>add_middleware(BaseHTTPMiddleware, dispatch=func)</code> 이고, Starlette 1.7.0 의 <code>add_middleware</code> 는 <code>user_middleware.insert(0, ...)</code> 로 맨 앞에 넣습니다. 스택을 조립할 때 목록을 뒤에서부터 감싸므로 index 0 이 가장 바깥이 되어 "나중에 등록한 것이 바깥"이라는 규칙이 생깁니다. <code>dispatch</code> 함수는 스레드풀이 아니라 이벤트 루프에서 <code>await</code> 되므로 그 안에서 블로킹 I/O 를 하면 서버 전체가 멈춥니다. 미들웨어가 <code>request.stream()</code> 을 소비한 뒤 <code>_body</code> 를 채우면 Starlette 의 <code>_CachedRequest</code> 가 그 바이트를 ASGI 메시지로 하류에 재전송하는데, 이 메커니즘은 상 단계에서 봅니다.</p></aside>
   <p>왜 CORS 미들웨어 대신 Origin 검사일까요. 프런트는 Next.js rewrite 로 같은 출처에서 백엔드를 부르므로 브라우저가 CORS 프리플라이트를 보내지 않고, 필요한 것은 다른 사이트에서 날아오는 브라우저 POST 를 막는 일뿐입니다.</p>
   <p>왜 413 을 손으로 셀까요. FastAPI 0.143.0 은 Starlette 1.7.0 에 있는 <code>max_body_size</code> 옵션을 생성자에도 미들웨어 스택에도 연결하지 않아(<code>fastapi/applications.py</code> 에서 <code>max_body_size</code> 검색 결과 0 건), 이 수동 검사가 유일한 본문 크기 제한입니다. 왜 Redis 가 아니라 메모리일까요. <code>docs/CODE_GUIDE.md:35</code> 가 적듯 메모리 큐와 예산은 인스턴스 간에 공유되지 않는 설계이며, DB 가 없는 서비스에 외부 저장소를 더하지 않은 선택입니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="55">backend/lovecode/api.py:55</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="73">backend/lovecode/api.py:73</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="109">backend/lovecode/api.py:109</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/applications.py" data-line="4788">fastapi/applications.py:4788</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/starlette/applications.py" data-line="107">starlette/applications.py:107</a>, <a class="src" data-file="docs/CODE_GUIDE.md" data-line="35">docs/CODE_GUIDE.md:35</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="71">backend/lovecode/api.py:71</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="89">backend/lovecode/api.py:89</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="125">backend/lovecode/api.py:125</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/applications.py" data-line="4788">fastapi/applications.py:4788</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/starlette/applications.py" data-line="107">starlette/applications.py:107</a>, <a class="src" data-file="docs/CODE_GUIDE.md" data-line="35">docs/CODE_GUIDE.md:35</a></p>
 </section>
 
 <section class="lesson" id="fa-2-handlers" data-track="fastapi" data-depth="2">
   <h2>analyse 와 demo: 핸들러가 상태 코드를 결정하는 순서</h2>
   <p class="lead">POST /api/v1/analyses 는 어떤 순서로 거절 조건을 확인하고, 어떤 예외가 어떤 상태 코드가 됩니까?</p>
   <p><code>analyse</code> 핸들러에 들어왔다는 것은 이미 <code>boundary</code> 의 네 검사와 <code>AnalysisInput</code> 검증을 통과했다는 뜻입니다. 핸들러는 값싼 조건부터 차례로 확인하고, 비용이 드는 자리(입장권, 예산)는 그 뒤에 잡습니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="153-172">
+  <code-block file="backend/lovecode/api.py" lines="169-188">
     @app.post("/api/v1/analyses", response_model=AnalysisResponse, response_model_exclude_none=True)
     def analyse(body: AnalysisInput):
         if not service.ready():
@@ -625,15 +629,15 @@ class AnalysisResponse(Strict):
             return busy()
 </code-block>
   <ol class="notes">
-    <li data-line="153"><code>response_model=AnalysisResponse</code> 는 dict 반환값을 검증·직렬화할 모델이고, <code>response_model_exclude_none=True</code> 는 <code>None</code> 인 필드를 JSON 에서 빼라는 뜻입니다. 공유가 꺼져 있을 때 <code>share_code</code> 키가 응답에서 빠지는 것이 이 옵션 덕분입니다.</li>
-    <li data-line="154">타입 힌트 <code>body: AnalysisInput</code> 한 줄이 "본문 바이트 → JSON → 모델" 변환을 FastAPI 에 맡기는 선언입니다. 함수 안에서는 이미 검증된 객체만 봅니다.</li>
-    <li data-line="155">설정과 모델이 준비되지 않았으면 503 입니다. 테스트 화면 <code>frontend/app/test/page.tsx:36-47</code> 은 <code>/api/v1/health</code> 의 <code>analysis_ready</code> 를 먼저 읽어, 거짓이면 제출 버튼을 비활성화하고(162행) 버튼 아래 안내를 '준비 중' 문구로 바꾸므로, 이 503 은 그 선검사를 지나친 요청을 받는 뒷문입니다.</li>
-    <li data-line="161">동의 플래그는 <code>AnalysisInput</code> 에서 기본값 <code>False</code> 이므로, 생략하면 타입 검증은 통과하고 여기서 422 <code>CONSENT_REQUIRED</code> 로 걸립니다.</li>
-    <li data-line="163"><code>busy()</code> 는 두 군데(입장 실패, 단계 대기 만료)에서 같은 429 와 <code>Retry-After: 5</code> 를 만들기 위한 지역 함수입니다.</li>
-    <li data-line="171"><code>acquire(blocking=False)</code> 는 자리가 없으면 기다리지 않고 즉시 <code>False</code> 를 돌려줍니다. 대기열 대신 바로 429 로 돌려보내는 가장 단순한 백프레셔입니다.</li>
+    <li data-line="169"><code>response_model=AnalysisResponse</code> 는 dict 반환값을 검증·직렬화할 모델이고, <code>response_model_exclude_none=True</code> 는 <code>None</code> 인 필드를 JSON 에서 빼라는 뜻입니다. 공유가 꺼져 있을 때 <code>share_code</code> 키가 응답에서 빠지는 것이 이 옵션 덕분입니다.</li>
+    <li data-line="170">타입 힌트 <code>body: AnalysisInput</code> 한 줄이 "본문 바이트 → JSON → 모델" 변환을 FastAPI 에 맡기는 선언입니다. 함수 안에서는 이미 검증된 객체만 봅니다.</li>
+    <li data-line="171">설정과 모델이 준비되지 않았으면 503 입니다. 테스트 화면 <code>frontend/app/test/page.tsx:36-47</code> 은 <code>/api/v1/health</code> 의 <code>analysis_ready</code> 를 먼저 읽어, 거짓이면 제출 버튼을 비활성화하고(162행) 버튼 아래 안내를 '준비 중' 문구로 바꾸므로, 이 503 은 그 선검사를 지나친 요청을 받는 뒷문입니다.</li>
+    <li data-line="177">동의 플래그는 <code>AnalysisInput</code> 에서 기본값 <code>False</code> 이므로, 생략하면 타입 검증은 통과하고 여기서 422 <code>CONSENT_REQUIRED</code> 로 걸립니다.</li>
+    <li data-line="179"><code>busy()</code> 는 두 군데(입장 실패, 단계 대기 만료)에서 같은 429 와 <code>Retry-After: 5</code> 를 만들기 위한 지역 함수입니다.</li>
+    <li data-line="187"><code>acquire(blocking=False)</code> 는 자리가 없으면 기다리지 않고 즉시 <code>False</code> 를 돌려줍니다. 대기열 대신 바로 429 로 돌려보내는 가장 단순한 백프레셔입니다.</li>
   </ol>
   <p>입장권을 얻은 뒤부터는 <code>try/finally</code> 안입니다. 어떤 경로로 빠져나가든 <code>finally</code> 가 입장권을 돌려주므로, 일일 한도 초과의 <code>return</code> 도 예외도 자리를 새지 않습니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="173-198">
+  <code-block file="backend/lovecode/api.py" lines="189-214">
         try:
             with budget_lock:
                 day = datetime.now(UTC).date().isoformat()
@@ -662,15 +666,15 @@ class AnalysisResponse(Strict):
             analysis_admission.release()
 </code-block>
   <ol class="notes">
-    <li data-line="174"><code>budget_lock</code> 아래에서 UTC 날짜 문자열을 비교합니다. 날짜가 바뀌면 카운트를 0 으로 되돌리고, 한도에 닿았으면 429 <code>DAILY_LIMIT</code> 입니다.</li>
-    <li data-line="182">실제 호출 전에 카운트를 올립니다. 따라서 뒤에서 provider 가 실패해도 그 시도는 오늘 예산에서 차감된 채 남습니다.</li>
-    <li data-line="183"><code>service.analyse()</code> 는 <code>(result, meta)</code> 튜플을 돌려주고, 핸들러는 결과만 씁니다. 이 호출 안에서 BERT 와 LLM 이 실행됩니다.</li>
-    <li data-line="184">dict 를 돌려주면 FastAPI 가 <code>AnalysisResponse</code> 로 검증한 뒤 직렬화합니다. <code>shareable=True</code> 라서 공유가 켜져 있으면 서명된 <code>share_code</code> 도 붙습니다. 위의 <code>error()</code> 반환과 달리 이 경로만 <code>response_model</code> 을 탑니다.</li>
-    <li data-line="185">단계 대기 기한(기본 30 초)이 지나 <code>StageLimit</code> 가 던진 <code>AnalysisBusy</code> 는 입장 실패와 같은 429 로 매핑됩니다.</li>
-    <li data-line="191"><code>ArtifactError</code> 와 <code>ManseInputError</code> 는 모두 <code>ValueError</code> 의 하위 클래스라 이 줄에 잡힙니다. 모델 파일 손상이나 만세력 범위 밖 입력이 503 으로 나가는 경로입니다.</li>
+    <li data-line="190"><code>budget_lock</code> 아래에서 UTC 날짜 문자열을 비교합니다. 날짜가 바뀌면 카운트를 0 으로 되돌리고, 한도에 닿았으면 429 <code>DAILY_LIMIT</code> 입니다.</li>
+    <li data-line="198">실제 호출 전에 카운트를 올립니다. 따라서 뒤에서 provider 가 실패해도 그 시도는 오늘 예산에서 차감된 채 남습니다.</li>
+    <li data-line="199"><code>service.analyse()</code> 는 <code>(result, meta)</code> 튜플을 돌려주고, 핸들러는 결과만 씁니다. 이 호출 안에서 BERT 와 LLM 이 실행됩니다.</li>
+    <li data-line="200">dict 를 돌려주면 FastAPI 가 <code>AnalysisResponse</code> 로 검증한 뒤 직렬화합니다. <code>shareable=True</code> 라서 공유가 켜져 있으면 서명된 <code>share_code</code> 도 붙습니다. 위의 <code>error()</code> 반환과 달리 이 경로만 <code>response_model</code> 을 탑니다.</li>
+    <li data-line="201">단계 대기 기한(기본 30 초)이 지나 <code>StageLimit</code> 가 던진 <code>AnalysisBusy</code> 는 입장 실패와 같은 429 로 매핑됩니다.</li>
+    <li data-line="207"><code>ArtifactError</code> 와 <code>ManseInputError</code> 는 모두 <code>ValueError</code> 의 하위 클래스라 이 줄에 잡힙니다. 모델 파일 손상이나 만세력 범위 밖 입력이 503 으로 나가는 경로입니다.</li>
   </ol>
   <p><code>demo</code> 핸들러는 같은 응답 모델을 쓰지만 분석을 하지 않습니다. 본문 타입이 필드 없는 <code>Strict</code> 라서 빈 JSON <code>{}</code> 만 받아들이고, 키가 하나라도 있으면 422 입니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="200-204">
+  <code-block file="backend/lovecode/api.py" lines="216-220">
     @app.post("/api/v1/demo-analysis", response_model=AnalysisResponse, response_model_exclude_none=True)
     def demo(body: Strict):
         if not settings().demo_enabled:
@@ -678,9 +682,9 @@ class AnalysisResponse(Strict):
         return analysis_response(demo_result())
 </code-block>
   <ol class="notes">
-    <li data-line="201"><code>body: Strict</code> 는 "본문은 있어야 하지만 비어 있어야 한다"는 계약입니다. 테스트 화면 <code>frontend/app/test/page.tsx:62</code> 은 실제로 <code>body: '{}'</code> 를 보내고, <code>{"name": "x"}</code> 를 보내면 <code>extra_forbidden</code> 으로 422 가 납니다.</li>
-    <li data-line="202">데모를 끄면 503 입니다. 기본 메시지를 쓰므로 세 번째 인자를 생략했습니다.</li>
-    <li data-line="204"><code>demo_result()</code> 는 호출마다 새 <code>PublicResult</code> 를 만들고, <code>analysis_response()</code> 가 새 UUID 를 붙입니다. <code>shareable</code> 을 넘기지 않으므로 예시 결과에는 <code>share_code</code> 가 붙지 않습니다.</li>
+    <li data-line="217"><code>body: Strict</code> 는 "본문은 있어야 하지만 비어 있어야 한다"는 계약입니다. 테스트 화면 <code>frontend/app/test/page.tsx:62</code> 은 실제로 <code>body: '{}'</code> 를 보내고, <code>{"name": "x"}</code> 를 보내면 <code>extra_forbidden</code> 으로 422 가 납니다.</li>
+    <li data-line="218">데모를 끄면 503 입니다. 기본 메시지를 쓰므로 세 번째 인자를 생략했습니다.</li>
+    <li data-line="220"><code>demo_result()</code> 는 호출마다 새 <code>PublicResult</code> 를 만들고, <code>analysis_response()</code> 가 새 UUID 를 붙입니다. <code>shareable</code> 을 넘기지 않으므로 예시 결과에는 <code>share_code</code> 가 붙지 않습니다.</li>
   </ol>
   <table>
     <thead><tr><th>코드</th><th>상태</th><th>어디서, 언제</th></tr></thead>
@@ -700,7 +704,7 @@ class AnalysisResponse(Strict):
   <aside class="principle"><h4>원리 노트: 동기 핸들러, Response 반환, response_model</h4><p>FastAPI 0.143.0 은 일반 <code>def</code> 핸들러를 <code>run_endpoint_function → run_in_threadpool → anyio.to_thread.run_sync</code> 로 워커 스레드(<code>threading.Thread</code> 의 하위 클래스)에서 실행합니다. 그래서 <code>threading.BoundedSemaphore</code> 와 <code>threading.Lock</code> 이 그대로 유효하고, <code>acquire(blocking=False)</code> 는 카운터가 0 이면 즉시 <code>False</code> 를 돌려줍니다. 핸들러가 <code>Response</code> 인스턴스를 돌려주면 <code>serialize_response</code> 를 건너뛰고(<code>routing.py:732</code>), dict 를 돌려주면 응답 필드로 검증한 뒤 <code>exclude_none</code> 을 적용해 직렬화하며 동기 핸들러면 이 검증도 스레드풀에서 돕니다.</p></aside>
   <p>왜 <code>HTTPException</code> 을 raise 하지 않고 <code>error()</code> 를 return 할까요. 기본 <code>HTTPException</code> 핸들러는 <code>{"detail": ...}</code> 모양을 만들어 프런트가 읽는 <code>error.message</code> 와 어긋나므로, 프로젝트는 <code>HTTPException</code> 을 한 번도 쓰지 않습니다.</p>
   <p>왜 입장권을 예산보다 먼저 잡을까요. 예산 카운트는 실제로 분석을 시작할 요청만 세야 하므로, 자리를 못 얻은 요청은 예산을 건드리지 않고 돌아갑니다. 대기열 서비스에서 흔한 "큐에 넣고 기다리기" 대신 즉시 429 를 택한 것은 프런트 타임아웃이 110 초로 짧고 큐가 인스턴스 간 공유되지 않기 때문입니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="153">backend/lovecode/api.py:153</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="171">backend/lovecode/api.py:171</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="183">backend/lovecode/api.py:183</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="197">backend/lovecode/api.py:197</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="351">fastapi/routing.py:351</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="732">fastapi/routing.py:732</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="169">backend/lovecode/api.py:169</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="187">backend/lovecode/api.py:187</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="199">backend/lovecode/api.py:199</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="213">backend/lovecode/api.py:213</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="351">fastapi/routing.py:351</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/routing.py" data-line="732">fastapi/routing.py:732</a></p>
 </section>
 
 <section class="lesson" id="fa-2-service" data-track="fastapi" data-depth="2">
@@ -821,14 +825,14 @@ class AnalysisService:
   <aside class="principle"><h4>원리 노트: 스레드풀에서 threading 동기화가 통하는 이유</h4><p>FastAPI 가 동기 핸들러를 anyio 의 <code>WorkerThread</code>(= <code>threading.Thread</code>)에서 실행하므로, 같은 프로세스의 <code>threading.Lock</code>, <code>Condition</code>, <code>Semaphore</code> 가 그대로 유효합니다. 반대로 <code>Condition.wait()</code> 로 기다리는 동안 워커 스레드 하나가 점유되며, anyio 4.15.1 의 기본 스레드 토큰은 40 개입니다. <code>StageLimit</code> 의 조건 변수와 술어 루프의 세부 원리, 그리고 왜 <code>notify</code> 가 아니라 <code>notify_all</code> 인지는 상 단계에서 봅니다.</p></aside>
   <p>왜 단계를 둘로 나눴을까요. <code>concurrency.py</code> 첫 줄의 "LLM 을 기다리는 동안 BERT 슬롯을 잡고 있지 말 것"이 이유입니다. BERT 추론은 CPU 를 쓰므로 2 개로 묶고, 해설은 네트워크 대기가 대부분이라 5 개까지 허용하며, 한 슬롯을 두 단계에 걸쳐 들고 있으면 느린 LLM 이 빠른 BERT 까지 막게 됩니다.</p>
   <p>왜 <code>threading.Semaphore</code> 대신 직접 만든 티켓 줄일까요. 표준 <code>threading.Semaphore</code> 는 깨어나는 순서(FIFO)를 보장하지 않고 timeout 이 상대 시간이라, BERT·해설 두 단계가 하나의 절대 기한(deadline)을 나눠 쓸 수 없기 때문입니다. 직접 만든 deque 티켓 줄은 이 두 가지를 코드로 보장하며(<code>concurrency.py:1</code> docstring "Per-instance FIFO stage limits"), <code>tests/test_analysis_concurrency.py</code> 의 <code>test_fifo_timeout_and_exception_release</code> 가 입장 순서 <code>[1, 2]</code> 와 예외 후 슬롯 반환을 검사합니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/service.py" data-line="23">backend/lovecode/service.py:23</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="47">backend/lovecode/service.py:47</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="60">backend/lovecode/service.py:60</a>, <a class="src" data-file="backend/lovecode/concurrency.py" data-line="26">backend/lovecode/concurrency.py:26</a>, <a class="src" data-file="tests/test_analysis_concurrency.py" data-line="89">tests/test_analysis_concurrency.py:89</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/service.py" data-line="23">backend/lovecode/service.py:23</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="47">backend/lovecode/service.py:47</a>, <a class="src" data-file="backend/lovecode/service.py" data-line="60">backend/lovecode/service.py:60</a>, <a class="src" data-file="backend/lovecode/concurrency.py" data-line="26">backend/lovecode/concurrency.py:26</a>, <a class="src" data-file="tests/test_analysis_concurrency.py" data-line="151">tests/test_analysis_concurrency.py:151</a></p>
 </section>
 
 <section class="lesson" id="fa-2-errors" data-track="fastapi" data-depth="2">
   <h2>RequestValidationError 핸들러: 422 의 모양을 직접 정하기</h2>
   <p class="lead">검증 실패가 왜 FastAPI 기본 422 가 아니라 error() 모양으로 나가고, field 값은 어떻게 만들어집니까?</p>
   <p>본문이 <code>AnalysisInput</code> 검증에 실패하면 FastAPI 는 <code>RequestValidationError</code> 를 던집니다. 이 예외를 누가 어떻게 응답으로 바꿀지는 <code>app.exception_handler</code> 로 등록한 함수가 정합니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="118-126">
+  <code-block file="backend/lovecode/api.py" lines="134-142">
     @app.exception_handler(RequestValidationError)
     async def invalid(request, exc):
         loc = exc.errors()[0]["loc"]
@@ -840,10 +844,10 @@ class AnalysisService:
         )
 </code-block>
   <ol class="notes">
-    <li data-line="118">예외 클래스를 키로 핸들러를 등록합니다. FastAPI 는 기본 핸들러를 <code>setdefault</code> 로 넣어 두므로 같은 키로 등록하면 프로젝트 것이 대체합니다.</li>
-    <li data-line="120"><code>exc.errors()</code> 는 오류 목록이지만 첫 번째의 <code>loc</code> 만 씁니다. 여러 필드가 틀려도 응답은 하나의 <code>field</code> 만 알려 줍니다.</li>
-    <li data-line="121">미들웨어와 핸들러가 쓰는 같은 <code>error()</code> 헬퍼입니다. 메시지는 고정 문구라 입력값이 섞일 여지가 없습니다.</li>
-    <li data-line="125"><code>loc</code> 튜플에서 <code>"body"</code> 를 빼고 점으로 이으면 <code>person_a.mbti</code> 같은 경로가 됩니다. 리스트 인덱스가 섞여도 <code>str()</code> 로 문자열이 됩니다.</li>
+    <li data-line="134">예외 클래스를 키로 핸들러를 등록합니다. FastAPI 는 기본 핸들러를 <code>setdefault</code> 로 넣어 두므로 같은 키로 등록하면 프로젝트 것이 대체합니다.</li>
+    <li data-line="136"><code>exc.errors()</code> 는 오류 목록이지만 첫 번째의 <code>loc</code> 만 씁니다. 여러 필드가 틀려도 응답은 하나의 <code>field</code> 만 알려 줍니다.</li>
+    <li data-line="137">미들웨어와 핸들러가 쓰는 같은 <code>error()</code> 헬퍼입니다. 메시지는 고정 문구라 입력값이 섞일 여지가 없습니다.</li>
+    <li data-line="141"><code>loc</code> 튜플에서 <code>"body"</code> 를 빼고 점으로 이으면 <code>person_a.mbti</code> 같은 경로가 됩니다. 리스트 인덱스가 섞여도 <code>str()</code> 로 문자열이 됩니다.</li>
   </ol>
   <p>대체된 기본 핸들러를 보면 왜 바꿨는지가 보입니다. 기본 핸들러는 pydantic 의 오류 목록을 통째로 <code>detail</code> 에 실어 보내는데, pydantic 2 의 오류 항목에는 <code>input</code> 키로 틀린 입력값이 그대로 들어 있습니다.</p>
   <code-block file=".venv/lib/python3.12/site-packages/fastapi/exception_handlers.py" lines="20-26">
@@ -878,15 +882,15 @@ async def request_validation_exception_handler(
   <p>왜 커스텀 핸들러를 두었을까요. 첫째, 응답 모양 통일입니다. 프런트의 <code>api()</code> 는 <code>error.message</code> 만 읽으므로 422 도 403 이나 503 과 같은 그릇에 담겨야 합니다.</p>
   <p>둘째, 입력값 비노출입니다. <code>tests/test_api.py:1-8</code> 은 생년월일을 품은 카나리 문자열을 <code>mbti</code> 자리에 넣어 422 를 받은 뒤, 그 문자열이 응답 본문과 로그 어디에도 없음을 확인합니다.</p>
   <p>셋째, 내부 구조 비노출입니다. pydantic 의 오류 타입 이름과 메시지 대신 필드 경로 하나만 내보내므로 서버가 어떤 라이브러리로 검증하는지 밖에서 알 수 없습니다. 기본 핸들러를 그대로 쓰는 흔한 구조와 비교하면 디버깅 정보는 줄지만, 개인정보를 다루는 입력에서는 이 쪽이 맞는 선택입니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="118">backend/lovecode/api.py:118</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/exception_handlers.py" data-line="20">fastapi/exception_handlers.py:20</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/applications.py" data-line="1023">fastapi/applications.py:1023</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/dependencies/utils.py" data-line="976">fastapi/dependencies/utils.py:976</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/_compat/v2.py" data-line="490">fastapi/_compat/v2.py:490</a>, <a class="src" data-file="tests/test_api.py" data-line="1">tests/test_api.py:1</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="134">backend/lovecode/api.py:134</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/exception_handlers.py" data-line="20">fastapi/exception_handlers.py:20</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/applications.py" data-line="1023">fastapi/applications.py:1023</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/dependencies/utils.py" data-line="976">fastapi/dependencies/utils.py:976</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/fastapi/_compat/v2.py" data-line="490">fastapi/_compat/v2.py:490</a>, <a class="src" data-file="tests/test_api.py" data-line="1">tests/test_api.py:1</a></p>
 </section>
 
 <script type="application/json" class="quiz" data-track="fastapi" data-depth="2">
 [
-  {"q": "환경변수 LC_ANALYSIS_CAPACITY=64 를 설정한 상태에서 lovecode.api 를 import 하면 어떻게 됩니까?", "options": ["settings.py 의 Field(ge=1, le=32) 때문에 Settings() 생성이 검증 오류로 실패해 앱이 뜨지 않는다", "값이 32 로 잘려서 세마포어가 32 개로 만들어진다", "64 가 그대로 쓰여 세마포어가 64 개가 된다", "환경변수는 무시되고 .env 파일의 값만 읽힌다"], "answer": 0, "explain": "pydantic-settings 는 인스턴스를 만들 때 필드 제약을 검증하므로 le=32 를 넘는 값은 ValidationError 입니다. 값을 잘라 주는 동작은 없고, 환경변수는 .env 보다 우선순위가 높아 무시되지 않습니다.", "ref": "backend/lovecode/settings.py:19"},
-  {"q": "POST /api/v1/analyses 에 person_a.mbti 로 잘못된 문자열을 보냈을 때 422 응답의 field 값이 person_a.mbti 가 되는 과정으로 맞는 것은?", "options": ["FastAPI 가 loc 앞에 \"body\" 를 붙여 (\"body\",\"person_a\",\"mbti\") 를 만들고, 커스텀 핸들러가 \"body\" 를 빼고 점으로 잇는다", "pydantic 이 처음부터 \"person_a.mbti\" 문자열을 만들어 준다", "boundary 미들웨어가 JSON 을 검사하면서 필드 이름을 기록한다", "AnalysisInput 의 field_validator 가 ValueError 메시지에 필드 경로를 넣는다"], "answer": 0, "explain": "접두 \"body\" 는 fastapi/dependencies/utils.py:976 이 붙이고 뒤의 경로는 pydantic 이 만듭니다. api.py:125 가 \"body\" 를 제외한 조각을 \".\" 으로 이어 person_a.mbti 를 만듭니다. boundary 는 본문 내용을 해석하지 않고, validator 메시지는 응답에 실리지 않습니다.", "ref": "backend/lovecode/api.py:125"},
-  {"q": "boundary 미들웨어가 Origin 헤더가 아예 없는 POST 를 받으면 어떻게 처리합니까?", "options": ["허용 튜플에 None 이 들어 있으므로 Origin 검사를 통과하고 다음 검사(Content-Type)로 넘어간다", "Origin 이 없으므로 403 INVALID_REQUEST 를 돌려준다", "Origin 이 없으므로 415 를 돌려준다", "Origin 이 없으면 레이트리밋을 건너뛴다"], "answer": 0, "explain": "headers.get(\"origin\") 은 헤더가 없으면 None 이고 비교 대상 튜플이 (None, *allowed) 라 None 은 포함됩니다. 이 검사는 브라우저가 붙인 Origin 이 허용 목록 밖일 때만 막고, 레이트리밋은 Origin 과 무관하게 뒤에서 적용됩니다.", "ref": "backend/lovecode/api.py:58"},
-  {"q": "analyse 핸들러에서 analysis_admission.acquire(blocking=False) 가 False 를 돌려주면 어떤 응답이 나갑니까?", "options": ["즉시 429 ANALYSIS_BUSY 와 Retry-After: 5 를 돌려주며 일일 예산은 건드리지 않는다", "analysis_wait_seconds 만큼 기다렸다가 자리가 나면 분석을 진행한다", "503 ANALYSIS_UNAVAILABLE 을 돌려준다", "일일 예산을 먼저 확인한 뒤 429 DAILY_LIMIT 을 돌려준다"], "answer": 0, "explain": "blocking=False 인 acquire 는 자리가 없으면 기다리지 않고 False 를 돌려주고, 핸들러는 busy() 로 429 와 Retry-After: 5 를 만듭니다. 예산 확인은 입장권을 얻은 뒤 try 블록 안에서 하므로 이 경우 실행되지 않습니다.", "ref": "backend/lovecode/api.py:171"},
-  {"q": "Content-Type: application/json 으로 42,000 바이트짜리 본문을 POST /api/v1/analyses 에 보내면 어떻게 됩니까?", "options": ["boundary 가 스트림을 세다가 40,960 바이트를 넘는 순간 나머지를 읽지 않고 413 PAYLOAD_TOO_LARGE 를 돌려준다", "본문이 JSON 이 아니므로 422 INVALID_REQUEST 가 된다", "FastAPI 의 기본 본문 크기 제한이 먼저 413 을 만든다", "핸들러까지 도달한 뒤 AnalysisInput 검증에서 실패한다"], "answer": 0, "explain": "api.py:68-71 이 청크를 누적하며 40,960 바이트 초과 시 바로 413 을 돌려줍니다. FastAPI 0.143.0 은 Starlette 의 max_body_size 를 연결하지 않아 기본 제한이 없고, 미들웨어에서 끊기므로 핸들러와 검증에는 닿지 않습니다. tests/test_api.py:10-15 가 이 동작을 검사합니다.", "ref": "backend/lovecode/api.py:70"}
+  {"q": "환경변수 LC_ANALYSIS_CAPACITY=100 을 설정한 상태에서 lovecode.api 를 import 하면 어떻게 됩니까?", "options": ["settings.py 의 Field(ge=1, le=64) 때문에 Settings() 생성이 검증 오류로 실패해 앱이 뜨지 않는다", "값이 64 로 잘려서 세마포어가 64 개로 만들어진다", "100 이 그대로 쓰여 세마포어가 100 개가 된다", "환경변수는 무시되고 .env 파일의 값만 읽힌다"], "answer": 0, "explain": "pydantic-settings 는 인스턴스를 만들 때 필드 제약을 검증하므로 le=64 를 넘는 값은 ValidationError 입니다. 값을 잘라 주는 동작은 없고, 환경변수는 .env 보다 우선순위가 높아 무시되지 않습니다.", "ref": "backend/lovecode/settings.py:19"},
+  {"q": "POST /api/v1/analyses 에 person_a.mbti 로 잘못된 문자열을 보냈을 때 422 응답의 field 값이 person_a.mbti 가 되는 과정으로 맞는 것은?", "options": ["FastAPI 가 loc 앞에 \"body\" 를 붙여 (\"body\",\"person_a\",\"mbti\") 를 만들고, 커스텀 핸들러가 \"body\" 를 빼고 점으로 잇는다", "pydantic 이 처음부터 \"person_a.mbti\" 문자열을 만들어 준다", "boundary 미들웨어가 JSON 을 검사하면서 필드 이름을 기록한다", "AnalysisInput 의 field_validator 가 ValueError 메시지에 필드 경로를 넣는다"], "answer": 0, "explain": "접두 \"body\" 는 fastapi/dependencies/utils.py:976 이 붙이고 뒤의 경로는 pydantic 이 만듭니다. api.py:125 가 \"body\" 를 제외한 조각을 \".\" 으로 이어 person_a.mbti 를 만듭니다. boundary 는 본문 내용을 해석하지 않고, validator 메시지는 응답에 실리지 않습니다.", "ref": "backend/lovecode/api.py:141"},
+  {"q": "boundary 미들웨어가 Origin 헤더가 아예 없는 POST 를 받으면 어떻게 처리합니까?", "options": ["허용 튜플에 None 이 들어 있으므로 Origin 검사를 통과하고 다음 검사(Content-Type)로 넘어간다", "Origin 이 없으므로 403 INVALID_REQUEST 를 돌려준다", "Origin 이 없으므로 415 를 돌려준다", "Origin 이 없으면 레이트리밋을 건너뛴다"], "answer": 0, "explain": "headers.get(\"origin\") 은 헤더가 없으면 None 이고 비교 대상 튜플이 (None, *allowed) 라 None 은 포함됩니다. 이 검사는 브라우저가 붙인 Origin 이 허용 목록 밖일 때만 막고, 레이트리밋은 Origin 과 무관하게 뒤에서 적용됩니다.", "ref": "backend/lovecode/api.py:74"},
+  {"q": "analyse 핸들러에서 analysis_admission.acquire(blocking=False) 가 False 를 돌려주면 어떤 응답이 나갑니까?", "options": ["즉시 429 ANALYSIS_BUSY 와 Retry-After: 5 를 돌려주며 일일 예산은 건드리지 않는다", "analysis_wait_seconds 만큼 기다렸다가 자리가 나면 분석을 진행한다", "503 ANALYSIS_UNAVAILABLE 을 돌려준다", "일일 예산을 먼저 확인한 뒤 429 DAILY_LIMIT 을 돌려준다"], "answer": 0, "explain": "blocking=False 인 acquire 는 자리가 없으면 기다리지 않고 False 를 돌려주고, 핸들러는 busy() 로 429 와 Retry-After: 5 를 만듭니다. 예산 확인은 입장권을 얻은 뒤 try 블록 안에서 하므로 이 경우 실행되지 않습니다.", "ref": "backend/lovecode/api.py:187"},
+  {"q": "Content-Type: application/json 으로 42,000 바이트짜리 본문을 POST /api/v1/analyses 에 보내면 어떻게 됩니까?", "options": ["boundary 가 스트림을 세다가 40,960 바이트를 넘는 순간 나머지를 읽지 않고 413 PAYLOAD_TOO_LARGE 를 돌려준다", "본문이 JSON 이 아니므로 422 INVALID_REQUEST 가 된다", "FastAPI 의 기본 본문 크기 제한이 먼저 413 을 만든다", "핸들러까지 도달한 뒤 AnalysisInput 검증에서 실패한다"], "answer": 0, "explain": "api.py:68-71 이 청크를 누적하며 40,960 바이트 초과 시 바로 413 을 돌려줍니다. FastAPI 0.143.0 은 Starlette 의 max_body_size 를 연결하지 않아 기본 제한이 없고, 미들웨어에서 끊기므로 핸들러와 검증에는 닿지 않습니다. tests/test_api.py:10-15 가 이 동작을 검사합니다.", "ref": "backend/lovecode/api.py:86"}
 ]
 </script>

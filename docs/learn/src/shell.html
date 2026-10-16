@@ -562,8 +562,8 @@ figure.code .line.hit { cursor: pointer; }
     { key: 'start', title: '시작: 앱과 요청', gate: '프런트 fetch → uvicorn → FastAPI 앱', intro: 'FastAPI 앱이 무엇으로 이뤄져 있고 요청이 어떤 모양으로 들어오는지 봅니다. create_app 팩토리, 다섯 개의 엔드포인트, 설정값이 여기서 정해집니다.', sections: ['fa-1-what', 'fa-1-app', 'fa-1-routes', 'fa-1-request', 'fa-2-settings', 'fa-3-asgi', 'fa-3-openapi'], quiz: ['fastapi-1'] },
     { key: 'middleware', title: '미들웨어', gate: 'response_headers → boundary', intro: '라우터에 닿기 전에 모든 요청이 지나는 두 겹입니다. 바깥 겹은 응답에 보안 헤더를 붙이고, 안쪽 겹은 Origin, Content-Type, 본문 40 KB, IP 버킷을 검사해 통과하지 못한 요청을 바로 돌려보냅니다.', sections: ['fa-2-middleware', 'fa-3-middleware-order', 'fa-3-body'], quiz: ['fastapi-2', 'fastapi-3'] },
     { key: 'validation', title: '검증', gate: 'Pydantic AnalysisInput → 422', intro: '본문 JSON 이 계약(contracts.py)에 맞는지 FastAPI 가 Pydantic 으로 검사합니다. 틀리면 커스텀 핸들러가 어느 필드가 문제인지 담아 422 를 돌려줍니다.', sections: ['fa-2-contracts', 'fa-3-validation-flow', 'fa-3-strict', 'fa-3-exception'], quiz: ['fastapi-2', 'fastapi-3'] },
-    { key: 'handler', title: '핸들러', gate: 'analyse(): 준비 → 동의 → 입장 → 예산', intro: '검증을 통과한 요청이 analyse 함수에 도착합니다. 분석 준비 여부, 동의, 동시 처리 20건, 하루 20건을 차례로 확인하고, 서비스가 던지는 예외를 상태 코드로 바꿉니다.', sections: ['fa-2-handlers', 'fa-3-sync', 'fa-3-limits-map'], quiz: ['fastapi-2', 'fastapi-3'] },
-    { key: 'service', title: '서비스와 동시성', gate: 'AnalysisService.analyse(): 사주 → BERT 슬롯 → 해설 슬롯', intro: '사주를 한 번 계산해 분류용 텍스트와 해설용 텍스트를 만들고, BERT 2건·해설 5건이라는 단계별 FIFO 슬롯 안에서 순서대로 실행합니다.', sections: ['fa-2-service', 'fa-3-stagelimit'], quiz: ['fastapi-2', 'fastapi-3'] },
+    { key: 'handler', title: '핸들러', gate: 'analyse(): 준비 → 동의 → 입장 → 예산', intro: '검증을 통과한 요청이 analyse 함수에 도착합니다. 분석 준비 여부, 동의, 동시 처리 50건, 하루 20건을 차례로 확인하고, 서비스가 던지는 예외를 상태 코드로 바꿉니다.', sections: ['fa-2-handlers', 'fa-3-sync', 'fa-3-limits-map'], quiz: ['fastapi-2', 'fastapi-3'] },
+    { key: 'service', title: '서비스와 동시성', gate: 'AnalysisService.analyse(): 사주 → BERT 슬롯 → 해설 슬롯', intro: '사주를 한 번 계산해 분류용 텍스트와 해설용 텍스트를 만들고, BERT 2건·해설 50건이라는 단계별 FIFO 슬롯 안에서 순서대로 실행합니다.', sections: ['fa-2-service', 'fa-3-stagelimit'], quiz: ['fastapi-2', 'fastapi-3'] },
     { key: 'chain', title: '해설 체인: 구조', gate: 'LangChain: 초안 → 검사 → 1회 재작성 → PublicResult', intro: 'LangChain 이 무엇이고 이 프로젝트에서 어떤 일을 맡는지, 체인이 어떤 단계로 이어지는지 봅니다. 분류기가 정한 유형을 받아 해설만 쓰는 역할 분담이 핵심입니다.', sections: ['lc-1-what', 'lc-1-role', 'lc-1-chain-overview', 'lc-1-llm', 'lc-2-steps', 'lc-2-finalize', 'lc-3-runnable', 'lc-3-sequence-invoke', 'lc-3-lambda-branch', 'lc-3-assign'], quiz: ['langchain-1', 'langchain-2', 'langchain-3'] },
     { key: 'prompt', title: '해설 체인: 프롬프트와 출력', gate: 'ChatPromptTemplate | with_structured_output(Explanation)', intro: '모델에게 무엇을 어떻게 시키는지, 답을 어떤 스키마로 강제하는지, 규칙 검사와 재작성이 어떻게 맞물리는지, OpenAI 와 Ollama 를 어떻게 바꿔 끼우는지 봅니다.', sections: ['lc-2-prompts', 'lc-2-schema', 'lc-2-call', 'lc-2-provider', 'lc-3-structured', 'lc-3-failure-modes', 'lc-3-prompt-design', 'lc-3-repair-loop', 'lc-3-checks', 'lc-3-provider-swap', 'lc-3-ops'], quiz: ['langchain-2', 'langchain-3'] },
     { key: 'response', title: '응답', gate: 'PublicResult → response_model 직렬화 → 보안 헤더', intro: '결과 dict 가 AnalysisResponse 로 검증되어 JSON 이 되고, 오류일 때는 항상 같은 모양의 error 객체가 나갑니다.', sections: ['fa-2-errors', 'fa-3-response-model'], quiz: ['fastapi-2', 'fastapi-3'] },
@@ -959,7 +959,7 @@ figure.code .line.hit { cursor: pointer; }
     { group: '서버 설정', key: 'artifact', label: '로컬 모델 아티팩트', type: 'select', on: ['analyses', 'health'], when: s => s.classifier === 'local', options: [['ok', 'sha256 일치, text_format = compact-v5'], ['bad', '체크섬 불일치 또는 다른 text_format']] },
     { group: '서버 설정', key: 'demoEnabled', label: 'LC_DEMO_ENABLED', type: 'select', on: ['demo', 'health'], options: [['true', 'true'], ['false', 'false']] },
     { group: '서버 설정', key: 'shareSecret', label: 'LC_SHARE_SECRET', type: 'select', on: ['analyses', 'shared', 'health'], options: [['ok', '32자 이상'], ['none', '비어 있음 또는 32자 미만']], help: '모든 인스턴스가 같은 값을 써야 하고, 바꾸면 이미 보낸 링크가 모두 열리지 않습니다.' },
-    { group: '서버 상태', key: 'inflight', label: '지금 처리 중인 분석', type: 'range', on: ['analyses'], min: 0, max: 24, step: 1, value: 0, help: '입장 세마포어 용량 LC_ANALYSIS_CAPACITY 기본 20.' },
+    { group: '서버 상태', key: 'inflight', label: '지금 처리 중인 분석', type: 'range', on: ['analyses'], min: 0, max: 54, step: 1, value: 0, help: '입장 세마포어 용량 LC_ANALYSIS_CAPACITY 기본 50.' },
     { group: '서버 상태', key: 'daily', label: '오늘 처리한 분석', type: 'range', on: ['analyses'], min: 0, max: 24, step: 1, value: 0, help: 'LC_DAILY_ANALYSIS_LIMIT 기본 20.' },
     { group: '서버 상태', key: 'stageWait', label: '단계 슬롯 대기 30초 초과', type: 'select', on: ['analyses'], options: [['none', '없음'], ['bert', '분류 단계에서 초과'], ['explain', '해설 단계에서 초과']] },
     { group: '처리 결과', key: 'saju', label: '사주 계산', type: 'select', on: ['analyses'], options: [['ok', '정상'], ['error', 'ValueError 계열 (ManseInputError 등)']], help: '입력 검증이 생년월일을 1940년~오늘로 제한하므로 지금은 방어적 분기입니다.' },
@@ -972,7 +972,7 @@ figure.code .line.hit { cursor: pointer; }
       ['다른 출처', { origin: 'other' }], ['text/plain', { ctype: 'text' }], ['본문 60 KB', { sizeKB: 60 }], ['필드 누락', { body: 'missing' }], ['동의 없음', { consent: 'false' }],
       ['변조된 링크', { route: 'shared', shareCode: 'tampered' }], ['너무 긴 링크', { route: 'shared', shareCode: 'toolong' }], ['금지어 든 링크', { route: 'shared', shareCode: 'banned' }]] },
     { cls: 'c429', code: '429', label: '혼잡·한도', items: [
-      ['IP 한도', { recent: 5 }], ['동시 20건', { inflight: 20 }], ['일일 한도', { daily: 20 }], ['슬롯 대기 초과', { stageWait: 'explain' }]] },
+      ['IP 한도', { recent: 5 }], ['동시 50건', { inflight: 50 }], ['일일 한도', { daily: 20 }], ['슬롯 대기 초과', { stageWait: 'explain' }]] },
     { cls: 'c5', code: '5xx', label: '서버·모델 오류', items: [
       ['설정 없음', { configured: 'false' }], ['공유 키 없음', { route: 'shared', shareSecret: 'none' }], ['공급자 장애', { explain: 'provider' }], ['재작성 후 거부', { explain: 'rejected' }], ['계약 검증 실패', { explain: 'contract' }]] },
   ];
@@ -1076,26 +1076,26 @@ figure.code .line.hit { cursor: pointer; }
     const path = { analyses: '/api/v1/analyses', demo: '/api/v1/demo-analysis', health: '/api/v1/health', taxonomy: '/api/v1/taxonomy', shared: '/api/v1/shared' }[s.route];
     const method = isPost ? 'POST' : 'GET';
     const finish = (resp) => ({ steps, resp, method, path, route: s.route });
-    add('info', 'uvicorn 이 ASGI 앱을 호출', '가장 바깥 사용자 미들웨어인 response_headers 가 먼저 요청을 받고 call_next 로 안쪽(boundary)에 넘깁니다. 응답이 돌아오면 보안 헤더 네 개를 붙입니다.', 'backend/lovecode/api.py:109', 'mw');
+    add('info', 'uvicorn 이 ASGI 앱을 호출', '가장 바깥 사용자 미들웨어인 response_headers 가 먼저 요청을 받고 call_next 로 안쪽(boundary)에 넘깁니다. 응답이 돌아오면 보안 헤더 네 개를 붙입니다.', 'backend/lovecode/api.py:125', 'mw');
     if (isPost) {
       const originOk = s.origin !== 'other';
       add(originOk ? 'pass' : 'reject', 'boundary · Origin 검사', originOk
         ? (s.origin === 'none' ? 'Origin 헤더가 없으면 None 이고, None 은 허용 튜플에 들어 있으므로 통과합니다. 브라우저가 아닌 클라이언트를 막지 않기 위한 선택입니다.' : '허용 목록(LC_ALLOWED_ORIGINS)에 있는 출처라 통과합니다.')
-        : '허용 목록에 없는 출처의 POST(와 DELETE)는 본문을 읽기도 전에 403 으로 끝납니다. CSRF 성격의 교차 출처 전송을 막습니다.', 'backend/lovecode/api.py:58', 'mw');
+        : '허용 목록에 없는 출처의 POST(와 DELETE)는 본문을 읽기도 전에 403 으로 끝납니다. CSRF 성격의 교차 출처 전송을 막습니다.', 'backend/lovecode/api.py:74', 'mw');
       if (!originOk) return finish(errResp('INVALID_REQUEST', 403));
       const ctOk = s.ctype !== 'text';
       add(ctOk ? 'pass' : 'reject', 'boundary · Content-Type 검사', ctOk
         ? '세미콜론 앞부분만 비교하므로 charset 이 붙어도 application/json 으로 인정합니다.'
-        : 'JSON 이 아닌 본문은 415 로 거절합니다. FastAPI 의 JSON 파싱 단계에 도달하지 않습니다.', 'backend/lovecode/api.py:64', 'mw');
+        : 'JSON 이 아닌 본문은 415 로 거절합니다. FastAPI 의 JSON 파싱 단계에 도달하지 않습니다.', 'backend/lovecode/api.py:80', 'mw');
       if (!ctOk) return finish(errResp('INVALID_REQUEST', 415));
       const bytes = s.sizeKB * 1024;
       const sizeOk = bytes <= 40960;
       add(sizeOk ? 'pass' : 'reject', 'boundary · 본문 40 KB 검사', sizeOk
         ? '스트림 청크를 더해 가며 ' + bytes.toLocaleString() + ' 바이트를 읽었고 한도 안이라 request._body 에 넣어 둡니다. BaseHTTPMiddleware 의 _CachedRequest 가 이 바이트를 안쪽 앱에 다시 흘려보내므로 엔드포인트가 같은 본문을 받습니다.'
-        : '누적 ' + bytes.toLocaleString() + ' 바이트가 40960 을 넘는 순간 나머지를 읽지 않고 413 을 돌려줍니다.', sizeOk ? 'backend/lovecode/api.py:73' : 'backend/lovecode/api.py:70', 'mw');
+        : '누적 ' + bytes.toLocaleString() + ' 바이트가 40960 을 넘는 순간 나머지를 읽지 않고 413 을 돌려줍니다.', sizeOk ? 'backend/lovecode/api.py:89' : 'backend/lovecode/api.py:86', 'mw');
       if (!sizeOk) return finish(errResp('PAYLOAD_TOO_LARGE', 413));
     } else {
-      add('skip', 'boundary · Origin, Content-Type, 크기 검사', 'GET 요청은 세 검사를 건너뜁니다. Origin 검사는 POST·DELETE 에, Content-Type·크기 검사는 POST 에만 적용됩니다.', 'backend/lovecode/api.py:58', 'mw');
+      add('skip', 'boundary · Origin, Content-Type, 크기 검사', 'GET 요청은 세 검사를 건너뜁니다. Origin 검사는 POST·DELETE 에, Content-Type·크기 검사는 POST 에만 적용됩니다.', 'backend/lovecode/api.py:74', 'mw');
     }
     if (s.rateEnabled === 'true') {
       const group = isPost ? 'analysis' : 'GET';
@@ -1103,26 +1103,26 @@ figure.code .line.hit { cursor: pointer; }
       const over = s.recent >= limit;
       add(over ? 'reject' : 'pass', 'boundary · IP 버킷 제한 (' + group + ' 그룹 ' + limit + '건/' + window + '초)', over
         ? '같은 솔트 해시 키의 큐 길이가 ' + Math.min(s.recent, limit) + ' 로 한도 ' + limit + ' 에 도달해 429 와 Retry-After: ' + window + ' 를 돌려줍니다. 거절된 요청은 큐에 추가되지 않으므로 큐 길이가 한도를 넘는 일은 없습니다.'
-        : '큐 길이 ' + s.recent + ' 는 한도 ' + limit + ' 미만이라 지금 시각을 큐에 추가하고 통과합니다. 경로가 analyses 나 demo-analysis 로 끝나면 analysis 그룹입니다.', 'backend/lovecode/api.py:102', 'mw');
+        : '큐 길이 ' + s.recent + ' 는 한도 ' + limit + ' 미만이라 지금 시각을 큐에 추가하고 통과합니다. 경로가 analyses 나 demo-analysis 로 끝나면 analysis 그룹입니다.', 'backend/lovecode/api.py:118', 'mw');
       if (over) return finish(errResp('RATE_LIMITED', 429, '잠시 후 다시 시도해 주세요.', null, { 'retry-after': String(window) }));
     } else {
-      add('skip', 'boundary · IP 버킷 제한', 'LC_RATE_LIMIT_ENABLED=false 라 건너뜁니다. 테스트의 client fixture 가 이 값을 끕니다.', 'backend/lovecode/api.py:74', 'mw');
+      add('skip', 'boundary · IP 버킷 제한', 'LC_RATE_LIMIT_ENABLED=false 라 건너뜁니다. 테스트의 client fixture 가 이 값을 끕니다.', 'backend/lovecode/api.py:90', 'mw');
     }
-    add('info', 'call_next → ExceptionMiddleware → Router', '사용자 미들웨어를 통과한 요청은 Starlette 라우터가 경로와 메서드로 핸들러를 고릅니다.', 'backend/lovecode/api.py:107', PIPES[s.route].includes('val') ? 'val' : 'handler');
+    add('info', 'call_next → ExceptionMiddleware → Router', '사용자 미들웨어를 통과한 요청은 Starlette 라우터가 경로와 메서드로 핸들러를 고릅니다.', 'backend/lovecode/api.py:123', PIPES[s.route].includes('val') ? 'val' : 'handler');
     if (s.route === 'health') {
-      add('pass', 'health 핸들러', 'service.ready() 와 shares.ready 를 읽어 준비 상태를 계산합니다. 동기 def 라 스레드풀에서 실행됩니다.', 'backend/lovecode/api.py:128', 'handler');
+      add('pass', 'health 핸들러', 'service.ready() 와 shares.ready 를 읽어 준비 상태를 계산합니다. 동기 def 라 스레드풀에서 실행됩니다.', 'backend/lovecode/api.py:144', 'handler');
       const ready = s.configured === 'true' && (s.classifier === 'openai' || s.artifact === 'ok');
       return finish({ status: 200, headers: BASE_HEADERS, body: { status: 'ok', analysis_ready: ready, demo_ready: s.demoEnabled === 'true', provider: 'openai', verification_mode: false, share_ready: s.shareSecret === 'ok', reason: ready ? 'configured_not_quality_certified' : 'configuration_required' } });
     }
     if (s.route === 'taxonomy') {
-      add('pass', 'taxonomy 핸들러', 'contracts.TAXONOMY dict 를 그대로 돌려줍니다. response_model 이 없어 dict 가 JSON 으로 직렬화됩니다.', 'backend/lovecode/api.py:143', 'handler');
+      add('pass', 'taxonomy 핸들러', 'contracts.TAXONOMY dict 를 그대로 돌려줍니다. response_model 이 없어 dict 가 JSON 으로 직렬화됩니다.', 'backend/lovecode/api.py:159', 'handler');
       return finish({ status: 200, headers: BASE_HEADERS, body: { T01: { axes: { chemistry: 'similar', temperature: 'passionate', distance: 'together', conflict: 'immediate' }, label: '닮은꼴·열정형·밀착형·바로 풀기' }, '…': '16개 유형' } });
     }
     if (s.route === 'shared') {
       const long = s.shareCode === 'toolong';
       add(long ? 'reject' : 'pass', '헤더 검증 · Header(max_length=MAX_CODE_CHARS)', long
         ? '매개변수 x_share_code 의 밑줄이 하이픈으로 바뀌어 X-Share-Code 헤더를 읽고, 4023자 제한을 넘어 핸들러 실행 전에 RequestValidationError 가 납니다. 커스텀 핸들러가 field=header.x-share-code 로 422 를 만듭니다. decode 는 호출되지 않습니다.'
-        : 'X-Share-Code 헤더 값을 x_share_code 로 받습니다. 길이 제한 안이라 통과합니다.', 'backend/lovecode/api.py:215', 'val');
+        : 'X-Share-Code 헤더 값을 x_share_code 로 받습니다. 길이 제한 안이라 통과합니다.', 'backend/lovecode/api.py:231', 'val');
       if (long) return finish(errResp('INVALID_REQUEST', 422, '입력값을 다시 확인해 주세요.', 'header.x-share-code'));
       const ready = s.shareSecret === 'ok';
       add(ready ? 'pass' : 'reject', 'decode · 공유 준비 (shares.ready)', ready ? '비밀 키가 32자 이상이라 검사를 시작합니다.' : '비밀 키가 없거나 짧아 어떤 코드든 503 SHARE_UNAVAILABLE 입니다. 링크가 틀린 것이 아니라 서버가 준비되지 않은 것이므로 400 과 구분합니다.', 'backend/lovecode/share.py:100', 'share');
@@ -1142,26 +1142,26 @@ figure.code .line.hit { cursor: pointer; }
       const banned = s.shareCode === 'banned';
       add(banned ? 'reject' : 'pass', 'decode · PublicResult 재검증, axes 복원', banned ? '서명이 맞아도 PublicResult 의 model_validator 가 금지어를 잡습니다. 규칙이 나중에 강화되면 예전 링크도 그 규칙을 따릅니다.' : 'axes 는 링크에서 받지 않고 TAXONOMY[type_id] 에서 채운 뒤, 출력 규칙을 한 번 더 통과시킵니다.', 'backend/lovecode/share.py:123', 'share');
       if (banned) return finish(BAD_LINK());
-      add('pass', 'response_model=SharedResult 직렬화', 'result 와 created_at(발행일, 한국 날짜 자정) 두 필드를 JSON 으로 만듭니다. 서버에는 아무것도 남지 않습니다.', 'backend/lovecode/api.py:209', 'end');
+      add('pass', 'response_model=SharedResult 직렬화', 'result 와 created_at(발행일, 한국 날짜 자정) 두 필드를 JSON 으로 만듭니다. 서버에는 아무것도 남지 않습니다.', 'backend/lovecode/api.py:225', 'end');
       return finish({ status: 200, headers: BASE_HEADERS, body: { result: Object.assign({}, SAMPLE_RESULT, { evidence_status: 'ai_draft_unreviewed' }), created_at: '2026-10-14T15:00:00Z' } });
     }
     if (s.route === 'demo') {
       const firstKey = s.body === 'empty' ? null : 'person_a';
       add(firstKey ? 'reject' : 'pass', 'Pydantic 검증 · body: Strict', firstKey
         ? 'Strict 는 필드가 하나도 없는 모델이고 extra="forbid" 라, 어떤 키든 들어 있으면 extra_forbidden 오류가 납니다. 오류는 본문 키 순서대로 쌓이고 프런트·테스트 본문은 person_a 가 첫 키라, 커스텀 핸들러가 첫 오류의 loc 에서 field=person_a 를 만듭니다. 그래서 frontend/app/test/page.tsx 는 demo 에 {} 를 보냅니다.'
-        : '빈 객체 {} 라 통과합니다. 예시 결과에는 입력이 필요 없습니다.', 'backend/lovecode/api.py:201', 'val');
+        : '빈 객체 {} 라 통과합니다. 예시 결과에는 입력이 필요 없습니다.', 'backend/lovecode/api.py:217', 'val');
       if (firstKey) return finish(errResp('INVALID_REQUEST', 422, '입력값을 다시 확인해 주세요.', firstKey));
       const on = s.demoEnabled === 'true';
-      add(on ? 'pass' : 'reject', 'demo 핸들러 · LC_DEMO_ENABLED', on ? 'contracts.demo_result() 의 고정 결과를 analysis_response 로 감쌉니다. shareable 기본값이 False 라 share_code 는 붙지 않습니다.' : '예시 결과가 꺼져 있어 503 입니다.', 'backend/lovecode/api.py:202', 'handler');
+      add(on ? 'pass' : 'reject', 'demo 핸들러 · LC_DEMO_ENABLED', on ? 'contracts.demo_result() 의 고정 결과를 analysis_response 로 감쌉니다. shareable 기본값이 False 라 share_code 는 붙지 않습니다.' : '예시 결과가 꺼져 있어 503 입니다.', 'backend/lovecode/api.py:218', 'handler');
       if (!on) return finish(errResp('ANALYSIS_UNAVAILABLE', 503));
-      add('pass', 'response_model=AnalysisResponse 직렬화', 'dict 를 AnalysisResponse 로 검증한 뒤 None 필드를 빼고 JSON 으로 만듭니다.', 'backend/lovecode/api.py:200', 'end');
+      add('pass', 'response_model=AnalysisResponse 직렬화', 'dict 를 AnalysisResponse 로 검증한 뒤 None 필드를 빼고 JSON 으로 만듭니다.', 'backend/lovecode/api.py:216', 'end');
       return finish({ status: 200, headers: BASE_HEADERS, body: { analysis_id: '3f0c9a1e-…(uuid4)', result: Object.assign({}, SAMPLE_RESULT, { evidence_status: 'fixture' }) } });
     }
     // analyses
     const VALID = { valid: null, empty: ['person_a', '빈 객체라 person_a 부터 missing 오류가 납니다. loc 는 ("body","person_a") 입니다.'], missing: ['person_a.mbti', '필수 필드가 없어 loc 가 ("body","person_a","mbti") 입니다.'], extra: ['nickname', 'AnalysisInput 은 extra="forbid" 라 모르는 키가 오류입니다.'], mbti: ['person_a.mbti', 'Person.valid_mbti 가 정규식에 맞지 않아 ValueError 를 올립니다.'], date: ['person_b.birth_date', 'Person.valid_date 가 1940년 이전 날짜를 거절합니다.'] }[s.body];
     add(VALID ? 'reject' : 'pass', 'Pydantic 검증 · body: AnalysisInput', VALID
       ? VALID[1] + ' RequestValidationError 핸들러가 loc 에서 "body" 를 빼고 점으로 이어 field 를 만듭니다.'
-      : 'FastAPI 가 request._body 의 JSON 을 AnalysisInput 으로 검증합니다. 세 validator 모두 통과했습니다.', 'backend/lovecode/api.py:154', 'val');
+      : 'FastAPI 가 request._body 의 JSON 을 AnalysisInput 으로 검증합니다. 세 validator 모두 통과했습니다.', 'backend/lovecode/api.py:170', 'val');
     if (VALID) return finish(errResp('INVALID_REQUEST', 422, '입력값을 다시 확인해 주세요.', VALID[0]));
     const ready = s.configured === 'true' && (s.classifier === 'openai' || s.artifact === 'ok');
     add(ready ? 'pass' : 'reject', 'analyse · service.ready()', ready
@@ -1169,17 +1169,17 @@ figure.code .line.hit { cursor: pointer; }
       : (s.configured !== 'true' ? 'real_analysis_enabled, api_enabled, api_key, model, provider 중 하나라도 비면 False 라 503 입니다.' : '로컬 모델 로드가 실패하거나 compact-v5 가 아니면 False 입니다.'), 'backend/lovecode/service.py:23', 'handler');
     if (!ready) return finish(errResp('ANALYSIS_UNAVAILABLE', 503, '실제 분석은 아직 준비 중이에요. 예시 결과를 둘러볼 수 있어요.'));
     const consent = s.consent === 'true';
-    add(consent ? 'pass' : 'reject', 'analyse · external_processing_consent', consent ? '동의가 true 라 OpenAI 로 파생 데이터를 보낼 수 있습니다.' : '동의 없이는 외부 전송을 하지 않습니다. 준비 검사 뒤, 입장 제한 앞에서 422 를 돌려줍니다.', 'backend/lovecode/api.py:161', 'handler');
+    add(consent ? 'pass' : 'reject', 'analyse · external_processing_consent', consent ? '동의가 true 라 OpenAI 로 파생 데이터를 보낼 수 있습니다.' : '동의 없이는 외부 전송을 하지 않습니다. 준비 검사 뒤, 입장 제한 앞에서 422 를 돌려줍니다.', 'backend/lovecode/api.py:177', 'handler');
     if (!consent) return finish(errResp('CONSENT_REQUIRED', 422, 'OpenAI 처리 동의를 확인해 주세요.'));
-    const admit = s.inflight < 20;
+    const admit = s.inflight < 50;
     add(admit ? 'pass' : 'reject', 'analyse · 입장 세마포어 (용량 20)', admit
       ? 'BoundedSemaphore.acquire(blocking=False) 가 True 를 돌려줍니다. 처리 중 ' + s.inflight + '건이라 자리가 있습니다.'
-      : '처리 중 ' + s.inflight + '건이라 즉시 False 가 돌아오고, 기다리지 않고 429 ANALYSIS_BUSY 와 Retry-After: 5 를 돌려줍니다.', 'backend/lovecode/api.py:171', 'handler');
+      : '처리 중 ' + s.inflight + '건이라 즉시 False 가 돌아오고, 기다리지 않고 429 ANALYSIS_BUSY 와 Retry-After: 5 를 돌려줍니다.', 'backend/lovecode/api.py:187', 'handler');
     if (!admit) return finish(BUSY());
     const budgetOk = s.daily < 20;
     add(budgetOk ? 'pass' : 'reject', 'analyse · 일일 예산 (20건)', budgetOk
       ? 'budget_lock 안에서 날짜를 확인하고 count 를 ' + (s.daily + 1) + ' 로 올립니다. 날짜는 UTC 기준(한국 시간 09:00 초기화)이고, 분석을 시작하기 전에 올리므로 뒤에서 502·503 으로 실패해도 되돌리지 않습니다. 인스턴스 메모리에만 있는 값입니다.'
-      : '오늘 ' + s.daily + '건을 이미 처리해 429 DAILY_LIMIT 입니다. finally 가 입장 슬롯을 돌려줍니다.', 'backend/lovecode/api.py:178', 'handler');
+      : '오늘 ' + s.daily + '건을 이미 처리해 429 DAILY_LIMIT 입니다. finally 가 입장 슬롯을 돌려줍니다.', 'backend/lovecode/api.py:194', 'handler');
     if (!budgetOk) return finish(errResp('DAILY_LIMIT', 429, '오늘의 분석 한도에 도달했어요. 다음에 다시 찾아주세요.'));
     const sajuOk = s.saju === 'ok';
     add(sajuOk ? 'pass' : 'reject', 'service.analyse · features.analysis_inputs', sajuOk
@@ -1232,8 +1232,8 @@ figure.code .line.hit { cursor: pointer; }
     const share = s.shareSecret === 'ok';
     add(share ? 'pass' : 'skip', 'analysis_response · share_code', share
       ? 'shareable=True 이고 키가 준비되어 ShareCodec.encode 가 결과를 압축·서명한 코드(약 1 KB)를 붙입니다. 공유 링크 단계에서 이 코드를 엽니다.'
-      : 'LC_SHARE_SECRET 이 32자 미만이라 shares.ready 가 False 입니다. share_code 는 None 이 되어 response_model_exclude_none 이 키를 뺍니다. 분석 결과는 정상으로 나갑니다.', 'backend/lovecode/api.py:149', 'end');
-    add('pass', 'finally release → response_model 직렬화', 'return 하는 순간 finally 가 입장 슬롯을 돌려줍니다. 그 뒤 FastAPI 가 analysis_id 를 붙인 dict 를 AnalysisResponse 로 검증하고 None 을 뺀 JSON 으로 만들며, response_headers 가 헤더를 붙입니다.', 'backend/lovecode/api.py:184', 'end');
+      : 'LC_SHARE_SECRET 이 32자 미만이라 shares.ready 가 False 입니다. share_code 는 None 이 되어 response_model_exclude_none 이 키를 뺍니다. 분석 결과는 정상으로 나갑니다.', 'backend/lovecode/api.py:165', 'end');
+    add('pass', 'finally release → response_model 직렬화', 'return 하는 순간 finally 가 입장 슬롯을 돌려줍니다. 그 뒤 FastAPI 가 analysis_id 를 붙인 dict 를 AnalysisResponse 로 검증하고 None 을 뺀 JSON 으로 만들며, response_headers 가 헤더를 붙입니다.', 'backend/lovecode/api.py:200', 'end');
     const body = { analysis_id: '3f0c9a1e-…(uuid4)', result: Object.assign({}, SAMPLE_RESULT, { evidence_status: 'ai_draft_unreviewed' }) };
     if (share) body.share_code = 'jZBNbtswEIX3OQX…(약 1 KB).Qm3x8Vt0…(22자)';
     return finish({ status: 200, headers: BASE_HEADERS, body });

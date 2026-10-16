@@ -44,8 +44,8 @@ npm --prefix frontend run start
 - 두 프로젝트 모두 Hobby, API는 CPU BERT를 포함한 Large Functions 베타를 사용합니다.
 - DB와 저장소는 사용하지 않습니다. 공유 링크는 서명된 결과를 링크에 담고, 열 때 API가 서명과 내용 규칙을 다시 확인합니다(`GET /api/v1/shared`). 배포 진입점은 `deploy/vercel/main.py`입니다.
 - OpenAI 키는 **API 프로젝트의 서버 환경변수**에만 설정합니다. 프런트엔드에는 넣지 않습니다.
-- 인스턴스당 최대 20건을 수용합니다(`LC_ANALYSIS_CAPACITY`). BERT는 2건(`LC_BERT_CONCURRENCY`), 해설은 5건(`LC_EXPLANATION_CONCURRENCY`)씩 별도 실행합니다. BERT 슬롯은 해설 대기 전에 반환합니다. 각 단계는 FIFO 대기하며 분석 시작 후 30초를 공통 대기 기한으로 사용합니다(`LC_ANALYSIS_WAIT_SECONDS`). 실행 중 호출을 중단하는 기한은 아니며, 해설 API 타임아웃은 별도 45초입니다. 초과·대기 만료 시 429와 `Retry-After: 5`를 반환합니다. 전역·영속 큐가 아니므로 재시작 시 대기 요청을 복구하지 않습니다.
-- 같은 IP의 분석 5회/10분 제한은 유지합니다. 같은 사무실 NAT에서 20명이 접속하는 경우 이 제한이 먼저 걸릴 수 있습니다. 해설 5건 동시 호출은 OpenAI 계정의 RPM/TPM 한도에 따라 실패할 수 있으며 재시도하지 않습니다. 로컬 20건 성공은 운영 환경의 성능 보장이 아닙니다.
+- 인스턴스당 최대 50건을 수용합니다(`LC_ANALYSIS_CAPACITY`). BERT는 2건(`LC_BERT_CONCURRENCY`), 해설은 50건(`LC_EXPLANATION_CONCURRENCY`)씩 별도 실행합니다. 동기 엔드포인트가 도는 스레드 풀은 앱 시작 시 한도 + 10개(기본 60)로 늘립니다. BERT 슬롯은 해설 대기 전에 반환합니다. 각 단계는 FIFO 대기하며 분석 시작 후 30초를 공통 대기 기한으로 사용합니다(`LC_ANALYSIS_WAIT_SECONDS`). 실행 중 호출을 중단하는 기한은 아니며, 해설 API 타임아웃은 별도 45초입니다. 초과·대기 만료 시 429와 `Retry-After: 5`를 반환합니다. 전역·영속 큐가 아니므로 재시작 시 대기 요청을 복구하지 않습니다.
+- 같은 IP의 분석 5회/10분 제한은 유지합니다. 같은 사무실 NAT에서 여러 명이 접속하는 경우 이 제한이 먼저 걸릴 수 있습니다. 해설 50건 동시 호출은 OpenAI 계정의 RPM/TPM 한도(50건이면 약 175k~350k TPM)에 따라 실패할 수 있으며 재시도하지 않습니다. 해설은 대부분 OpenAI 응답 대기라 자리를 넉넉히 두고, 인스턴스 확장은 Vercel Fluid compute에 맡깁니다([TECH_SPEC 15절](docs/TECH_SPEC.md)). 로컬 50건 성공은 운영 환경의 성능 보장이 아닙니다.
 - `LC_DAILY_ANALYSIS_LIMIT=20`은 인스턴스별 제한입니다. DB를 쓰지 않으므로 재시작·다중 인스턴스를 합친 비용 상한은 아닙니다. Vercel 무료 한도와 OpenAI 사용료는 별개입니다.
 
 GitHub 연결 후 `main`에 PR이 병합되면 두 Vercel 프로젝트가 각각 자동 배포됩니다.
