@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from .checks import HARD, find_problems, texts_of
 from .contracts import AXIS_KEYS, AXIS_LABELS, AXIS_VALUES, TAXONOMY, PublicResult
-from .provider import ProviderError
+from .provider import ProviderError, http_failure_detail
 from .settings import settings
 from .spicy import Extras, extras_problems, extras_prompt, finalize_extras, split_extras
 
@@ -283,10 +283,12 @@ class LangChainExplainer:
             # Request bodies must not be exported even if a shell enables LangSmith tracing.
             with tracing_context(enabled=False):
                 out = chain.invoke(inputs)
-        except Exception:  # noqa: BLE001 - any provider/network/parser error maps to one code
-            # No prompts, responses or credentials in errors.
+        except Exception as e:  # noqa: BLE001 - any provider/network/parser error maps to one code
+            # No prompts, responses or credentials in errors; `failure` holds only status/codes.
             meta.update(
-                error="PROVIDER_REQUEST_FAILED", elapsed_seconds=time.perf_counter() - start
+                error="PROVIDER_REQUEST_FAILED",
+                failure=http_failure_detail(e),
+                elapsed_seconds=time.perf_counter() - start,
             )
             return None, meta
         meta["elapsed_seconds"] = time.perf_counter() - start
@@ -371,7 +373,7 @@ class LangChainExplainer:
         meta = state["meta"]
         meta["remaining_problems"] = sorted({k for k, _ in state["problems"]})
         if meta["error"] == "PROVIDER_REQUEST_FAILED":
-            raise ProviderError("PROVIDER_REQUEST_FAILED")
+            raise ProviderError("PROVIDER_REQUEST_FAILED", **meta.get("failure", {}))
         if state["parsed"] is None or HARD & set(meta["remaining_problems"]):
             raise ProviderError("OUTPUT_REJECTED")
         base, extra = split_extras(state["parsed"])
