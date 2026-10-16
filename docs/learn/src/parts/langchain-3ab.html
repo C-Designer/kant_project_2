@@ -761,7 +761,7 @@ def _oai_structured_outputs_parser(
   </ol>
   <p>왜 이렇게 했는가: 요청당 비용과 지연에 상한을 두기 위해서입니다. 기본값대로라면 <code>_call</code> 한 번이 최대 세 번의 HTTP 시도와 시도당 600초까지 걸릴 수 있지만, 지금은 한 번에 45초가 상한입니다. 서비스는 그동안 해설 슬롯을 쥐고 있으므로(<code>service.py:60-63</code>) SDK 안의 보이지 않는 재시도는 슬롯 점유 시간을 늘릴 뿐이고, 모듈 docstring(7-9)과 <code>provider.py</code> 첫 줄이 "재시도 없음"을 명시합니다. 재시도 여부는 SDK 가 아니라 바깥에서 결정하며, 현재 서비스는 502 와 <code>retryable: true</code>(api.py:30)로 클라이언트에게 그 판단을 넘깁니다.</p>
   <p>마지막으로 세 실패가 HTTP 응답으로 어떻게 나뉘는지입니다. <code>ProviderError</code> 는 종류와 무관하게 <code>api.py</code> 에서 502 가 됩니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="183-190">
+  <code-block file="backend/lovecode/api.py" lines="199-206">
             result, _ = service.analyse(body)
             return analysis_response(result, shareable=True)
         except AnalysisBusy:
@@ -772,9 +772,9 @@ def _oai_structured_outputs_parser(
             )
 </code-block>
   <ol class="notes">
-    <li data-line="183"><code>service.analyse</code> 안에서 <code>explain()</code> 이 <code>ProviderError</code> 를 던지면 이 <code>try</code> 를 빠져나옵니다.</li>
-    <li data-line="187"><code>PROVIDER_REQUEST_FAILED</code> 든 <code>OUTPUT_REJECTED</code> 든 502 <code>PROVIDER_UNAVAILABLE</code> 입니다. <code>error()</code> 가 <code>retryable: status &gt;= 500</code> 을 붙이므로(30) 클라이언트가 재시도를 결정합니다.</li>
-    <li data-line="189">사용자 메시지는 고정 문구이고 내부 코드나 응답 본문은 노출되지 않습니다. 테스트가 "private error" 미노출을 단언합니다(tests/test_langchain_web.py:79).</li>
+    <li data-line="199"><code>service.analyse</code> 안에서 <code>explain()</code> 이 <code>ProviderError</code> 를 던지면 이 <code>try</code> 를 빠져나옵니다.</li>
+    <li data-line="203"><code>PROVIDER_REQUEST_FAILED</code> 든 <code>OUTPUT_REJECTED</code> 든 502 <code>PROVIDER_UNAVAILABLE</code> 입니다. <code>error()</code> 가 <code>retryable: status &gt;= 500</code> 을 붙이므로(30) 클라이언트가 재시도를 결정합니다.</li>
+    <li data-line="205">사용자 메시지는 고정 문구이고 내부 코드나 응답 본문은 노출되지 않습니다. 테스트가 "private error" 미노출을 단언합니다(tests/test_langchain_web.py:79).</li>
   </ol>
   <ul>
     <li>502 로 끝나는 경우: 첫 호출 또는 수리 호출이 <code>PROVIDER_REQUEST_FAILED</code>(317-318); 수리 뒤에도 <code>parsed</code> 가 None 이거나 <code>HARD</code>(length, mbti_code, hanja, markup) 문제가 남음(319-320); <code>PublicResult</code> 검증 실패(321-330).</li>
@@ -783,7 +783,7 @@ def _oai_structured_outputs_parser(
   </ul>
   <p>테스트 <code>tests/test_langchain_web.py:16-86</code> 이 이 표를 그대로 검증합니다. 200·429·500 은 HTTP 호출 1회, incomplete·refusal·invalid(요약에 MBTI 코드)는 2회이며(78), 200 을 제외한 모든 경우가 502 로 끝납니다(84).</p>
   <aside class="principle"><h4>원리 노트: 실패를 예외가 아니라 데이터로 넘기기</h4><p>LCEL 시퀀스는 예외를 삼키지 않으므로, 중간 단계가 판단해야 하는 실패는 반환값으로 바꿔야 다음 단계가 볼 수 있습니다. <code>include_raw=True</code> 가 그 패턴의 라이브러리 구현(<code>parsing_error</code> 키)이고, <code>_call</code> 의 <code>meta["error"]</code> 와 <code>_review_step</code> 의 <code>problems</code> 가 프로젝트 쪽 구현입니다. 반대로 더 이상 어떤 단계도 복구할 수 없는 실패(<code>_finalize</code> 의 <code>ProviderError</code>)는 예외로 던져 시퀀스를 빠져나가고, HTTP 계층이 상태 코드로 번역합니다.</p></aside>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="249">backend/lovecode/generator.py:249</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_openai/chat_models/base.py" data-line="5175">langchain_openai/chat_models/base.py:5175</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_core/runnables/fallbacks.py" data-line="189">langchain_core/runnables/fallbacks.py:189</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="187">backend/lovecode/api.py:187</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="249">backend/lovecode/generator.py:249</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_openai/chat_models/base.py" data-line="5175">langchain_openai/chat_models/base.py:5175</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_core/runnables/fallbacks.py" data-line="189">langchain_core/runnables/fallbacks.py:189</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="203">backend/lovecode/api.py:203</a></p>
 </section>
 
 <script type="application/json" class="quiz" data-track="langchain" data-depth="3" data-part="a">

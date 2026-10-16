@@ -16,7 +16,7 @@
       "해설: LangChain LCEL 체인(초안 → checks.py 점검 → 위반 시 1회 재작성 → PublicResult), 프롬프트 explain-lc-v4, GPT-6 Luna 사용. 같은 체인을 Ollama로도 돌릴 수 있지만 웹 서비스는 OpenAI로 고정",
       "사주: saju/ 패키지로 한 번 계산해 BERT 입력(compact)·해설 입력(narrative)·limitations를 함께 만듦",
       "저장: DB 없음. 공유는 HMAC-SHA256으로 서명한 결과를 URL에 담는 share.py(LC_SHARE_SECRET)",
-      "동시성: 입장 20건 + StageLimit으로 BERT 2건·해설 5건을 FIFO로 따로 제한, 공통 30초 기한, 하루 20건 유지",
+      "동시성: 입장 50건 + StageLimit으로 BERT 2건·해설 50건을 FIFO로 따로 제한(스레드 풀 60), 공통 30초 기한, 하루 20건 유지",
       "화면·배포: 한 화면 입력과 단일 동의, 로딩 스켈레톤, /r 공유 화면, /learn 학습 페이지, main 병합 시 Vercel 자동 배포와 CI 필수 체크 4개"
     ]
   },

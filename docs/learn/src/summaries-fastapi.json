@@ -114,7 +114,7 @@
   "fa-3-sync": {
     "bullets": [
       "def 엔드포인트는 anyio 워커 스레드에서 돈다",
-      "기본 CapacityLimiter 는 40 토큰이다",
+      "기본 CapacityLimiter 는 40 토큰이고, 러브코드는 lifespan 에서 60 으로 늘린다",
       "미들웨어 dispatch 는 이벤트 루프에서 await 된다"
     ],
     "takeaway": "BERT 추론, 동기 OpenAI 호출, Condition.wait 가 모두 블로킹이라 analyse 를 def 로 두어 스레드에서 돌리고 루프를 지킵니다."

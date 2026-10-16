@@ -342,7 +342,7 @@
   {
     "term": "CapacityLimiter",
     "match": ["CapacityLimiter"],
-    "def": "anyio 가 동시에 실행할 수 있는 작업 수를 토큰으로 제한하는 객체이며, 로컬 .venv 의 anyio 에서 기본 스레드 리미터는 토큰 40개입니다."
+    "def": "anyio 가 동시에 실행할 수 있는 작업 수를 토큰으로 제한하는 객체이며, 로컬 .venv 의 anyio 에서 기본 스레드 리미터는 토큰 40개입니다. 러브코드는 lifespan 에서 입장 한도 + 10(기본 60)으로 늘립니다."
   },
   {
     "term": "기한 전파",

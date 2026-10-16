@@ -9,7 +9,7 @@
     <div class="fa"><b>4 · 검증과 복원</b>서명을 확인하고 압축을 풀어 <code>SharedResult</code> 로 돌려줍니다. 저장은 없습니다.</div>
   </div>
   <p>첫 단계는 응답을 만드는 작은 헬퍼 하나에 들어 있습니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="147-151">
+  <code-block file="backend/lovecode/api.py" lines="163-167">
     def analysis_response(result, shareable=False):
         body = {"analysis_id": str(uuid.uuid4()), "result": result.model_dump()}
         if shareable and shares.ready and (code := shares.encode(result)):
@@ -17,13 +17,13 @@
         return body
 </code-block>
   <ol class="notes">
-    <li data-line="147"><code>analyse</code> 와 <code>demo</code> 두 핸들러가 함께 쓰는 헬퍼입니다. <code>shareable</code> 기본값이 <code>False</code> 라 예시 결과에는 공유 코드가 붙지 않습니다.</li>
-    <li data-line="148">기본 응답은 그대로입니다. 공유가 꺼져 있어도 분석 결과는 정상으로 나갑니다.</li>
-    <li data-line="149">세 조건이 모두 참일 때만 붙입니다. 실제 분석이고, 비밀 키가 32자 이상이고, 인코딩한 코드가 길이 한도 안에 들어올 때입니다. <code>:=</code> 는 값을 대입하면서 동시에 조건으로 쓰는 할당 표현식입니다.</li>
-    <li data-line="150">붙지 않는 경우에는 키 자체가 없습니다. <code>AnalysisResponse.share_code</code> 의 기본값이 <code>None</code> 이고 <code>response_model_exclude_none=True</code> 라 응답 JSON 에서 빠집니다.</li>
+    <li data-line="163"><code>analyse</code> 와 <code>demo</code> 두 핸들러가 함께 쓰는 헬퍼입니다. <code>shareable</code> 기본값이 <code>False</code> 라 예시 결과에는 공유 코드가 붙지 않습니다.</li>
+    <li data-line="164">기본 응답은 그대로입니다. 공유가 꺼져 있어도 분석 결과는 정상으로 나갑니다.</li>
+    <li data-line="165">세 조건이 모두 참일 때만 붙입니다. 실제 분석이고, 비밀 키가 32자 이상이고, 인코딩한 코드가 길이 한도 안에 들어올 때입니다. <code>:=</code> 는 값을 대입하면서 동시에 조건으로 쓰는 할당 표현식입니다.</li>
+    <li data-line="166">붙지 않는 경우에는 키 자체가 없습니다. <code>AnalysisResponse.share_code</code> 의 기본값이 <code>None</code> 이고 <code>response_model_exclude_none=True</code> 라 응답 JSON 에서 빠집니다.</li>
   </ol>
   <p>이 방식의 대가도 분명합니다. 링크는 보통 0.7~2 KB(압축이 거의 안 되는 최악의 경우 약 3.3 KB)로 길고, 보낸 링크 하나만 골라 취소할 방법이 없으며(만료 검사도 지금은 두지 않았습니다), 비밀 키 <code>LC_SHARE_SECRET</code> 을 바꾸면 이미 보낸 링크가 모두 열리지 않습니다. 저장소를 두지 않는다는 결정을 지키려고 이 대가를 받아들였습니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="147">backend/lovecode/api.py:147</a>, <a class="src" data-file="backend/lovecode/share.py" data-line="1">backend/lovecode/share.py:1</a>, <a class="src" data-file="frontend/lib/share.ts" data-line="1">frontend/lib/share.ts:1</a>, <a class="src" data-file="frontend/app/r/page.tsx" data-line="48">frontend/app/r/page.tsx:48</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/api.py" data-line="163">backend/lovecode/api.py:163</a>, <a class="src" data-file="backend/lovecode/share.py" data-line="1">backend/lovecode/share.py:1</a>, <a class="src" data-file="frontend/lib/share.ts" data-line="1">frontend/lib/share.ts:1</a>, <a class="src" data-file="frontend/app/r/page.tsx" data-line="48">frontend/app/r/page.tsx:48</a></p>
 </section>
 
 <section class="lesson" id="fa-2-share" data-track="fastapi" data-depth="2">
@@ -54,7 +54,7 @@
     <li data-line="97">길이 한도를 넘으면 <code>None</code> 을 돌려줍니다. 공유는 부가 기능이라 실패해도 분석 응답을 망치지 않고 <code>share_code</code> 만 빠집니다.</li>
   </ol>
   <p>링크를 여는 쪽은 엔드포인트 하나입니다. 코드가 URL 이 아니라 헤더로 들어온다는 점이 핵심입니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="206-219">
+  <code-block file="backend/lovecode/api.py" lines="222-235">
     # The code arrives in a header, not the URL, so access logs never hold shared results.
     @app.get(
         "/api/v1/shared",
@@ -71,11 +71,11 @@
             return error(e.code, e.status, e.message)
 </code-block>
   <ol class="notes">
-    <li data-line="206">쿼리스트링(<code>?code=…</code>)으로 받았다면 결과를 풀 수 있는 코드 전체가 웹 서버와 프록시의 접근 로그에 남습니다. 헤더는 보통 로그에 남지 않습니다.</li>
-    <li data-line="209"><code>SharedResult</code> 는 <code>result</code> 와 <code>created_at</code> 두 필드뿐인 응답 모델입니다. <code>Strict</code> 를 상속해 모르는 키가 섞이지 않습니다.</li>
-    <li data-line="210"><code>responses</code> 는 실행에 영향을 주지 않고 OpenAPI 문서에만 400·503 응답을 적어 둡니다.</li>
-    <li data-line="215">매개변수 이름 <code>x_share_code</code> 의 밑줄을 FastAPI 가 하이픈으로 바꿔 <code>x-share-code</code> 헤더를 찾습니다. <code>max_length</code> 를 넘는 헤더는 디코딩 전에 검증 단계에서 422 로 끊깁니다.</li>
-    <li data-line="217">검사와 복원은 모두 <code>ShareCodec.decode</code> 가 맡고, 핸들러는 <code>ShareError</code> 를 공통 <code>error()</code> 모양으로 바꾸기만 합니다.</li>
+    <li data-line="222">쿼리스트링(<code>?code=…</code>)으로 받았다면 결과를 풀 수 있는 코드 전체가 웹 서버와 프록시의 접근 로그에 남습니다. 헤더는 보통 로그에 남지 않습니다.</li>
+    <li data-line="225"><code>SharedResult</code> 는 <code>result</code> 와 <code>created_at</code> 두 필드뿐인 응답 모델입니다. <code>Strict</code> 를 상속해 모르는 키가 섞이지 않습니다.</li>
+    <li data-line="226"><code>responses</code> 는 실행에 영향을 주지 않고 OpenAPI 문서에만 400·503 응답을 적어 둡니다.</li>
+    <li data-line="231">매개변수 이름 <code>x_share_code</code> 의 밑줄을 FastAPI 가 하이픈으로 바꿔 <code>x-share-code</code> 헤더를 찾습니다. <code>max_length</code> 를 넘는 헤더는 디코딩 전에 검증 단계에서 422 로 끊깁니다.</li>
+    <li data-line="233">검사와 복원은 모두 <code>ShareCodec.decode</code> 가 맡고, 핸들러는 <code>ShareError</code> 를 공통 <code>error()</code> 모양으로 바꾸기만 합니다.</li>
   </ol>
   <p><code>decode</code> 는 값싼 검사부터 비싼 작업 순으로 관문을 세웁니다.</p>
   <code-block file="backend/lovecode/share.py" lines="99-127">
@@ -118,7 +118,7 @@
     <li data-line="123">서명이 맞아도 <code>PublicResult</code> 를 다시 만들어 출력 규칙(금지어·날짜 패턴 등)을 한 번 더 통과시킵니다. 규칙이 나중에 강화되면 예전에 서명된 링크도 그 규칙을 따릅니다. <code>axes</code> 는 링크에서 받지 않고 <code>TAXONOMY</code> 에서 다시 채웁니다.</li>
     <li data-line="125">압축 해제·파싱·재검증에서 나올 예외를 모두 같은 400 <code>INVALID_SHARE_LINK</code> 로 모읍니다. 어느 관문에서 실패했는지 밖에 알려 주지 않습니다.</li>
   </ol>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/share.py" data-line="85">backend/lovecode/share.py:85</a>, <a class="src" data-file="backend/lovecode/share.py" data-line="99">backend/lovecode/share.py:99</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="206">backend/lovecode/api.py:206</a>, <a class="src" data-file="backend/lovecode/contracts.py" data-line="131">backend/lovecode/contracts.py:131</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/share.py" data-line="85">backend/lovecode/share.py:85</a>, <a class="src" data-file="backend/lovecode/share.py" data-line="99">backend/lovecode/share.py:99</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="222">backend/lovecode/api.py:222</a>, <a class="src" data-file="backend/lovecode/contracts.py" data-line="131">backend/lovecode/contracts.py:131</a></p>
 </section>
 
 <section class="lesson" id="fa-3-share" data-track="fastapi" data-depth="3">
@@ -232,8 +232,8 @@ def test_any_tampering_is_refused(client):
 
 <script type="application/json" class="quiz" data-track="fastapi" data-depth="2" data-part="share">
 [
-  {"q": "POST /api/v1/demo-analysis 응답에 share_code 가 없는 이유로 맞는 것은?", "options": ["예시 결과는 PublicResult 검증을 통과하지 못해 인코딩이 실패하기 때문이다", "demo 핸들러가 analysis_response(demo_result()) 를 shareable 기본값 False 로 부르기 때문이다", "demo 경로는 boundary 미들웨어가 share_code 를 지우기 때문이다", "LC_DEMO_ENABLED 가 켜져 있으면 공유가 자동으로 꺼지기 때문이다"], "answer": 1, "explain": "analysis_response 는 shareable 이 참이고 키가 준비되었고 코드가 한도에 들어올 때만 share_code 를 붙입니다. analyse 만 shareable=True 를 넘깁니다. tests/test_share.py:184 가 이 동작을 확인합니다.", "ref": "backend/lovecode/api.py:149"},
-  {"q": "GET /api/v1/shared 가 공유 코드를 쿼리스트링이 아니라 X-Share-Code 헤더로 받는 이유는?", "options": ["쿼리스트링은 4000자를 넘을 수 없어서", "FastAPI 는 GET 요청에서 쿼리 매개변수를 읽지 못해서", "헤더로 보내면 자동으로 암호화되기 때문에", "URL 은 웹 서버·프록시 접근 로그에 남지만 헤더는 보통 남지 않아, 결과가 로그에 쌓이지 않게 하려고"], "answer": 3, "explain": "api.py:206 주석이 그대로 이유를 말합니다. 링크의 # 뒤 fragment 도 브라우저가 서버로 보내지 않으므로, 코드가 서버에 닿는 길은 헤더 하나뿐입니다. 헤더도 HTTPS 위에서 보호될 뿐 따로 암호화되지는 않습니다.", "ref": "backend/lovecode/api.py:206"}
+  {"q": "POST /api/v1/demo-analysis 응답에 share_code 가 없는 이유로 맞는 것은?", "options": ["예시 결과는 PublicResult 검증을 통과하지 못해 인코딩이 실패하기 때문이다", "demo 핸들러가 analysis_response(demo_result()) 를 shareable 기본값 False 로 부르기 때문이다", "demo 경로는 boundary 미들웨어가 share_code 를 지우기 때문이다", "LC_DEMO_ENABLED 가 켜져 있으면 공유가 자동으로 꺼지기 때문이다"], "answer": 1, "explain": "analysis_response 는 shareable 이 참이고 키가 준비되었고 코드가 한도에 들어올 때만 share_code 를 붙입니다. analyse 만 shareable=True 를 넘깁니다. tests/test_share.py:184 가 이 동작을 확인합니다.", "ref": "backend/lovecode/api.py:165"},
+  {"q": "GET /api/v1/shared 가 공유 코드를 쿼리스트링이 아니라 X-Share-Code 헤더로 받는 이유는?", "options": ["쿼리스트링은 4000자를 넘을 수 없어서", "FastAPI 는 GET 요청에서 쿼리 매개변수를 읽지 못해서", "헤더로 보내면 자동으로 암호화되기 때문에", "URL 은 웹 서버·프록시 접근 로그에 남지만 헤더는 보통 남지 않아, 결과가 로그에 쌓이지 않게 하려고"], "answer": 3, "explain": "api.py:206 주석이 그대로 이유를 말합니다. 링크의 # 뒤 fragment 도 브라우저가 서버로 보내지 않으므로, 코드가 서버에 닿는 길은 헤더 하나뿐입니다. 헤더도 HTTPS 위에서 보호될 뿐 따로 암호화되지는 않습니다.", "ref": "backend/lovecode/api.py:222"}
 ]
 </script>
 

@@ -579,7 +579,7 @@ def tracing_is_enabled(ctx: Optional[dict] = None) -> Union[bool, Literal["local
   <p>재작성 사유도 kind 만 남깁니다(<code>meta["repair"]["reasons"]</code>, 292-293행). 위반한 문장 자체는 저장하지 않으므로, 메타를 그대로 로그에 찍어도 해설 본문은 나가지 않습니다. test_provider.py 는 401 응답 본문에 비밀 문자열이 들어 있어도 예외 메시지가 정확히 <code>"PROVIDER_REQUEST_FAILED"</code> 임을 확인합니다(90-96행).</p>
   <p>마지막으로 usage 와 meta 는 서비스 응답에 포함되지 않습니다. <code>_call</code> 은 <code>AIMessage.usage_metadata</code> 를 <code>meta["usage"]</code> 로 모으고(247행) <code>_repair_step</code> 이 두 호출을 합산하지만(287-291행), api.py 는 <code>result, _ = service.analyse(body)</code> 로 meta 를 버리고(183행) <code>analysis_response</code> 는 <code>analysis_id</code> 와 <code>result</code>, 공유가 켜져 있을 때의 <code>share_code</code> 만 돌려줍니다(147-151행). <code>share_code</code> 도 공개 결과(<code>PublicResult</code>)만 압축·서명한 것이라 meta 는 들어가지 않습니다(share.py:89-97). <code>response_model=AnalysisResponse</code>(153행)가 그 모양을 다시 계약으로 고정하고, <code>response_model_exclude_none=True</code> 라 공유가 꺼져 있으면 <code>share_code</code> 키 자체가 빠집니다. usage·모델명·프롬프트 버전은 비교 스크립트와 테스트를 위한 것이지 웹 사용자를 위한 것이 아닙니다.</p>
   <p>api.py 의 호출부와 예외 변환입니다. meta 를 버리는 줄과 502·503 분기가 한 try 안에 있습니다.</p>
-  <code-block file="backend/lovecode/api.py" lines="183-198">
+  <code-block file="backend/lovecode/api.py" lines="199-214">
             result, _ = service.analyse(body)
             return analysis_response(result, shareable=True)
         except AnalysisBusy:
@@ -598,14 +598,14 @@ def tracing_is_enabled(ctx: Optional[dict] = None) -> Union[bool, Literal["local
             analysis_admission.release()
   </code-block>
   <ol class="notes">
-    <li data-line="183">서비스가 돌려준 meta(usage, 모델명, 프롬프트 버전)는 여기서 버립니다.</li>
-    <li data-line="184"><code>analysis_response</code> 는 <code>analysis_id</code> 와 <code>result</code>, 공유가 켜져 있을 때의 서명된 <code>share_code</code> 만 담습니다(147-151행). meta 는 들어가지 않습니다.</li>
-    <li data-line="187"><code>ProviderError</code> 는 코드와 일반 메시지만 가진 502 가 됩니다. 어떤 ProviderError 코드였는지도 노출하지 않습니다.</li>
-    <li data-line="191">설정·파일 문제는 503 으로 구분합니다.</li>
-    <li data-line="198">성공이든 실패든 입장 슬롯을 돌려줍니다.</li>
+    <li data-line="199">서비스가 돌려준 meta(usage, 모델명, 프롬프트 버전)는 여기서 버립니다.</li>
+    <li data-line="200"><code>analysis_response</code> 는 <code>analysis_id</code> 와 <code>result</code>, 공유가 켜져 있을 때의 서명된 <code>share_code</code> 만 담습니다(147-151행). meta 는 들어가지 않습니다.</li>
+    <li data-line="203"><code>ProviderError</code> 는 코드와 일반 메시지만 가진 502 가 됩니다. 어떤 ProviderError 코드였는지도 노출하지 않습니다.</li>
+    <li data-line="207">설정·파일 문제는 503 으로 구분합니다.</li>
+    <li data-line="214">성공이든 실패든 입장 슬롯을 돌려줍니다.</li>
   </ol>
   <p>왜 이렇게 했는가: 흔한 방식은 <code>logger.exception(e)</code> 로 전체 트레이스백을 남겨 디버깅을 쉽게 하는 것입니다. 하지만 그 트레이스백에는 프롬프트(사주 서술문), 모델 응답, 때로는 키가 섞이고, 이 서비스는 원본 입력을 저장하지 않는다는 것이 계약입니다(service.py:1). 러브코드는 디버깅 편의를 일부 포기하고 코드 문자열·소요 시간·토큰 수만 남기는 쪽을 택했습니다.</p>
-  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="238">backend/lovecode/generator.py:238</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langsmith/utils.py" data-line="132">.venv/lib/python3.12/site-packages/langsmith/utils.py:132</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_core/tracers/langchain.py" data-line="232">.venv/lib/python3.12/site-packages/langchain_core/tracers/langchain.py:232</a>, <a class="src" data-file="backend/lovecode/provider.py" data-line="94">backend/lovecode/provider.py:94</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="147">backend/lovecode/api.py:147</a></p>
+  <p class="ref">확인: <a class="src" data-file="backend/lovecode/generator.py" data-line="238">backend/lovecode/generator.py:238</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langsmith/utils.py" data-line="132">.venv/lib/python3.12/site-packages/langsmith/utils.py:132</a>, <a class="src" data-file=".venv/lib/python3.12/site-packages/langchain_core/tracers/langchain.py" data-line="232">.venv/lib/python3.12/site-packages/langchain_core/tracers/langchain.py:232</a>, <a class="src" data-file="backend/lovecode/provider.py" data-line="94">backend/lovecode/provider.py:94</a>, <a class="src" data-file="backend/lovecode/api.py" data-line="163">backend/lovecode/api.py:163</a></p>
 </section>
 
 <section class="lesson" id="lc-3-tests" data-track="langchain" data-depth="3">

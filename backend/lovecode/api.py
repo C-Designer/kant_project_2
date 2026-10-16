@@ -3,8 +3,10 @@ import threading
 import time
 import uuid
 from collections import defaultdict, deque
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
+import anyio.to_thread
 from fastapi import FastAPI, Header
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -36,6 +38,19 @@ def error(code, status, message="요청을 처리하지 못했어요. 다시 확
     )
 
 
+# Sync endpoints share anyio's default pool (40 threads); keep spare threads for
+# health/taxonomy/shared and response validation while every admission slot is busy.
+THREAD_HEADROOM = 10
+
+
+@asynccontextmanager
+async def lifespan(app):
+    # The limiter belongs to the running event loop, so it is sized here, not at import.
+    limiter = anyio.to_thread.current_default_thread_limiter()
+    limiter.total_tokens = max(limiter.total_tokens, settings().analysis_capacity + THREAD_HEADROOM)
+    yield
+
+
 def create_app(analysis_service=None, share_codec=None):
     service = analysis_service or AnalysisService()
     shares = share_codec or ShareCodec.from_settings()
@@ -49,6 +64,7 @@ def create_app(analysis_service=None, share_codec=None):
         version="0.2.0",
         openapi_url="/api/v1/openapi.json",
         docs_url="/api/docs",
+        lifespan=lifespan,
     )
     buckets = defaultdict(deque)
     salt = secrets.token_bytes(32)

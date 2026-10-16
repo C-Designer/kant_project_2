@@ -315,7 +315,7 @@ Release verdict: Not assessed
 - 원문 생일/시각/성별은 메모리 내 만세력 계산에 사용하고 외부에는 파생 사주·MBTI만 전달한다. 사용자 입력을 학습 데이터나 DB에 저장하지 않는다. AI 결과는 `ai_draft_unreviewed`로 티켓·공유까지 보존한다.
 - Responses `store=false`, strict JSON schema, 최대 출력2000토큰, 각 요청45초, 자동 재시도 없음. 브라우저 분석 timeout110초. 공급자 보관 전체를 없앤다는 뜻은 아니다.
 - health의 `analysis_ready`는 설정/로컬 artifact 준비 상태다. 실제 키 권한·quota·출력 품질의 성공 보장은 아니다. `verification_mode`는 주입된 모의 transport 상태이며 검증 서버 외에는 false. `share_ready`는 `LC_SHARE_SECRET`(32자 이상)이 있어 공유 링크를 만들고 열 수 있는지를 뜻한다.
-- 서버 origin은 `LC_ALLOWED_ORIGINS`, Next API upstream은 서버용 `API_INTERNAL_ORIGIN`. 기본 익명 rate limit + 동시분석2건 + UTC일별20시도. 현재 단일 process 메모리 한도이며 재시작 초기화. 공개 확장 시 영속/공유 한도와 proxy client IP 정책이 필요하다.
+- 서버 origin은 `LC_ALLOWED_ORIGINS`, Next API upstream은 서버용 `API_INTERNAL_ORIGIN`. 기본 익명 rate limit(같은 IP 분석 5회/10분) + 인스턴스당 동시 분석 50건(BERT 2·해설 50) + UTC일별20시도. 현재 인스턴스별 메모리 한도이며 재시작 초기화. 공개 확장 시 영속/공유 한도와 proxy client IP 정책이 필요하다.
 - 모의 transport는 자동 테스트 및 `scripts/serve_mock_analysis.py`에만 존재한다. 배포 진입점은 `lovecode.api:app`, 기본 off. 실키를 임의로 사용하지 않았고 실API 품질·운영 배포를 검증 완료라고 표시하지 않는다.
 - 학습 fixture artifact는 runtime loader가 거부한다. 모델 로드 전 digest/16클래스 검사, encoder는 로컬 캐시만 사용한다. pickle 파일은 운영자가 직접 생성한 신뢰하는 artifact만 지정한다.
 
@@ -343,3 +343,12 @@ Release verdict: Not assessed
 - 출력 토큰이 약 1k 늘어 OpenAI `max_output_tokens`를 2000에서 3500으로, Ollama `num_predict`를 2400·`num_ctx`를 6144로 올렸다. 실제 호출 2건: 입력 약 2.4k·출력 0.8~1.2k 토큰, 7~14초.
 - 공유 링크 본문 상한을 6000자에서 10000자로 올렸다(최악의 경우 약 8.1K, 예시 결과 약 2.2K). 풀이에는 일간(예: 정화) 같은 파생 사주가 들어가고, 생일·시각·성별은 여전히 담지 않는다.
 
+## 15. 동시성 한도 (2026-10-16, 현행)
+
+인스턴스당 입장 한도 `LC_ANALYSIS_CAPACITY`와 해설 자리 `LC_EXPLANATION_CONCURRENCY`를 20·5에서 50·50으로 올렸다. BERT 2건, 하루 20회, 같은 IP 5회/10분은 그대로다.
+
+- 분석 시간 대부분은 OpenAI 응답 대기(호출 1건 7~14초)다. 기다리는 스레드는 CPU를 거의 쓰지 않으므로 해설 자리를 늘려도 인스턴스 부하는 크게 늘지 않는다.
+- CPU 보호는 BERT 2건 슬롯이 맡는다. 한 건이 약 0.1초라 2건으로도 병목이 아니다.
+- 확장은 Vercel Fluid compute에 맡긴다. 우리 코드가 먼저 429를 주면 플랫폼이 새 인스턴스를 띄울 이유가 없으므로, 앱 한도는 플랫폼보다 먼저 막지 않을 만큼 넉넉히 둔다.
+- `def analyse`는 anyio 기본 스레드 풀(40개)에서 돈다. lifespan에서 풀을 `analysis_capacity + 10`(기본 60)으로 늘려 50건이 실제로 동시에 돌고, health 등 다른 동기 엔드포인트와 응답 검증에 쓸 여유도 남긴다. 기본값보다 작게 줄이지는 않는다.
+- 남는 위험은 OpenAI 계정 한도다. 요청 1건이 약 3.5k 토큰(재작성이 붙으면 약 7k)이라 50건이 1분 안에 몰리면 175k~350k TPM이 필요하다. 넘으면 OpenAI 429가 우리 쪽 502로 나간다(재시도 없음).

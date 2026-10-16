@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://127.0.0.1:3100,http://localhost:3100"
     daily_analysis_limit: int = 20
     analysis_wait_seconds: float = Field(default=30, gt=0, le=45)
-    analysis_capacity: int = Field(default=20, ge=1, le=32)
+    analysis_capacity: int = Field(default=50, ge=1, le=64)
     bert_concurrency: int = Field(default=2, ge=1, le=2)
-    explanation_concurrency: int = Field(default=5, ge=1, le=10)
+    explanation_concurrency: int = Field(default=50, ge=1, le=64)
     demo_enabled: bool = True
     rate_limit_enabled: bool = True
     # Signs stateless share links (32+ random characters). Empty turns sharing off.
