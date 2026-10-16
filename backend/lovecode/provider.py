@@ -19,10 +19,14 @@ class ProviderError(Exception):
 
 
 def http_failure_detail(exc):
-    """Classify an OpenAI HTTP failure without keeping its message, body or our request."""
+    """Classify an OpenAI failure without keeping its message, body or our request.
+
+    Works for httpx.HTTPStatusError (provider.py) and openai.APIStatusError (LangChain's
+    ChatOpenAI). The openai SDK ships its own `httpx2`, so match the response by shape, not type.
+    """
     detail = {"exception": type(exc).__name__}
-    response = getattr(exc, "response", None) if isinstance(exc, httpx.HTTPStatusError) else None
-    if response is None:
+    response = getattr(exc, "response", None)
+    if not hasattr(response, "status_code") or not hasattr(response, "headers"):
         return detail
     headers = response.headers
     detail.update(
@@ -31,10 +35,15 @@ def http_failure_detail(exc):
         ratelimit_remaining_requests=headers.get("x-ratelimit-remaining-requests"),
         ratelimit_remaining_tokens=headers.get("x-ratelimit-remaining-tokens"),
     )
-    try:  # OpenAI error objects carry enumerated `type`/`code` (e.g. insufficient_quota)
+    # OpenAI error objects carry enumerated `type`/`code` (e.g. insufficient_quota).
+    detail.update(provider_error_type=getattr(exc, "type", None), provider_error_code=getattr(exc, "code", None))
+    try:
         err = response.json().get("error") or {}
-        detail.update(provider_error_type=err.get("type"), provider_error_code=err.get("code"))
-    except (ValueError, AttributeError):
+        detail.update(
+            provider_error_type=err.get("type") or detail["provider_error_type"],
+            provider_error_code=err.get("code") or detail["provider_error_code"],
+        )
+    except (ValueError, AttributeError, TypeError):
         pass
     return detail
 

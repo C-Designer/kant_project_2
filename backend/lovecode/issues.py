@@ -41,7 +41,7 @@ FIELDS = {  # allow-list of detail fields
     "stage",
     "duration_ms",
 }
-_SAFE = re.compile(r"^[A-Za-z0-9_.:\-]{1,96}$")
+_SAFE = re.compile(r"^[A-Za-z0-9_.:/\-]{1,96}$")
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_:\-]{1,128}$")
 
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")

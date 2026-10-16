@@ -98,3 +98,37 @@ def test_unhandled_error_is_logged_with_request_id(real_mode, records):
     assert r.status_code == 500 and r.json()["request_id"] == r.headers["X-Request-ID"]
     rec = json.loads(next(m for m in records if '"request.unhandled"' in m))
     assert rec["exception"] == "RuntimeError" and "1994" not in json.dumps(rec)
+
+
+def test_langchain_rate_limit_is_classified(real_mode, records):
+    """Production explains via ChatOpenAI, whose errors come from the openai SDK (httpx2)."""
+    import openai
+    from langchain_core.runnables import RunnableLambda
+    from lovecode.generator import LangChainExplainer
+
+    raw = openai._exceptions.httpx2.Response(  # the SDK's own httpx fork
+        429,
+        headers={"x-request-id": "req_lc456"},
+        json={"error": {"type": "insufficient_quota", "code": "insufficient_quota",
+                        "message": "1994-06-15 sk-fixture-key"}},
+        request=openai._exceptions.httpx2.Request("POST", "https://api.openai.com/v1/responses"),
+    )
+
+    class QuotaLLM:
+        def with_structured_output(self, schema, **kwargs):
+            def fail(_):
+                raise openai.RateLimitError("quota", response=raw, body=None)
+
+            return RunnableLambda(fail)
+
+    service = AnalysisService(
+        mock_provider("T13"), explainer=LangChainExplainer("openai", llm=QuotaLLM())
+    )
+    with TestClient(create_app(analysis_service=service)) as client:
+        r = client.post("/api/v1/analyses", json=request_body())
+    assert r.status_code == 502
+    rec = json.loads(next(m for m in records if '"analysis.provider_failed"' in m))
+    assert rec["http_status"] == 429 and rec["provider_error_code"] == "insufficient_quota"
+    assert rec["provider_request_id"] == "req_lc456" and rec["route"] == "/api/v1/analyses"
+    assert rec["request_id"] == r.headers["X-Request-ID"]
+    assert all(s not in line for line in records for s in SENTINELS)
